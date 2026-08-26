@@ -19,6 +19,7 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     renamePathItem,
     createFileInDir,
     createFolderInDir,
+    settings,
   } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
@@ -46,6 +47,14 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
       newChildInputRef.current?.focus()
     }
   }, [creatingChild])
+
+  // Filter hidden and ignored items based on settings
+  if (node.is_hidden && !settings.showHiddenFiles) {
+    return null
+  }
+  if (node.is_ignored && !settings.showIgnoredFiles) {
+    return null
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -103,9 +112,11 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative ${
           isActive
             ? 'bg-ide-accent/25 text-white font-medium'
+            : node.is_ignored
+            ? 'hover:bg-white/5 text-[#777777] opacity-60'
             : 'hover:bg-white/5 text-[#cccccc]'
         }`}
-        title={node.path}
+        title={node.is_ignored ? `${node.path} [Git Ignored]` : node.path}
       >
         {/* Indent Guide Marker */}
         {depth > 0 && (

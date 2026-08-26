@@ -84,7 +84,10 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   refreshDirectory: async (path) => {
     const targetDir = path || get().currentDir
     try {
-      const files = await invoke<FileNode[]>('read_dir', { path: targetDir })
+      const files = await invoke<FileNode[]>('read_dir', {
+        path: targetDir,
+        showHidden: get().settings.showHiddenFiles,
+      })
       if (targetDir === get().currentDir) {
         set({ fileTree: files })
       } else {
@@ -144,7 +147,10 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
     } else {
       if (!get().folderChildren[path]) {
         try {
-          const children = await invoke<FileNode[]>('read_dir', { path })
+          const children = await invoke<FileNode[]>('read_dir', {
+            path,
+            showHidden: get().settings.showHiddenFiles,
+          })
           set((state) => ({
             folderChildren: { ...state.folderChildren, [path]: children },
             expandedFolders: { ...state.expandedFolders, [path]: true }

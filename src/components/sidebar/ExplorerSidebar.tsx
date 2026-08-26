@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp } from 'lucide-react'
+import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
 
@@ -13,6 +13,8 @@ export const ExplorerSidebar: React.FC = () => {
     setCurrentDir,
     openFile,
     collapseAllFolders,
+    settings,
+    updateSettings,
   } = useIDEStore()
 
   const loadDirectory = useCallback(
@@ -92,6 +94,29 @@ export const ExplorerSidebar: React.FC = () => {
             title="New Folder"
           >
             <FolderPlus size={14} />
+          </button>
+          <button
+            onClick={() => {
+              updateSettings({ showHiddenFiles: !settings.showHiddenFiles })
+              setTimeout(() => loadDirectory(currentDir), 50)
+            }}
+            className={`hover:text-white transition-colors p-1 hover:bg-white/10 rounded cursor-pointer ${
+              settings.showHiddenFiles ? 'text-ide-accent bg-ide-accent/15' : 'text-[#888]'
+            }`}
+            title={settings.showHiddenFiles ? 'Hide Hidden Files (dotfiles)' : 'Show Hidden Files (.env, .gitignore)'}
+          >
+            <Eye size={13} />
+          </button>
+          <button
+            onClick={() => {
+              updateSettings({ showIgnoredFiles: !settings.showIgnoredFiles })
+            }}
+            className={`hover:text-white transition-colors p-1 hover:bg-white/10 rounded cursor-pointer ${
+              settings.showIgnoredFiles ? 'text-ide-accent bg-ide-accent/15' : 'text-[#888]'
+            }`}
+            title={settings.showIgnoredFiles ? 'Hide Git Ignored Files (node_modules, dist)' : 'Show Git Ignored Files'}
+          >
+            <EyeOff size={13} />
           </button>
           <button
             onClick={collapseAllFolders}

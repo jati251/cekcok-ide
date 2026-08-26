@@ -8,12 +8,15 @@ pub struct FileNode {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
+    pub is_hidden: bool,
+    pub is_ignored: bool,
 }
 
 #[tauri::command]
-pub fn read_dir(path: &str) -> Result<Vec<FileNode>, String> {
+pub fn read_dir(path: &str, show_hidden: Option<bool>) -> Result<Vec<FileNode>, String> {
     let mut files = Vec::new();
     let dir_path = Path::new(path);
+    let allow_hidden = show_hidden.unwrap_or(true);
 
     if !dir_path.exists() || !dir_path.is_dir() {
         return Err(format!("Path {} is not a valid directory", path));
@@ -25,8 +28,11 @@ pub fn read_dir(path: &str) -> Result<Vec<FileNode>, String> {
                 let path_buf = entry.path();
                 let file_name = entry.file_name().into_string().unwrap_or_default();
 
-                // Skip hidden files
-                if file_name.starts_with('.') {
+                let is_hidden = file_name.starts_with('.');
+                let is_ignored = is_hidden_or_ignored_name(&file_name);
+
+                // If hidden files are disabled, skip hidden files completely (except .gitignore or .env if needed)
+                if is_hidden && !allow_hidden {
                     continue;
                 }
 
@@ -34,6 +40,8 @@ pub fn read_dir(path: &str) -> Result<Vec<FileNode>, String> {
                     name: file_name,
                     path: path_buf.to_string_lossy().into_owned(),
                     is_dir: path_buf.is_dir(),
+                    is_hidden,
+                    is_ignored,
                 });
             }
 
@@ -52,6 +60,23 @@ pub fn read_dir(path: &str) -> Result<Vec<FileNode>, String> {
         }
         Err(e) => Err(e.to_string()),
     }
+}
+
+fn is_hidden_or_ignored_name(name: &str) -> bool {
+    matches!(
+        name,
+        "node_modules"
+            | ".git"
+            | "dist"
+            | "build"
+            | "target"
+            | ".next"
+            | ".turbo"
+            | ".DS_Store"
+            | ".cache"
+            | "out"
+            | "coverage"
+    )
 }
 
 #[tauri::command]
