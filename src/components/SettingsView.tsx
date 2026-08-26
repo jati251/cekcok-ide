@@ -191,6 +191,24 @@ export const SettingsView = () => {
                   </select>
                 </div>
               )}
+
+              {matchesSearch('Startup Behavior') && (
+                <div className="space-y-1.5 pb-4 border-b border-ide-border/40">
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">Workbench: Startup Behavior</h4>
+                    <p className="text-[11px] text-ide-muted">Controls how the IDE restores workspaces upon launch.</p>
+                  </div>
+                  <select
+                    value={settings.startupBehavior}
+                    onChange={(e) => updateSettings({ startupBehavior: e.target.value as UserSettings['startupBehavior'] })}
+                    className="bg-[#3c3c3c] text-white text-xs px-2.5 py-1.5 rounded border border-ide-border focus:outline-none cursor-pointer"
+                  >
+                    <option value="restoreLastProject">restoreLastProject (Open previous project automatically)</option>
+                    <option value="welcomePage">welcomePage (Open Get Started screen)</option>
+                    <option value="empty">empty (Open empty workspace)</option>
+                  </select>
+                </div>
+              )}
             </>
           )}
         </div>

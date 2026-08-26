@@ -11,7 +11,9 @@ export const StatusBar = () => {
     packageJson,
     setCommandPaletteOpen,
     refreshGitStatus,
-    isGitLoading
+    isGitLoading,
+    zoomLevel,
+    setZoomLevel
   } = useIDEStore()
 
   const getLanguage = () => {
@@ -104,6 +106,13 @@ export const StatusBar = () => {
             </div>
           </>
         )}
+        <button
+          onClick={() => setZoomLevel(1.0)}
+          className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-mono text-[10px]"
+          title="Zoom Level (Click to reset to 100%, Cmd+= to zoom in, Cmd+- to zoom out)"
+        >
+          {Math.round(zoomLevel * 100)}%
+        </button>
         <button 
           onClick={() => setCommandPaletteOpen(true)}
           className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"

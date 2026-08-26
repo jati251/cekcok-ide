@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
-import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings } from 'lucide-react'
+import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings, Compass } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { registerMonacoThemes } from '../utils/themes'
 import { TabContextMenu } from './TabContextMenu'
 import { SettingsView } from './SettingsView'
+import { WelcomeView } from './WelcomeView'
 
 const getLanguageFromFilename = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase()
@@ -43,10 +44,14 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     saveFile,
     settings,
     toggleSplitEditor,
-    splitEditorOpen
+    splitEditorOpen,
+    reorderTabsInPane,
+    moveTabBetweenPanes,
+    openFileInPane
   } = useIDEStore()
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Auto-save debounced handler
@@ -62,7 +67,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   // Fetch file content when active file changes if not already in store
   useEffect(() => {
     if (!activeFile) return
-    if (activeFile.path.startsWith('settings://')) return
+    if (activeFile.path.startsWith('settings://') || activeFile.path.startsWith('welcome://')) return
     if (activeFile.content !== undefined) return
 
     let isMounted = true
@@ -120,6 +125,58 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     })
   }
 
+  // Tab Drag and Drop handling
+  const handleTabDragStart = (e: React.DragEvent, file: FileNode, index: number) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'tab',
+      path: file.path,
+      pane: paneId,
+      index
+    }))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleTabDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const raw = e.dataTransfer.getData('application/json')
+    if (!raw) return
+    try {
+      const data = JSON.parse(raw)
+      if (data.type === 'tab') {
+        if (data.pane === paneId) {
+          reorderTabsInPane(paneId, data.index, targetIndex)
+        } else {
+          moveTabBetweenPanes(data.path, data.pane, paneId, targetIndex)
+        }
+      } else if (data.name && data.path) {
+        // Dropped a file from file tree
+        openFileInPane(data, paneId)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleContainerDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const raw = e.dataTransfer.getData('application/json')
+    if (!raw) return
+    try {
+      const data = JSON.parse(raw)
+      if (data.type === 'tab') {
+        if (data.pane !== paneId) {
+          moveTabBetweenPanes(data.path, data.pane, paneId)
+        }
+      } else if (data.name && data.path) {
+        openFileInPane(data, paneId)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   const pathSegments = activeFile ? activeFile.path.split(/[/\\]/).filter(Boolean) : []
   const editorValue = activeFile?.content ?? ""
 
@@ -127,23 +184,38 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     <div 
       className={`flex-1 flex flex-col min-w-0 h-full border-r border-ide-border last:border-r-0 relative ${
         isActivePane ? 'ring-1 ring-ide-accent/40' : ''
-      }`}
+      } ${isDragOver ? 'bg-ide-accent/5' : ''}`}
       onClick={() => setActivePane(paneId)}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setIsDragOver(true)
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleContainerDrop}
     >
       {/* Tab Bar Header */}
-      <div className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2">
+      <div 
+        className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2"
+        onDragOver={(e) => e.preventDefault()}
+      >
         <div className="flex flex-1 overflow-x-auto no-scrollbar h-full">
           {files.length === 0 ? (
             <div className="flex items-center px-4 text-xs text-ide-muted italic">
               Pane {paneId} (Empty)
             </div>
           ) : (
-            files.map((file) => {
+            files.map((file, idx) => {
               const isActive = activeFile?.path === file.path
               const isSettingsTab = file.path === 'settings://preferences'
+              const isWelcomeTab = file.path === 'welcome://get-started'
+
               return (
                 <div 
                   key={file.path}
+                  draggable={true}
+                  onDragStart={(e) => handleTabDragStart(e, file, idx)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleTabDrop(e, idx)}
                   onClick={() => setActiveFileInPane(file, paneId)}
                   onContextMenu={(e) => handleTabContextMenu(e, file)}
                   className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
@@ -153,6 +225,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                   }`}
                 >
                   {isSettingsTab && <Settings size={13} className="text-[#4fc1ff] shrink-0" />}
+                  {isWelcomeTab && <Compass size={13} className="text-purple-400 shrink-0" />}
                   <span className="truncate flex-1">{file.name}</span>
                   <button 
                     onClick={(e) => {
@@ -196,6 +269,13 @@ const SinglePane: React.FC<SinglePaneProps> = ({
               <ChevronRight size={10} className="text-ide-muted/60" />
               <span className="text-white/90 font-medium">Settings</span>
             </div>
+          ) : activeFile.path === 'welcome://get-started' ? (
+            <div className="flex items-center gap-1">
+              <Compass size={12} className="mr-1 text-purple-400 shrink-0" />
+              <span>Cekcok</span>
+              <ChevronRight size={10} className="text-ide-muted/60" />
+              <span className="text-white/90 font-medium">Get Started</span>
+            </div>
           ) : (
             <>
               <FileCode2 size={12} className="mr-1.5 text-[#80a4c2] shrink-0" />
@@ -223,11 +303,13 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         </div>
       )}
 
-      {/* Canvas Area: Settings View or Monaco Editor */}
+      {/* Canvas Area: Settings, Welcome, or Monaco Editor */}
       <div className="flex-1 relative overflow-hidden">
         {activeFile ? (
           activeFile.path === 'settings://preferences' ? (
             <SettingsView />
+          ) : activeFile.path === 'welcome://get-started' ? (
+            <WelcomeView />
           ) : (
             <Editor
               height="100%"
@@ -263,10 +345,12 @@ const SinglePane: React.FC<SinglePaneProps> = ({
               }}
             />
           )
+        ) : paneId === 1 && !splitEditorOpen ? (
+          <WelcomeView />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none">
             <div className="text-lg font-semibold text-white/30">Cekcok Editor (Pane {paneId})</div>
-            <div className="text-xs text-[#888]">Select a file from the explorer to open in this pane</div>
+            <div className="text-xs text-[#888]">Select a file from the explorer or drag one here</div>
           </div>
         )}
       </div>

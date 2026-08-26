@@ -29,18 +29,44 @@ function App() {
     saveActiveFile,
     toggleSplitEditor,
     setActivePane,
-    openSettingsTab
+    openSettingsTab,
+    zoomLevel,
+    setZoomLevel,
+    setCurrentDir
   } = useIDEStore()
 
   useEffect(() => {
+    // Startup Restore Handling
+    if (settings.startupBehavior === 'restoreLastProject') {
+      const lastProject = localStorage.getItem('cekcok_ide_last_project')
+      if (lastProject) {
+        setCurrentDir(lastProject)
+      }
+    }
+
     refreshGitStatus()
     refreshPackageJson()
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey
 
+      // Zoom In: Cmd + = / Cmd + +
+      if (isCmdOrCtrl && (e.key === '=' || e.key === '+')) {
+        e.preventDefault()
+        setZoomLevel((prev) => prev + 0.1)
+      }
+      // Zoom Out: Cmd + - / Cmd + _
+      else if (isCmdOrCtrl && (e.key === '-' || e.key === '_')) {
+        e.preventDefault()
+        setZoomLevel((prev) => prev - 0.1)
+      }
+      // Zoom Reset: Cmd + 0
+      else if (isCmdOrCtrl && e.key === '0') {
+        e.preventDefault()
+        setZoomLevel(1.0)
+      }
       // Cmd+Shift+P: Command Palette
-      if (isCmdOrCtrl && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
+      else if (isCmdOrCtrl && e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault()
         setCommandPaletteOpen(true)
       }
@@ -110,7 +136,10 @@ function App() {
     saveActiveFile,
     toggleSplitEditor,
     setActivePane,
-    openSettingsTab
+    openSettingsTab,
+    setZoomLevel,
+    settings.startupBehavior,
+    setCurrentDir
   ])
 
   const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']
@@ -121,6 +150,7 @@ function App() {
       style={{
         backgroundColor: activeTheme.colors.bg,
         color: activeTheme.colors.text,
+        zoom: zoomLevel,
         // @ts-expect-error custom CSS variable mapping for themes
         '--color-ide-bg': activeTheme.colors.bg,
         '--color-ide-sidebar': activeTheme.colors.sidebar,

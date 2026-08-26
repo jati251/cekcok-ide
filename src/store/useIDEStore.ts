@@ -43,6 +43,7 @@ export interface UserSettings {
   minimapEnabled: boolean
   autoSave: 'off' | 'afterDelay' | 'onFocusChange'
   lineNumbers: 'on' | 'off' | 'relative'
+  startupBehavior: 'restoreLastProject' | 'welcomePage' | 'empty'
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -53,7 +54,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   wordWrap: 'on',
   minimapEnabled: true,
   autoSave: 'afterDelay',
-  lineNumbers: 'on'
+  lineNumbers: 'on',
+  startupBehavior: 'restoreLastProject'
 }
 
 const loadSavedSettings = (): UserSettings => {
@@ -68,6 +70,16 @@ const loadSavedSettings = (): UserSettings => {
   return DEFAULT_SETTINGS
 }
 
+const loadSavedRecentProjects = (): string[] => {
+  try {
+    const saved = localStorage.getItem('cekcok_ide_recents')
+    if (saved) return JSON.parse(saved)
+  } catch {
+    // fallback
+  }
+  return []
+}
+
 export interface PendingCloseFile {
   path: string
   pane: 1 | 2
@@ -78,7 +90,13 @@ export interface IDEState {
   // File System State
   currentDir: string
   fileTree: FileNode[]
+  expandedFolders: Record<string, boolean>
+  folderChildren: Record<string, FileNode[]>
   
+  // Recent Projects & Startup
+  recentProjects: string[]
+  zoomLevel: number
+
   // Multi-View Split Editor State
   splitEditorOpen: boolean
   activePane: 1 | 2
@@ -121,8 +139,14 @@ export interface IDEState {
   setCurrentDir: (dir: string) => void
   setSidebarWidth: (w: number) => void
   setTerminalHeight: (h: number) => void
+  setZoomLevel: (zoom: number | ((prev: number) => number)) => void
   updateSettings: (partial: Partial<UserSettings>) => void
+  addRecentProject: (path: string) => void
   
+  // Tree Expansion Actions
+  toggleFolder: (path: string) => Promise<void>
+  collapseAllFolders: () => void
+
   // Pane & File actions
   setActivePane: (pane: 1 | 2) => void
   toggleSplitEditor: () => void
@@ -143,10 +167,15 @@ export interface IDEState {
   closeTabsToRightInPane: (path: string, pane: 1 | 2) => void
   closeAllTabsInPane: (pane: 1 | 2) => void
 
+  // Drag and drop tab actions
+  reorderTabsInPane: (pane: 1 | 2, fromIndex: number, toIndex: number) => void
+  moveTabBetweenPanes: (filePath: string, fromPane: 1 | 2, toPane: 1 | 2, targetIndex?: number) => void
+
   setActiveFileInPane: (file: FileNode | null, pane: 1 | 2) => void
   saveFile: (path: string) => Promise<void>
   saveActiveFile: () => Promise<void>
   openSettingsTab: () => void
+  openWelcomeTab: () => void
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -164,6 +193,11 @@ export interface IDEState {
 export const useIDEStore = create<IDEState>((set, get) => ({
   currentDir: '.',
   fileTree: [],
+  expandedFolders: {},
+  folderChildren: {},
+
+  recentProjects: loadSavedRecentProjects(),
+  zoomLevel: 1.0,
   
   splitEditorOpen: false,
   activePane: 1,
@@ -202,13 +236,31 @@ export const useIDEStore = create<IDEState>((set, get) => ({
 
   setFileTree: (files) => set({ fileTree: files }),
   setCurrentDir: (dir) => {
-    set({ currentDir: dir })
+    set({ currentDir: dir, expandedFolders: {}, folderChildren: {} })
+    get().addRecentProject(dir)
     get().refreshGitStatus()
     get().refreshPackageJson()
   },
 
   setSidebarWidth: (w) => set({ sidebarWidth: Math.max(160, Math.min(w, 700)) }),
   setTerminalHeight: (h) => set({ terminalHeight: Math.max(80, Math.min(h, 600)) }),
+  
+  setZoomLevel: (updater) => set((state) => {
+    const next = typeof updater === 'function' ? updater(state.zoomLevel) : updater
+    return { zoomLevel: Math.max(0.6, Math.min(1.8, Math.round(next * 100) / 100)) }
+  }),
+
+  addRecentProject: (path) => {
+    if (path === '.' || !path) return
+    const recents = [path, ...get().recentProjects.filter(p => p !== path)].slice(0, 10)
+    set({ recentProjects: recents })
+    try {
+      localStorage.setItem('cekcok_ide_recents', JSON.stringify(recents))
+      localStorage.setItem('cekcok_ide_last_project', path)
+    } catch {
+      // ignore
+    }
+  },
 
   updateSettings: (partial) => set((state) => {
     const updated = { ...state.settings, ...partial }
@@ -219,6 +271,34 @@ export const useIDEStore = create<IDEState>((set, get) => ({
     }
     return { settings: updated }
   }),
+
+  toggleFolder: async (path) => {
+    const isExpanded = !!get().expandedFolders[path]
+    if (isExpanded) {
+      set((state) => ({
+        expandedFolders: { ...state.expandedFolders, [path]: false }
+      }))
+    } else {
+      // Expand and load children if not loaded
+      if (!get().folderChildren[path]) {
+        try {
+          const children = await invoke<FileNode[]>('read_dir', { path })
+          set((state) => ({
+            folderChildren: { ...state.folderChildren, [path]: children },
+            expandedFolders: { ...state.expandedFolders, [path]: true }
+          }))
+          return
+        } catch (err) {
+          console.error(`Failed to read folder: ${path}`, err)
+        }
+      }
+      set((state) => ({
+        expandedFolders: { ...state.expandedFolders, [path]: true }
+      }))
+    }
+  },
+
+  collapseAllFolders: () => set({ expandedFolders: {} }),
 
   setActivePane: (pane) => set({ activePane: pane }),
   toggleSplitEditor: () => set((state) => {
@@ -294,7 +374,6 @@ export const useIDEStore = create<IDEState>((set, get) => ({
       await get().saveFile(pending.path)
     }
 
-    // Close the file in the specified pane
     get().closeFileInPane(pending.path, pending.pane)
     set({ pendingCloseFile: null })
   },
@@ -387,6 +466,63 @@ export const useIDEStore = create<IDEState>((set, get) => ({
     }
   }),
 
+  reorderTabsInPane: (pane, fromIndex, toIndex) => set((state) => {
+    const list = pane === 1 ? [...state.pane1Files] : [...state.pane2Files]
+    const [moved] = list.splice(fromIndex, 1)
+    if (!moved) return {}
+    list.splice(toIndex, 0, moved)
+
+    if (pane === 1) {
+      return { pane1Files: list, openFiles: list }
+    } else {
+      return { pane2Files: list }
+    }
+  }),
+
+  moveTabBetweenPanes: (filePath, fromPane, toPane, targetIndex) => set((state) => {
+    if (fromPane === toPane) return {}
+    const fromList = fromPane === 1 ? [...state.pane1Files] : [...state.pane2Files]
+    const toList = toPane === 1 ? [...state.pane1Files] : [...state.pane2Files]
+    
+    const fileIndex = fromList.findIndex(f => f.path === filePath)
+    if (fileIndex === -1) return {}
+    const [file] = fromList.splice(fileIndex, 1)
+
+    // Check if already in destination
+    const existingInTo = toList.findIndex(f => f.path === filePath)
+    if (existingInTo === -1) {
+      if (typeof targetIndex === 'number') {
+        toList.splice(targetIndex, 0, file)
+      } else {
+        toList.push(file)
+      }
+    }
+
+    const newFromActive = fromList.length > 0 ? fromList[fromList.length - 1] : null
+
+    if (fromPane === 1) {
+      return {
+        pane1Files: fromList,
+        pane1ActiveFile: newFromActive,
+        openFiles: fromList,
+        activeFile: newFromActive,
+        pane2Files: toList,
+        pane2ActiveFile: file,
+        activePane: 2
+      }
+    } else {
+      return {
+        pane2Files: fromList,
+        pane2ActiveFile: newFromActive,
+        pane1Files: toList,
+        pane1ActiveFile: file,
+        openFiles: toList,
+        activeFile: file,
+        activePane: 1
+      }
+    }
+  }),
+
   setActiveFile: (file) => {
     const pane = get().activePane
     get().setActiveFileInPane(file, pane)
@@ -446,6 +582,15 @@ export const useIDEStore = create<IDEState>((set, get) => ({
       is_dir: false,
     }
     get().openFile(settingsFile)
+  },
+
+  openWelcomeTab: () => {
+    const welcomeFile: FileNode = {
+      name: 'Get Started',
+      path: 'welcome://get-started',
+      is_dir: false,
+    }
+    get().openFile(welcomeFile)
   },
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

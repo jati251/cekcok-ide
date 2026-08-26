@@ -3,11 +3,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  FolderOpen, 
-  FileCode2, 
-  FileJson, 
-  FileText, 
-  File as FileIcon, 
   FilePlus, 
   FolderPlus, 
   RefreshCw, 
@@ -19,9 +14,11 @@ import {
   RotateCcw,
   Check,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronsDownUp
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
+import { FileTreeItem } from './FileTreeItem'
 
 interface SearchResultItem {
   file_path: string
@@ -30,24 +27,12 @@ interface SearchResultItem {
   line_text: string
 }
 
-const getIconForFile = (filename: string, isDir: boolean) => {
-  if (isDir) return FolderOpen
-  const ext = filename.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'json': return FileJson
-    case 'md': return FileText
-    case 'rs': case 'ts': case 'tsx': case 'js': case 'jsx': return FileCode2
-    default: return FileIcon
-  }
-}
-
 export const Sidebar = () => {
   const { 
     sidebarOpen, 
     sidebarWidth,
     activeSidebarTab,
     fileTree, 
-    activeFile, 
     currentDir,
     setFileTree, 
     setCurrentDir,
@@ -57,7 +42,8 @@ export const Sidebar = () => {
     refreshGitStatus,
     packageJson,
     refreshPackageJson,
-    runTerminalCommand
+    runTerminalCommand,
+    collapseAllFolders
   } = useIDEStore()
 
   // Explorer State
@@ -258,7 +244,7 @@ export const Sidebar = () => {
           {activeSidebarTab === 'explorer' && (
             <div className="flex flex-col h-full">
               <div className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
-                <span className="truncate max-w-[140px] text-white/90" title={currentDir}>{rootFolderName}</span>
+                <span className="truncate max-w-[120px] text-white/90 font-mono text-[11px]" title={currentDir}>{rootFolderName}</span>
                 <div className="flex gap-1 items-center">
                   <button 
                     onClick={() => handleCreateNode(false)}
@@ -273,6 +259,13 @@ export const Sidebar = () => {
                     title="New Folder"
                   >
                     <FolderPlus size={14} />
+                  </button>
+                  <button 
+                    onClick={collapseAllFolders}
+                    className="hover:text-white text-[#999] transition-colors p-1 hover:bg-white/10 rounded cursor-pointer"
+                    title="Collapse All Folders"
+                  >
+                    <ChevronsDownUp size={13} />
                   </button>
                   <button 
                     onClick={() => loadDirectory(currentDir)}
@@ -292,30 +285,13 @@ export const Sidebar = () => {
               </div>
               
               <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-                {fileTree.map((file) => {
-                  const Icon = getIconForFile(file.name, file.is_dir)
-                  const isActive = activeFile?.path === file.path
-                  return (
-                    <div 
-                      key={file.path}
-                      className={`flex items-center gap-2 px-2.5 py-1 rounded text-[13px] cursor-pointer transition-colors ${
-                        isActive 
-                          ? 'bg-ide-accent/25 text-white font-medium' 
-                          : 'hover:bg-white/5 text-[#cccccc]'
-                      }`}
-                      onClick={() => {
-                        if (file.is_dir) {
-                          loadDirectory(file.path)
-                        } else {
-                          openFile(file)
-                        }
-                      }}
-                    >
-                      <Icon size={16} className={file.is_dir ? "text-yellow-400 shrink-0" : "text-[#80a4c2] shrink-0"} />
-                      <span className="truncate">{file.name}</span>
-                    </div>
-                  )
-                })}
+                {fileTree.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#888] italic">No files in directory</div>
+                ) : (
+                  fileTree.map((file) => (
+                    <FileTreeItem key={file.path} node={file} depth={0} />
+                  ))
+                )}
               </div>
             </div>
           )}
