@@ -32,7 +32,7 @@ export const App: React.FC = () => {
   // Register all global keybindings
   useKeyboardShortcuts()
   useNativeMenu()
-  const { triggerAutoSave } = useAutoSave()
+  useAutoSave()
 
   // Handle Zoom at documentElement level so layout dynamically stretches to fill window 100%
   useEffect(() => {
