@@ -1,9 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+
 import {
-  Minus,
-  Square,
-  X,
   Search,
   Code2,
 } from 'lucide-react'
@@ -41,32 +38,7 @@ export const TitleBar: React.FC = () => {
     return () => window.removeEventListener('mousedown', handleOutsideClick)
   }, [activeMenu])
 
-  const handleMinimize = async () => {
-    try {
-      const appWindow = getCurrentWindow()
-      await appWindow.minimize()
-    } catch {
-      // ignore
-    }
-  }
 
-  const handleMaximize = async () => {
-    try {
-      const appWindow = getCurrentWindow()
-      await appWindow.toggleMaximize()
-    } catch {
-      // ignore
-    }
-  }
-
-  const handleClose = async () => {
-    try {
-      const appWindow = getCurrentWindow()
-      await appWindow.close()
-    } catch {
-      // ignore
-    }
-  }
 
   const projectName = currentDir.split(/[/\\]/).filter(Boolean).pop() || 'Cekcok IDE'
   const displayTitle = activeFile
@@ -80,30 +52,8 @@ export const TitleBar: React.FC = () => {
     >
       {/* Left Section: OS Window Controls & Menus */}
       <div className="flex items-center gap-2" ref={menuContainerRef}>
-        {/* Mac Style Traffic Light Window Controls */}
-        <div className="flex items-center gap-1.5 px-1.5 mr-1 group">
-          <button
-            onClick={handleClose}
-            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e0443e] border border-[#e0443e]/40 flex items-center justify-center cursor-pointer transition-transform active:scale-90"
-            title="Close Window"
-          >
-            <X size={8} className="opacity-0 group-hover:opacity-100 text-[#4c0000]" />
-          </button>
-          <button
-            onClick={handleMinimize}
-            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#dea123] border border-[#dea123]/40 flex items-center justify-center cursor-pointer transition-transform active:scale-90"
-            title="Minimize Window"
-          >
-            <Minus size={8} className="opacity-0 group-hover:opacity-100 text-[#543b00]" />
-          </button>
-          <button
-            onClick={handleMaximize}
-            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] border border-[#1aab2f]/40 flex items-center justify-center cursor-pointer transition-transform active:scale-90"
-            title="Maximize Window"
-          >
-            <Square size={6} className="opacity-0 group-hover:opacity-100 text-[#004d11]" />
-          </button>
-        </div>
+        {/* Mac OS Native Traffic Lights Placeholder */}
+        <div className="w-[70px] shrink-0" />
 
         {/* Top Dropdown Menu Bar */}
         <div className="flex items-center relative text-[12px]">
