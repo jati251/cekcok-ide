@@ -1,5 +1,4 @@
 import React from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 
 import {
   Search,
@@ -23,16 +22,12 @@ export const TitleBar: React.FC = () => {
   return (
     <header
       data-tauri-drag-region
-      onMouseDown={(e) => {
-        if (e.target instanceof Element && e.target.closest('button, input, [data-no-drag]')) return
-        getCurrentWindow().startDragging()
-      }}
       className="h-[32px] bg-[#181818] border-b border-ide-border flex items-center justify-between px-2 select-none z-40 text-xs text-[#cccccc] font-sans shrink-0"
     >
       {/* Left Section: OS Window Controls & Menus */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" data-tauri-drag-region>
         {/* Mac OS Native Traffic Lights Placeholder */}
-        <div className="w-[70px] shrink-0" />
+        <div className="w-[70px] shrink-0" data-tauri-drag-region />
 
         {/* Removed redundant HTML menu bar (macOS has native global menu) */}
       </div>
@@ -40,10 +35,6 @@ export const TitleBar: React.FC = () => {
       {/* Center Section: Quick Search Pill & Title */}
       <div
         data-tauri-drag-region
-        onMouseDown={(e) => {
-          if (e.target instanceof Element && e.target.closest('button, input, [data-no-drag]')) return
-          getCurrentWindow().startDragging()
-        }}
         className="flex-1 flex items-center justify-center px-4 overflow-hidden"
       >
         <button
@@ -61,11 +52,11 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Right Section: Layout Controls & Branding */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" data-tauri-drag-region>
         <LayoutCustomizer />
-        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
-          <Code2 size={12} className="text-ide-accent" />
-          <span>Cekcok</span>
+        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10" data-tauri-drag-region>
+          <Code2 size={12} className="text-ide-accent" data-tauri-drag-region />
+          <span data-tauri-drag-region>Cekcok</span>
         </div>
       </div>
     </header>
