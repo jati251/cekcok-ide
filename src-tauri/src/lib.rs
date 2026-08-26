@@ -49,6 +49,12 @@ pub fn run() {
                 process: Arc::new(Mutex::new(None)),
             });
 
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon() {
+                    let _ = window.set_icon(icon.clone());
+                }
+            }
+
             use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, AboutMetadata};
 
             let file_menu = Submenu::with_items(

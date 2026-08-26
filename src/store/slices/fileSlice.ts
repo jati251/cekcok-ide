@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand'
-import { invoke } from '@tauri-apps/api/core'
+import { safeInvoke } from '../../utils/tauriBridge'
 import { FileNode } from '../../types/ide'
 import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import { FullIDEStore } from '../useIDEStore'
@@ -84,7 +84,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   refreshDirectory: async (path) => {
     const targetDir = path || get().currentDir
     try {
-      const files = await invoke<FileNode[]>('read_dir', {
+      const files = await safeInvoke<FileNode[]>('read_dir', {
         path: targetDir,
         showHidden: get().settings.showHiddenFiles,
       })
@@ -103,7 +103,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   createFileInDir: async (dirPath, name) => {
     const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
     const fullPath = `${dirPath}${sep}${name}`
-    await invoke('create_file', { path: fullPath })
+    await safeInvoke('create_file', { path: fullPath })
     await get().refreshDirectory(dirPath)
     get().openFile({ name, path: fullPath, is_dir: false })
   },
@@ -111,12 +111,12 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   createFolderInDir: async (dirPath, name) => {
     const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
     const fullPath = `${dirPath}${sep}${name}`
-    await invoke('create_dir', { path: fullPath })
+    await safeInvoke('create_dir', { path: fullPath })
     await get().refreshDirectory(dirPath)
   },
 
   deletePathItem: async (path) => {
-    await invoke('delete_path', { path })
+    await safeInvoke('delete_path', { path })
     get().closeFile(path)
     // Find parent dir to refresh
     const parent = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))) || get().currentDir
@@ -127,7 +127,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   },
 
   renamePathItem: async (oldPath, newPath) => {
-    await invoke('rename_path', { oldPath, newPath })
+    await safeInvoke('rename_path', { oldPath, newPath })
     get().closeFile(oldPath)
     const newName = newPath.split(/[/\\]/).pop() || newPath
     get().openFile({ name: newName, path: newPath, is_dir: false })
@@ -147,7 +147,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
     } else {
       if (!get().folderChildren[path]) {
         try {
-          const children = await invoke<FileNode[]>('read_dir', {
+          const children = await safeInvoke<FileNode[]>('read_dir', {
             path,
             showHidden: get().settings.showHiddenFiles,
           })
@@ -426,7 +426,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
     const target = allFiles.find(f => f.path === path)
     if (!target || target.content === undefined) return
     try {
-      await invoke('write_file', { path: target.path, content: target.content })
+      await safeInvoke('write_file', { path: target.path, content: target.content })
       get().setFileDirty(path, false)
       get().refreshGitStatus()
       

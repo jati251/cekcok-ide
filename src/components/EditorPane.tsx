@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
-import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings, Compass } from 'lucide-react'
+import {
+  X,
+  Circle,
+  ChevronRight,
+  FileCode2,
+  Save,
+  Columns2,
+  Settings,
+  Compass,
+  Split,
+  Plus,
+  ArrowRight,
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp
+} from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { registerMonacoThemes } from '../utils/themes'
 import { getLanguageFromFilename } from '../utils/languages'
@@ -9,17 +23,19 @@ import { useAutoSave } from '../hooks/useAutoSave'
 import { TabContextMenu } from './TabContextMenu'
 import { SettingsView } from './SettingsView'
 import { WelcomeView } from './WelcomeView'
-import { DragDropOverlay } from './DragDropOverlay'
 import { formatShortcut } from '../utils/platform'
+import { safeInvoke } from '../utils/tauriBridge'
+
+type DropZonePosition = 'left' | 'right' | 'top' | 'bottom' | 'center' | null
 
 const Breadcrumbs: React.FC<{ path: string; currentDir: string }> = ({ path, currentDir }) => {
   if (!path || path.startsWith('settings://') || path.startsWith('welcome://')) return null
-  
+
   const relPath = path.replace(currentDir, '').replace(/^[/\\]/, '')
   const segments = relPath.split(/[/\\]/).filter(Boolean)
-  
+
   if (segments.length === 0) return null
-  
+
   return (
     <div className="flex items-center px-4 py-1.5 bg-[#1e1e1e] border-b border-ide-border text-[11px] text-[#888] font-mono overflow-x-auto whitespace-nowrap hide-scrollbar select-none">
       {segments.map((seg, i) => (
@@ -56,9 +72,10 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     setActivePane,
     saveFile,
     settings,
+    updateSettings,
     toggleSplitEditor,
+    setSplitEditorOpen,
     splitEditorOpen,
-    reorderTabsInPane,
     moveTabBetweenPanes,
     openFileInPane,
     setDiagnostics,
@@ -67,6 +84,9 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(
     null
   )
+  const [activeDropZone, setActiveDropZone] = useState<DropZonePosition>(null)
+  const paneContainerRef = useRef<HTMLDivElement>(null)
+
   const { triggerAutoSave } = useAutoSave()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorInstanceRef = useRef<any>(null)
@@ -83,7 +103,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     let isMounted = true
     const fetchContent = async () => {
       try {
-        const content = await invoke<string>('read_file', { path: activeFile.path })
+        const content = await safeInvoke<string>('read_file', { path: activeFile.path })
         if (isMounted) {
           setFileContent(activeFile.path, content)
           setFileDirty(activeFile.path, false)
@@ -101,12 +121,11 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     }
   }, [activeFile, setFileContent, setFileDirty])
 
-  // Save and restore Monaco ViewState (cursor position, scroll, selection) across tab switches
+  // Save and restore Monaco ViewState across tab switches
   useEffect(() => {
     if (!editorInstanceRef.current) return
     const editor = editorInstanceRef.current
 
-    // Save viewState of previous file
     if (previousFilePathRef.current) {
       const state = editor.saveViewState()
       if (state) {
@@ -114,7 +133,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       }
     }
 
-    // Restore viewState of current file
     if (activeFile) {
       const savedState = viewStateMapRef.current.get(activeFile.path)
       if (savedState) {
@@ -137,7 +155,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       }
     })
 
-    // Listen to Monaco Diagnostics & Markers for real-time Problems tab updates
     monaco.editor.onDidChangeMarkers(() => {
       const markers = monaco.editor.getModelMarkers({})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,30 +169,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       }))
       setDiagnostics(items)
     })
-
-    if (monaco.languages?.typescript?.typescriptDefaults) {
-      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-        target: monaco.languages.typescript.ScriptTarget.ESNext,
-        allowNonTextExtensions: true,
-        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-        module: monaco.languages.typescript.ModuleKind.CommonJS,
-        noEmit: true,
-        esModuleInterop: true,
-        jsx: monaco.languages.typescript.JsxEmit.React,
-        reactNamespace: 'React',
-        allowJs: true,
-      })
-
-      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: true,
-        noSyntaxValidation: false,
-      })
-
-      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: true,
-        noSyntaxValidation: false,
-      })
-    }
   }
 
   const handleTabContextMenu = (e: React.MouseEvent, file: FileNode) => {
@@ -196,26 +189,87 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         path: file.path,
         pane: paneId,
         index,
+        fileNode: file
       })
     )
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  const handleTabDrop = (e: React.DragEvent, targetIndex: number) => {
+  // Interactive Drag Over on Pane
+  const handlePaneDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'
+
+    if (!paneContainerRef.current) return
+    const rect = paneContainerRef.current.getBoundingClientRect()
+    const relX = (e.clientX - rect.left) / rect.width
+    const relY = (e.clientY - rect.top) / rect.height
+
+    if (relX > 0.75) {
+      setActiveDropZone('right')
+    } else if (relX < 0.25) {
+      setActiveDropZone('left')
+    } else if (relY > 0.75) {
+      setActiveDropZone('bottom')
+    } else if (relY < 0.25) {
+      setActiveDropZone('top')
+    } else {
+      setActiveDropZone('center')
+    }
+  }
+
+  const handlePaneDragLeave = (e: React.DragEvent) => {
+    // Only reset if left the pane container entirely
+    if (!paneContainerRef.current?.contains(e.relatedTarget as Node)) {
+      setActiveDropZone(null)
+    }
+  }
+
+  // Direct Pane Drop with Split Trigger
+  const handlePaneDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const dropZone = activeDropZone
+    setActiveDropZone(null)
+
     const raw = e.dataTransfer.getData('application/json')
     if (!raw) return
+
     try {
       const data = JSON.parse(raw)
-      if (data.type === 'tab') {
-        if (data.pane === paneId) {
-          reorderTabsInPane(paneId, data.index, targetIndex)
+      const targetFile: FileNode = data.fileNode || (data.name && data.path ? data : null)
+      if (!targetFile && data.path) {
+        // Build file node
+        const fileName = data.path.split(/[/\\]/).pop() || data.path
+        openFileInPane({ name: fileName, path: data.path, is_dir: false }, paneId)
+        return
+      }
+      if (!targetFile) return
+
+      if (dropZone === 'right') {
+        updateSettings({ splitDirection: 'vertical' })
+        setSplitEditorOpen(true)
+        openFileInPane(targetFile, 2)
+      } else if (dropZone === 'left') {
+        updateSettings({ splitDirection: 'vertical' })
+        setSplitEditorOpen(true)
+        openFileInPane(targetFile, 1)
+      } else if (dropZone === 'bottom') {
+        updateSettings({ splitDirection: 'horizontal' })
+        setSplitEditorOpen(true)
+        openFileInPane(targetFile, 2)
+      } else if (dropZone === 'top') {
+        updateSettings({ splitDirection: 'horizontal' })
+        setSplitEditorOpen(true)
+        openFileInPane(targetFile, 1)
+      } else {
+        // Center / default tab add
+        if (data.type === 'tab' && data.pane !== paneId) {
+          moveTabBetweenPanes(data.path, data.pane, paneId)
         } else {
-          moveTabBetweenPanes(data.path, data.pane, paneId, targetIndex)
+          openFileInPane(targetFile, paneId)
         }
-      } else if (data.name && data.path) {
-        openFileInPane(data, paneId)
       }
     } catch {
       // ignore
@@ -227,15 +281,54 @@ const SinglePane: React.FC<SinglePaneProps> = ({
 
   return (
     <div
+      ref={paneContainerRef}
+      onDragOver={handlePaneDragOver}
+      onDragLeave={handlePaneDragLeave}
+      onDrop={handlePaneDrop}
       className={`flex-1 flex flex-col min-w-0 min-h-0 h-full border-r border-ide-border last:border-r-0 relative overflow-hidden ${
         isActivePane ? 'ring-1 ring-ide-accent/40' : ''
       }`}
       onClick={() => setActivePane(paneId)}
     >
+      {/* Visual Drop Zone Previews */}
+      {activeDropZone && (
+        <div className="absolute inset-0 z-50 pointer-events-none transition-all duration-150">
+          {activeDropZone === 'right' && (
+            <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-blue-500/25 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowRight size={28} className="text-blue-300 mb-1" />
+              <span>Split Editor Right</span>
+            </div>
+          )}
+          {activeDropZone === 'left' && (
+            <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-blue-500/25 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowLeft size={28} className="text-blue-300 mb-1" />
+              <span>Split Editor Left</span>
+            </div>
+          )}
+          {activeDropZone === 'bottom' && (
+            <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-emerald-500/25 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowDown size={28} className="text-emerald-300 mb-1" />
+              <span>Split Editor Down</span>
+            </div>
+          )}
+          {activeDropZone === 'top' && (
+            <div className="absolute left-0 right-0 top-0 h-1/2 bg-emerald-500/25 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowUp size={28} className="text-emerald-300 mb-1" />
+              <span>Split Editor Up</span>
+            </div>
+          )}
+          {activeDropZone === 'center' && (
+            <div className="absolute inset-0 bg-ide-accent/20 border-2 border-dashed border-ide-accent backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <Plus size={28} className="text-white mb-1" />
+              <span>Open in Pane {paneId}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tab Bar Header */}
       <div
         className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0"
-        onDragOver={(e) => e.preventDefault()}
       >
         <div className="flex flex-1 overflow-x-auto no-scrollbar h-full">
           {files.length === 0 ? (
@@ -253,8 +346,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                   key={file.path}
                   draggable={true}
                   onDragStart={(e) => handleTabDragStart(e, file, idx)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => handleTabDrop(e, idx)}
                   onClick={() => setActiveFileInPane(file, paneId)}
                   onContextMenu={(e) => handleTabContextMenu(e, file)}
                   className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
@@ -416,9 +507,12 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         ) : paneId === 1 && !splitEditorOpen ? (
           <WelcomeView />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none">
-            <div className="text-lg font-semibold text-white/30">Cekcok Editor (Pane {paneId})</div>
-            <div className="text-xs text-[#888]">Select a file from the explorer or drag one here</div>
+          <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none p-6 text-center">
+            <Split size={32} className="text-white/20" />
+            <div className="text-base font-semibold text-white/40">Cekcok Split Pane {paneId}</div>
+            <div className="text-xs text-[#888] max-w-[220px]">
+              Drag any file from the explorer onto the edge to split or center to open
+            </div>
           </div>
         )}
       </div>
@@ -452,7 +546,19 @@ export const EditorPane: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
-  const isHorizontal = settings.splitDirection === 'horizontal'
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // On mobile, default to horizontal stack if split is opened
+  const isHorizontal = isMobile || settings.splitDirection === 'horizontal'
 
   const handleSplitMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -528,9 +634,6 @@ export const EditorPane: React.FC = () => {
           </div>
         </>
       )}
-
-      {/* Global Drag & Drop Overlay Target */}
-      <DragDropOverlay />
     </main>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { TitleBar } from './components/TitleBar'
 import { ActivityBar } from './components/ActivityBar'
 import { Sidebar } from './components/Sidebar'
@@ -18,10 +18,11 @@ import { THEMES } from './utils/themes'
 import './index.css'
 
 export const App: React.FC = () => {
-    const {
+  const {
     refreshGitStatus,
     refreshPackageJson,
     sidebarOpen,
+    toggleSidebar,
     terminalOpen,
     settings,
     zoomLevel,
@@ -29,12 +30,24 @@ export const App: React.FC = () => {
     zenMode,
   } = useIDEStore()
 
+  const [isMobile, setIsMobile] = useState(false)
+
   // Register all global keybindings
   useKeyboardShortcuts()
   useNativeMenu()
   useAutoSave()
 
-  // Handle Zoom at documentElement level so layout dynamically stretches to fill window 100%
+  // Track responsive screen size
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Handle Zoom at documentElement level
   useEffect(() => {
     document.documentElement.style.zoom = `${zoomLevel}`
   }, [zoomLevel])
@@ -54,9 +67,7 @@ export const App: React.FC = () => {
 
   const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']
   const isSidebarRight = settings.sidebarPosition === 'right'
-  const isPanelRight = settings.panelPosition === 'right'
-
-
+  const isPanelRight = !isMobile && settings.panelPosition === 'right'
 
   return (
     <div
@@ -75,10 +86,10 @@ export const App: React.FC = () => {
       {/* Top Native OS TitleBar & Menus */}
       {!zenMode && <TitleBar />}
 
-      {/* Main Workspace Layout with Dynamic Sidebar Position */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left-Aligned Sidebar & Activity Bar */}
-        {!isSidebarRight && (
+      {/* Main Workspace Layout */}
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Left-Aligned Sidebar & Activity Bar (Desktop) */}
+        {!isSidebarRight && !isMobile && (
           <>
             {!zenMode && <ActivityBar />}
             {!zenMode && <Sidebar />}
@@ -86,7 +97,25 @@ export const App: React.FC = () => {
           </>
         )}
 
-        {/* Central Editor & Terminal Area (Dynamic Bottom / Right Panel Position) */}
+        {/* Mobile Slide-Out Drawer Sidebar with Backdrop */}
+        {isMobile && !zenMode && (
+          <>
+            <ActivityBar />
+            {sidebarOpen && (
+              <>
+                <div
+                  className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 animate-in fade-in duration-200"
+                  onClick={toggleSidebar}
+                />
+                <div className="fixed left-12 top-0 bottom-6 z-50 shadow-2xl animate-in slide-in-from-left duration-200">
+                  <Sidebar />
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Central Editor & Terminal Area */}
         <div
           className={`flex-1 flex min-w-0 min-h-0 ${isPanelRight ? 'flex-row' : 'flex-col'}`}
           style={{ backgroundColor: activeTheme.colors.bg }}
@@ -98,8 +127,8 @@ export const App: React.FC = () => {
           {!zenMode && <BottomPanel />}
         </div>
 
-        {/* Right-Aligned Sidebar & Activity Bar */}
-        {isSidebarRight && (
+        {/* Right-Aligned Sidebar & Activity Bar (Desktop) */}
+        {isSidebarRight && !isMobile && (
           <>
             {sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
             {!zenMode && <Sidebar />}
@@ -111,13 +140,9 @@ export const App: React.FC = () => {
       {/* Bottom Status Bar */}
       {!zenMode && <StatusBar />}
 
-      {/* Global Command Palette / Quick Open Modal */}
+      {/* Global Modals */}
       <CommandPalette />
-      
-      {/* Search Everywhere Modal */}
       <SearchEverywhereModal />
-
-      {/* Unsaved Changes Confirmation Modal */}
       <UnsavedConfirmModal />
     </div>
   )

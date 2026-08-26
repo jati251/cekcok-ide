@@ -1,10 +1,18 @@
 import { StateCreator } from 'zustand'
-import { invoke } from '@tauri-apps/api/core'
-import { PackageJson } from '../../types/ide'
+import { safeInvoke } from '../../utils/tauriBridge'
 import { FullIDEStore } from '../useIDEStore'
 
+export interface PackageJsonInfo {
+  name?: string
+  version?: string
+  description?: string
+  scripts?: Record<string, string>
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
+
 export interface NodeSlice {
-  packageJson: PackageJson | null
+  packageJson: PackageJsonInfo | null
   refreshPackageJson: () => Promise<void>
 }
 
@@ -12,12 +20,13 @@ export const createNodeSlice: StateCreator<FullIDEStore, [], [], NodeSlice> = (s
   packageJson: null,
 
   refreshPackageJson: async () => {
-    const dir = get().currentDir
-    const separator = dir.endsWith('/') || dir.endsWith('\\') ? '' : '/'
-    const pkgPath = `${dir}${separator}package.json`
+    const curDir = get().currentDir
+    if (!curDir) return
+
+    const pkgPath = `${curDir}/package.json`
     try {
-      const content = await invoke<string>('read_file', { path: pkgPath })
-      const parsed = JSON.parse(content) as PackageJson
+      const content = await safeInvoke<string>('read_file', { path: pkgPath })
+      const parsed = JSON.parse(content) as PackageJsonInfo
       set({ packageJson: parsed })
     } catch {
       set({ packageJson: null })
