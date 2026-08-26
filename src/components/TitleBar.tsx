@@ -21,8 +21,7 @@ export const TitleBar: React.FC = () => {
 
   return (
     <header 
-      data-tauri-drag-region
-      className="h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2"
+      className="h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2 pointer-events-none select-none"
     >
       {/* Left Section: OS Window Controls */}
       <div className="flex items-center gap-2">
@@ -34,7 +33,7 @@ export const TitleBar: React.FC = () => {
       <div className="flex-1 flex items-center justify-center px-4">
         <button
           onClick={() => setQuickOpenOpen(true)}
-          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer"
+          className="pointer-events-auto flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer"
         >
           <div className="flex items-center gap-1.5 truncate">
             <Search size={12} className="text-[#777]" />
@@ -48,10 +47,10 @@ export const TitleBar: React.FC = () => {
 
       {/* Right Section: Layout Controls & Branding */}
       <div className="flex items-center gap-2">
-        <div data-no-drag>
+        <div className="pointer-events-auto">
           <LayoutCustomizer />
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
+        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10 pointer-events-auto">
           <Code2 size={12} className="text-ide-accent" />
           <span>Cekcok</span>
         </div>
