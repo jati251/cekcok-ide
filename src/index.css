@@ -12,14 +12,14 @@
 }
 
 @layer base {
-  body {
-    @apply m-0 p-0 h-screen w-screen overflow-hidden flex flex-col font-sans;
+  html, body {
+    @apply m-0 p-0 h-full w-full overflow-hidden flex flex-col font-sans;
     background-color: var(--color-ide-bg);
     color: var(--color-ide-text);
   }
 
   #root {
-    @apply h-full w-full flex flex-col;
+    @apply h-full w-full flex flex-col overflow-hidden;
   }
 }
 

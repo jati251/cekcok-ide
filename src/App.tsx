@@ -27,6 +27,11 @@ export const App: React.FC = () => {
   // Register all global keybindings
   useKeyboardShortcuts()
 
+  // Handle Zoom at documentElement level so layout dynamically stretches to fill window 100%
+  useEffect(() => {
+    document.documentElement.style.zoom = `${zoomLevel}`
+  }, [zoomLevel])
+
   useEffect(() => {
     // Startup Restore Handling
     if (settings.startupBehavior === 'restoreLastProject') {
@@ -44,11 +49,10 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className="h-screen w-screen flex flex-col overflow-hidden font-sans select-none"
+      className="h-full w-full flex flex-col overflow-hidden font-sans select-none"
       style={{
         backgroundColor: activeTheme.colors.bg,
         color: activeTheme.colors.text,
-        zoom: zoomLevel,
         // @ts-expect-error custom CSS variable mapping for themes
         '--color-ide-bg': activeTheme.colors.bg,
         '--color-ide-sidebar': activeTheme.colors.sidebar,
@@ -57,14 +61,14 @@ export const App: React.FC = () => {
         '--color-ide-accent-hover': activeTheme.colors.accentHover,
       }}
     >
-      {/* Main Workspace Layout */}
-      <div className="flex flex-1 h-[calc(100vh-26px)] overflow-hidden">
+      {/* Main Workspace Layout (Flex-1 ensures zero blank gaps or overflow) */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <ActivityBar />
         <Sidebar />
         {sidebarOpen && <ResizeHandle direction="vertical" />}
 
         <div
-          className="flex-1 flex flex-col min-w-0"
+          className="flex-1 flex flex-col min-w-0 min-h-0"
           style={{ backgroundColor: activeTheme.colors.bg }}
         >
           <EditorPane />
