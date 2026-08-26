@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import React from 'react'
 
 import {
   Search,
@@ -20,31 +19,10 @@ export const TitleBar: React.FC = () => {
     ? `${activeFile.name} — ${projectName}`
     : `${projectName} — Cekcok IDE`
 
-  useEffect(() => {
-    const titlebar = document.getElementById('titlebar-drag-region')
-    if (!titlebar) return
-
-    const handleMouseDown = (e: MouseEvent) => {
-      // Allow clicking on buttons or inputs
-      if ((e.target as Element).closest('button, input, [data-no-drag]')) {
-        return
-      }
-      
-      // Stop event propagation to prevent text selection or other default behaviors
-      e.preventDefault()
-      
-      // Natively tell Tauri to drag the window
-      getCurrentWindow().startDragging()
-    }
-
-    titlebar.addEventListener('mousedown', handleMouseDown)
-    return () => titlebar.removeEventListener('mousedown', handleMouseDown)
-  }, [])
-
   return (
     <header 
-      id="titlebar-drag-region"
-      className="relative h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 overflow-hidden select-none flex items-center justify-between px-2"
+      data-tauri-drag-region
+      className="h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2"
     >
       {/* Left Section: OS Window Controls */}
       <div className="flex items-center gap-2">
@@ -70,7 +48,9 @@ export const TitleBar: React.FC = () => {
 
       {/* Right Section: Layout Controls & Branding */}
       <div className="flex items-center gap-2">
-        <LayoutCustomizer />
+        <div data-no-drag>
+          <LayoutCustomizer />
+        </div>
         <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
           <Code2 size={12} className="text-ide-accent" />
           <span>Cekcok</span>

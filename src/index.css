@@ -23,6 +23,22 @@
   }
 }
 
+/* Foolproof Native Window Dragging for macOS/Windows */
+header[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+header[data-tauri-drag-region] * {
+  -webkit-app-region: drag;
+}
+header[data-tauri-drag-region] button,
+header[data-tauri-drag-region] input,
+header[data-tauri-drag-region] [data-no-drag],
+header[data-tauri-drag-region] button *,
+header[data-tauri-drag-region] [data-no-drag] * {
+  -webkit-app-region: no-drag !important;
+}
+
 /* Custom scrollbar for webkit */
 ::-webkit-scrollbar {
   width: 10px;
