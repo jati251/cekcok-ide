@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
-import { X, Circle } from 'lucide-react'
-import { useIDEStore } from '../store/useIDEStore'
+import { X, Circle, ChevronRight, FileCode2, Save } from 'lucide-react'
+import { useIDEStore, FileNode } from '../store/useIDEStore'
 
 const getLanguageFromFilename = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase()
   switch (ext) {
     case 'rs': return 'rust'
     case 'ts': case 'tsx': return 'typescript'
-    case 'js': case 'jsx': return 'javascript'
+    case 'js': case 'jsx': case 'mjs': case 'cjs': return 'javascript'
     case 'json': return 'json'
     case 'md': return 'markdown'
     case 'css': return 'css'
@@ -19,7 +19,16 @@ const getLanguageFromFilename = (filename: string) => {
 }
 
 export const EditorPane = () => {
-  const { openFiles, activeFile, setActiveFile, closeFile, setFileDirty, setFileContent } = useIDEStore()
+  const { 
+    openFiles, 
+    activeFile, 
+    setActiveFile, 
+    closeFile, 
+    setFileDirty, 
+    setFileContent,
+    refreshGitStatus 
+  } = useIDEStore()
+  
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
@@ -73,6 +82,7 @@ export const EditorPane = () => {
     try {
       await invoke("write_file", { path: file.path, content })
       setFileDirty(file.path, false)
+      refreshGitStatus()
     } catch (err) {
       console.error("Failed to save file", err)
     }
@@ -85,12 +95,34 @@ export const EditorPane = () => {
         handleSave(activeFile, currentCodeRef.current)
       }
     })
+
+    // Configure JavaScript / TypeScript defaults
+    if (monaco.languages?.typescript?.typescriptDefaults) {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ESNext,
+        allowNonTextExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: 'React',
+        allowJs: true,
+      })
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+      })
+    }
   }
+
+  // Path breadcrumb segments
+  const pathSegments = activeFile ? activeFile.path.split(/[/\\]/).filter(Boolean) : []
 
   return (
     <main className="flex-1 flex flex-col bg-ide-bg overflow-hidden min-w-0">
-      {/* Tabs */}
-      <div className="flex bg-[#2d2d2d] h-[35px] overflow-x-auto no-scrollbar">
+      {/* Tab Bar */}
+      <div className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none">
         {openFiles.length === 0 ? (
           <div className="flex items-center px-4 text-[13px] text-ide-muted italic">
             No files open
@@ -102,10 +134,10 @@ export const EditorPane = () => {
               <div 
                 key={file.path}
                 onClick={() => setActiveFile(file)}
-                className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group ${
+                className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
                   isActive 
-                    ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white' 
-                    : 'bg-transparent border-t-2 border-t-transparent text-ide-muted hover:bg-ide-bg/50'
+                    ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white font-medium' 
+                    : 'bg-[#181818] border-t-2 border-t-transparent text-ide-muted hover:bg-[#1f1f1f] hover:text-white'
                 }`}
               >
                 <span className="truncate flex-1">{file.name}</span>
@@ -114,19 +146,46 @@ export const EditorPane = () => {
                     e.stopPropagation()
                     closeFile(file.path)
                   }}
-                  className={`p-0.5 rounded-sm hover:bg-white/10 ${
-                    isActive ? 'opacity-100' : (file.isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')
+                  className={`p-0.5 rounded hover:bg-white/15 cursor-pointer ${
+                    isActive ? 'opacity-100 text-white' : (file.isDirty ? 'opacity-100 text-white' : 'opacity-0 group-hover:opacity-100 text-ide-muted')
                   }`}
+                  title={file.isDirty ? 'Unsaved changes' : 'Close Tab'}
                 >
-                  {file.isDirty ? <Circle size={10} fill="currentColor" /> : <X size={14} />}
+                  {file.isDirty ? <Circle size={9} fill="currentColor" /> : <X size={13} />}
                 </button>
               </div>
             )
           })
         )}
       </div>
+
+      {/* Breadcrumb Bar */}
+      {activeFile && (
+        <div className="h-6 bg-ide-bg border-b border-ide-border/50 px-3 flex items-center text-[11px] text-ide-muted select-none">
+          <FileCode2 size={12} className="mr-1.5 text-[#80a4c2] shrink-0" />
+          <div className="flex items-center gap-1 truncate">
+            {pathSegments.map((segment, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                {idx > 0 && <ChevronRight size={10} className="text-ide-muted/60" />}
+                <span className={idx === pathSegments.length - 1 ? 'text-white/90 font-medium' : 'hover:text-white cursor-pointer'}>
+                  {segment}
+                </span>
+              </div>
+            ))}
+          </div>
+          {activeFile.isDirty && (
+            <button
+              onClick={() => handleSave(activeFile, currentCodeRef.current)}
+              className="ml-auto text-[10px] text-ide-accent hover:text-white flex items-center gap-1 cursor-pointer font-medium"
+              title="Save file (Cmd+S)"
+            >
+              <Save size={11} /> Save
+            </button>
+          )}
+        </div>
+      )}
       
-      {/* Editor Content */}
+      {/* Editor Canvas */}
       <div className="flex-1 relative">
         {activeFile ? (
           <Editor
@@ -144,16 +203,30 @@ export const EditorPane = () => {
             onMount={handleEditorMount}
             options={{
               minimap: { enabled: true, scale: 0.75 },
-              fontSize: 14,
+              fontSize: 13.5,
+              tabSize: 2,
               wordWrap: "on",
-              padding: { top: 16 },
-              fontFamily: "'Consolas', 'Courier New', monospace",
-              renderLineHighlight: "all"
+              padding: { top: 12 },
+              fontFamily: "'Consolas', 'Menlo', 'Courier New', monospace",
+              renderLineHighlight: "all",
+              cursorBlinking: "smooth",
+              cursorSmoothCaretAnimation: "on",
+              smoothScrolling: true,
+              bracketPairColorization: { enabled: true },
+              guides: { bracketPairs: true, indentation: true },
+              suggestOnTriggerCharacters: true,
+              quickSuggestions: { other: true, comments: false, strings: true },
+              formatOnPaste: true,
             }}
           />
         ) : (
-          <div className="h-full flex items-center justify-center text-ide-muted text-lg">
-            Cekcok IDE - Select a file to edit
+          <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none">
+            <div className="text-xl font-semibold text-white/40">Cekcok IDE</div>
+            <div className="text-xs text-[#888] space-y-1.5 text-center">
+              <div>Press <kbd className="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-white font-mono">Cmd+P</kbd> to quickly open any file</div>
+              <div>Press <kbd className="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-white font-mono">Cmd+Shift+P</kbd> for Command Palette</div>
+              <div>Press <kbd className="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-white font-mono">Cmd+S</kbd> to save changes</div>
+            </div>
           </div>
         )}
       </div>
