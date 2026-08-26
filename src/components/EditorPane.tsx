@@ -235,13 +235,13 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     const relX = (e.clientX - rect.left) / rect.width
     const relY = (e.clientY - rect.top) / rect.height
 
-    if (relX > 0.75) {
+    if (relX > 0.7) {
       setActiveDropZone('right')
-    } else if (relX < 0.25) {
+    } else if (relX < 0.3) {
       setActiveDropZone('left')
-    } else if (relY > 0.75) {
+    } else if (relY > 0.7) {
       setActiveDropZone('bottom')
-    } else if (relY < 0.25) {
+    } else if (relY < 0.3) {
       setActiveDropZone('top')
     } else {
       setActiveDropZone('center')
@@ -249,8 +249,8 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   }
 
   const handlePaneDragLeave = (e: React.DragEvent) => {
-    // Only reset if left the pane container entirely
-    if (!paneContainerRef.current?.contains(e.relatedTarget as Node)) {
+    // Only reset if cursor left window or root container
+    if (!e.relatedTarget || !paneContainerRef.current?.contains(e.relatedTarget as Node)) {
       setActiveDropZone(null)
     }
   }
@@ -260,7 +260,19 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     e.preventDefault()
     e.stopPropagation()
     setIsDraggingFile(false)
-    const dropZone = activeDropZone
+
+    // Calculate dropZone directly from coordinates to guarantee accuracy
+    let dropZone = activeDropZone
+    if (!dropZone && paneContainerRef.current) {
+      const rect = paneContainerRef.current.getBoundingClientRect()
+      const relX = (e.clientX - rect.left) / rect.width
+      const relY = (e.clientY - rect.top) / rect.height
+      if (relX > 0.7) dropZone = 'right'
+      else if (relX < 0.3) dropZone = 'left'
+      else if (relY > 0.7) dropZone = 'bottom'
+      else if (relY < 0.3) dropZone = 'top'
+      else dropZone = 'center'
+    }
     setActiveDropZone(null)
 
     let targetFile: FileNode | null = null
@@ -282,7 +294,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       // OS file drop support
       const file = e.dataTransfer.files[0]
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const path = (file as any).path || file.name // Note: Electron/Tauri injects .path on File objects sometimes, or we rely on Tauri's rust backend
+      const path = (file as any).path || file.name
       if (path) {
         targetFile = { name: file.name, path: path, is_dir: false }
       }
@@ -366,9 +378,13 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         </div>
       )}
 
-      {/* Transparent overlay that captures all mouse movements over the Monaco Editor when dragging */}
+      {/* Transparent overlay that captures all mouse movements over Monaco Editor when dragging */}
       {isDraggingFile && (
-        <div className="absolute inset-0 z-40" />
+        <div
+          className="absolute inset-0 z-40 bg-transparent"
+          onDragOver={handlePaneDragOver}
+          onDrop={handlePaneDrop}
+        />
       )}
 
       {/* Tab Bar Header */}

@@ -37,7 +37,7 @@ export const App: React.FC = () => {
   useNativeMenu()
   useAutoSave()
 
-  // Track responsive screen size and global drag state
+  // Track responsive screen size
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768)
@@ -45,41 +45,26 @@ export const App: React.FC = () => {
     handleResize()
     window.addEventListener('resize', handleResize)
 
-    // Global drag listener to intercept OS file drags and show Editor overlays (avoiding Monaco swallowing events)
-    let dragCounter = 0
-    const handleDragEnter = (e: DragEvent) => {
-      e.preventDefault()
-      dragCounter++
-      if (dragCounter === 1) {
-        useIDEStore.getState().setIsDraggingFile(true)
-      }
-    }
-    const handleDragLeave = (e: DragEvent) => {
-      e.preventDefault()
-      dragCounter--
-      if (dragCounter === 0) {
-        useIDEStore.getState().setIsDraggingFile(false)
-      }
-    }
-    const handleDrop = () => {
-      dragCounter = 0
+    // Global drag reset handlers
+    const handleWindowDragEnd = () => {
       useIDEStore.getState().setIsDraggingFile(false)
     }
-    const handleDragOver = (e: DragEvent) => {
+    const handleWindowDrop = () => {
+      useIDEStore.getState().setIsDraggingFile(false)
+    }
+    const handleWindowDragOver = (e: DragEvent) => {
       e.preventDefault()
     }
 
-    window.addEventListener('dragenter', handleDragEnter)
-    window.addEventListener('dragleave', handleDragLeave)
-    window.addEventListener('drop', handleDrop)
-    window.addEventListener('dragover', handleDragOver)
+    window.addEventListener('dragend', handleWindowDragEnd)
+    window.addEventListener('drop', handleWindowDrop)
+    window.addEventListener('dragover', handleWindowDragOver)
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      window.removeEventListener('dragenter', handleDragEnter)
-      window.removeEventListener('dragleave', handleDragLeave)
-      window.removeEventListener('drop', handleDrop)
-      window.removeEventListener('dragover', handleDragOver)
+      window.removeEventListener('dragend', handleWindowDragEnd)
+      window.removeEventListener('drop', handleWindowDrop)
+      window.removeEventListener('dragover', handleWindowDragOver)
     }
   }, [])
 
