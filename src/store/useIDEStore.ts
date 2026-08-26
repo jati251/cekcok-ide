@@ -146,6 +146,7 @@ export interface IDEState {
   setActiveFileInPane: (file: FileNode | null, pane: 1 | 2) => void
   saveFile: (path: string) => Promise<void>
   saveActiveFile: () => Promise<void>
+  openSettingsTab: () => void
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -436,6 +437,15 @@ export const useIDEStore = create<IDEState>((set, get) => ({
     if (file) {
       await get().saveFile(file.path)
     }
+  },
+
+  openSettingsTab: () => {
+    const settingsFile: FileNode = {
+      name: 'Settings',
+      path: 'settings://preferences',
+      is_dir: false,
+    }
+    get().openFile(settingsFile)
   },
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

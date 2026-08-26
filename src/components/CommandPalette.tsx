@@ -24,7 +24,8 @@ export const CommandPalette = () => {
     setActiveSidebarTab,
     runTerminalCommand,
     packageJson,
-    refreshGitStatus
+    refreshGitStatus,
+    openSettingsTab
   } = useIDEStore()
 
   const isOpen = commandPaletteOpen || quickOpenOpen
@@ -46,6 +47,13 @@ export const CommandPalette = () => {
 
   // Build command palette actions
   const actions: PaletteAction[] = [
+    {
+      id: 'preferences-settings',
+      title: 'Preferences: Open User Settings',
+      category: 'Preferences',
+      icon: Layout,
+      run: () => openSettingsTab()
+    },
     {
       id: 'toggle-terminal',
       title: 'View: Toggle Terminal',

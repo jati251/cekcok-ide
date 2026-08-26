@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
-import { X, Circle, ChevronRight, FileCode2, Save, Columns2 } from 'lucide-react'
+import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { registerMonacoThemes } from '../utils/themes'
 import { TabContextMenu } from './TabContextMenu'
+import { SettingsView } from './SettingsView'
 
 const getLanguageFromFilename = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase()
@@ -61,6 +62,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   // Fetch file content when active file changes if not already in store
   useEffect(() => {
     if (!activeFile) return
+    if (activeFile.path.startsWith('settings://')) return
     if (activeFile.content !== undefined) return
 
     let isMounted = true
@@ -138,6 +140,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           ) : (
             files.map((file) => {
               const isActive = activeFile?.path === file.path
+              const isSettingsTab = file.path === 'settings://preferences'
               return (
                 <div 
                   key={file.path}
@@ -149,6 +152,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                       : 'bg-[#181818] border-t-2 border-t-transparent text-ide-muted hover:bg-[#1f1f1f] hover:text-white'
                   }`}
                 >
+                  {isSettingsTab && <Settings size={13} className="text-[#4fc1ff] shrink-0" />}
                   <span className="truncate flex-1">{file.name}</span>
                   <button 
                     onClick={(e) => {
@@ -185,65 +189,80 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       {/* Breadcrumb Path Bar */}
       {activeFile && (
         <div className="h-6 bg-ide-bg border-b border-ide-border/50 px-3 flex items-center text-[11px] text-ide-muted select-none">
-          <FileCode2 size={12} className="mr-1.5 text-[#80a4c2] shrink-0" />
-          <div className="flex items-center gap-1 truncate">
-            {pathSegments.map((segment, idx) => (
-              <div key={idx} className="flex items-center gap-1">
-                {idx > 0 && <ChevronRight size={10} className="text-ide-muted/60" />}
-                <span className={idx === pathSegments.length - 1 ? 'text-white/90 font-medium' : 'hover:text-white cursor-pointer'}>
-                  {segment}
-                </span>
+          {activeFile.path === 'settings://preferences' ? (
+            <div className="flex items-center gap-1">
+              <Settings size={12} className="mr-1 text-[#4fc1ff] shrink-0" />
+              <span>Preferences</span>
+              <ChevronRight size={10} className="text-ide-muted/60" />
+              <span className="text-white/90 font-medium">Settings</span>
+            </div>
+          ) : (
+            <>
+              <FileCode2 size={12} className="mr-1.5 text-[#80a4c2] shrink-0" />
+              <div className="flex items-center gap-1 truncate">
+                {pathSegments.map((segment, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    {idx > 0 && <ChevronRight size={10} className="text-ide-muted/60" />}
+                    <span className={idx === pathSegments.length - 1 ? 'text-white/90 font-medium' : 'hover:text-white cursor-pointer'}>
+                      {segment}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {activeFile.isDirty && (
-            <button
-              onClick={() => saveFile(activeFile.path)}
-              className="ml-auto text-[10px] text-ide-accent hover:text-white flex items-center gap-1 cursor-pointer font-medium"
-              title="Save file (Cmd+S)"
-            >
-              <Save size={11} /> Save
-            </button>
+              {activeFile.isDirty && (
+                <button
+                  onClick={() => saveFile(activeFile.path)}
+                  className="ml-auto text-[10px] text-ide-accent hover:text-white flex items-center gap-1 cursor-pointer font-medium"
+                  title="Save file (Cmd+S)"
+                >
+                  <Save size={11} /> Save
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* Monaco Editor Canvas */}
-      <div className="flex-1 relative">
+      {/* Canvas Area: Settings View or Monaco Editor */}
+      <div className="flex-1 relative overflow-hidden">
         {activeFile ? (
-          <Editor
-            height="100%"
-            theme={settings.theme}
-            path={`${paneId}-${activeFile.path}`}
-            language={getLanguageFromFilename(activeFile.name)}
-            value={editorValue}
-            onChange={(val) => {
-              const newContent = val || ""
-              setFileContent(activeFile.path, newContent)
-              if (!activeFile.isDirty) {
-                setFileDirty(activeFile.path, true)
-              }
-              triggerAutoSave(activeFile.path)
-            }}
-            onMount={handleEditorMount}
-            options={{
-              minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
-              fontSize: settings.fontSize,
-              tabSize: settings.tabSize,
-              wordWrap: settings.wordWrap,
-              padding: { top: 12 },
-              fontFamily: settings.fontFamily,
-              renderLineHighlight: "all",
-              cursorBlinking: "smooth",
-              cursorSmoothCaretAnimation: "on",
-              smoothScrolling: true,
-              bracketPairColorization: { enabled: true },
-              guides: { bracketPairs: true, indentation: true },
-              suggestOnTriggerCharacters: true,
-              quickSuggestions: { other: true, comments: false, strings: true },
-              formatOnPaste: true,
-            }}
-          />
+          activeFile.path === 'settings://preferences' ? (
+            <SettingsView />
+          ) : (
+            <Editor
+              height="100%"
+              theme={settings.theme}
+              path={`${paneId}-${activeFile.path}`}
+              language={getLanguageFromFilename(activeFile.name)}
+              value={editorValue}
+              onChange={(val) => {
+                const newContent = val || ""
+                setFileContent(activeFile.path, newContent)
+                if (!activeFile.isDirty) {
+                  setFileDirty(activeFile.path, true)
+                }
+                triggerAutoSave(activeFile.path)
+              }}
+              onMount={handleEditorMount}
+              options={{
+                minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
+                fontSize: settings.fontSize,
+                tabSize: settings.tabSize,
+                wordWrap: settings.wordWrap,
+                padding: { top: 12 },
+                fontFamily: settings.fontFamily,
+                renderLineHighlight: "all",
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
+                smoothScrolling: true,
+                bracketPairColorization: { enabled: true },
+                guides: { bracketPairs: true, indentation: true },
+                suggestOnTriggerCharacters: true,
+                quickSuggestions: { other: true, comments: false, strings: true },
+                formatOnPaste: true,
+              }}
+            />
+          )
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none">
             <div className="text-lg font-semibold text-white/30">Cekcok Editor (Pane {paneId})</div>

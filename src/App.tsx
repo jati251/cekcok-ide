@@ -28,7 +28,8 @@ function App() {
     requestCloseFile,
     saveActiveFile,
     toggleSplitEditor,
-    setActivePane
+    setActivePane,
+    openSettingsTab
   } = useIDEStore()
 
   useEffect(() => {
@@ -47,6 +48,11 @@ function App() {
       else if (isCmdOrCtrl && !e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault()
         setQuickOpenOpen(true)
+      }
+      // Cmd+,: Open Settings
+      else if (isCmdOrCtrl && e.key === ',') {
+        e.preventDefault()
+        openSettingsTab()
       }
       // Cmd+W: Close active tab with dirty check
       else if (isCmdOrCtrl && (e.key === 'W' || e.key === 'w')) {
@@ -103,7 +109,8 @@ function App() {
     requestCloseFile,
     saveActiveFile,
     toggleSplitEditor,
-    setActivePane
+    setActivePane,
+    openSettingsTab
   ])
 
   const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']

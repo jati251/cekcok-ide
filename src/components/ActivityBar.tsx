@@ -7,7 +7,8 @@ export const ActivityBar = () => {
     sidebarOpen, 
     setActiveSidebarTab, 
     gitStatus, 
-    setCommandPaletteOpen 
+    setCommandPaletteOpen,
+    openSettingsTab
   } = useIDEStore()
 
   const totalChanges = gitStatus.staged.length + gitStatus.unstaged.length
@@ -64,15 +65,10 @@ export const ActivityBar = () => {
           <Command size={18} strokeWidth={1.75} />
         </button>
         <button
-          onClick={() => setActiveSidebarTab('settings')}
-          className={`relative w-full h-11 flex items-center justify-center transition-colors cursor-pointer ${
-            sidebarOpen && activeSidebarTab === 'settings' ? 'text-white' : 'text-[#858585] hover:text-[#d7d7d7]'
-          }`}
-          title="Settings"
+          onClick={openSettingsTab}
+          className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
+          title="Settings (Cmd+,)"
         >
-          {sidebarOpen && activeSidebarTab === 'settings' && (
-            <div className="absolute left-0 top-1 bottom-1 w-[2px] bg-ide-accent" />
-          )}
           <Settings size={19} strokeWidth={1.75} />
         </button>
       </div>

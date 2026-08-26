@@ -22,7 +22,6 @@ import {
   ArrowDown
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
-import { SettingsView } from './SettingsView'
 
 interface SearchResultItem {
   file_path: string
@@ -667,11 +666,6 @@ export const Sidebar = () => {
                 </div>
               )}
             </div>
-          )}
-
-          {/* VIEW: SETTINGS */}
-          {activeSidebarTab === 'settings' && (
-            <SettingsView />
           )}
         </motion.aside>
       )}
