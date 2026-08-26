@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
 import { X, Circle, ChevronRight, FileCode2, Save, Columns2 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { registerMonacoThemes } from '../utils/themes'
+import { TabContextMenu } from './TabContextMenu'
 
 const getLanguageFromFilename = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase()
@@ -34,68 +35,54 @@ const SinglePane: React.FC<SinglePaneProps> = ({
 }) => {
   const { 
     setActiveFileInPane, 
-    closeFileInPane, 
+    requestCloseFile, 
     setFileDirty, 
     setFileContent,
     setActivePane,
-    refreshGitStatus,
+    saveFile,
     settings,
     toggleSplitEditor,
     splitEditorOpen
   } = useIDEStore()
 
-  const [code, setCode] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const currentCodeRef = useRef(code)
-  const currentFilePathRef = useRef<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Auto-save debounced handler
+  const triggerAutoSave = useCallback((path: string) => {
+    if (settings.autoSave === 'afterDelay') {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveFile(path)
+      }, 1000)
+    }
+  }, [settings.autoSave, saveFile])
+
+  // Fetch file content when active file changes if not already in store
   useEffect(() => {
-    currentCodeRef.current = code
-  }, [code])
+    if (!activeFile) return
+    if (activeFile.content !== undefined) return
 
-  useEffect(() => {
-    if (currentFilePathRef.current && currentFilePathRef.current !== activeFile?.path) {
-      setFileContent(currentFilePathRef.current, currentCodeRef.current)
-    }
-
-    if (!activeFile) {
-      setTimeout(() => setCode(""), 0)
-      currentFilePathRef.current = null
-      return
-    }
-
-    currentFilePathRef.current = activeFile.path
-
-    if (activeFile.content !== undefined) {
-      setTimeout(() => setCode(activeFile.content as string), 0)
-      return
-    }
-
+    let isMounted = true
     const fetchContent = async () => {
-      setIsLoading(true)
       try {
         const content = await invoke<string>("read_file", { path: activeFile.path })
-        setCode(content)
-        setFileContent(activeFile.path, content)
-        setFileDirty(activeFile.path, false)
+        if (isMounted) {
+          setFileContent(activeFile.path, content)
+          setFileDirty(activeFile.path, false)
+        }
       } catch (error) {
-        setCode(`// Error loading file:\n${error}`)
-      } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setFileContent(activeFile.path, `// Error loading file:\n${error}`)
+        }
       }
     }
     fetchContent()
-  }, [activeFile, setFileDirty, setFileContent])
 
-  const handleSave = async (file: FileNode, content: string) => {
-    try {
-      await invoke("write_file", { path: file.path, content })
-      setFileDirty(file.path, false)
-      refreshGitStatus()
-    } catch (err) {
-      console.error("Failed to save file", err)
+    return () => {
+      isMounted = false
     }
-  }
+  }, [activeFile, setFileContent, setFileDirty])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEditorMount = (editor: any, monaco: any) => {
@@ -103,7 +90,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
 
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (activeFile) {
-        handleSave(activeFile, currentCodeRef.current)
+        saveFile(activeFile.path)
       }
     })
 
@@ -122,12 +109,22 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     }
   }
 
+  const handleTabContextMenu = (e: React.MouseEvent, file: FileNode) => {
+    e.preventDefault()
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      file
+    })
+  }
+
   const pathSegments = activeFile ? activeFile.path.split(/[/\\]/).filter(Boolean) : []
+  const editorValue = activeFile?.content ?? ""
 
   return (
     <div 
-      className={`flex-1 flex flex-col min-w-0 h-full border-r border-ide-border last:border-r-0 ${
-        isActivePane ? 'ring-1 ring-ide-accent/30' : ''
+      className={`flex-1 flex flex-col min-w-0 h-full border-r border-ide-border last:border-r-0 relative ${
+        isActivePane ? 'ring-1 ring-ide-accent/40' : ''
       }`}
       onClick={() => setActivePane(paneId)}
     >
@@ -145,6 +142,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                 <div 
                   key={file.path}
                   onClick={() => setActiveFileInPane(file, paneId)}
+                  onContextMenu={(e) => handleTabContextMenu(e, file)}
                   className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
                     isActive 
                       ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white font-medium' 
@@ -155,12 +153,12 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                   <button 
                     onClick={(e) => {
                       e.stopPropagation()
-                      closeFileInPane(file.path, paneId)
+                      requestCloseFile(file.path, paneId)
                     }}
                     className={`p-0.5 rounded hover:bg-white/15 cursor-pointer ${
                       isActive ? 'opacity-100 text-white' : (file.isDirty ? 'opacity-100 text-white' : 'opacity-0 group-hover:opacity-100 text-ide-muted')
                     }`}
-                    title={file.isDirty ? 'Unsaved changes' : 'Close Tab'}
+                    title={file.isDirty ? 'Unsaved changes' : 'Close Tab (Cmd+W)'}
                   >
                     {file.isDirty ? <Circle size={9} fill="currentColor" /> : <X size={13} />}
                   </button>
@@ -170,14 +168,14 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           )}
         </div>
 
-        {/* Split Editor Toggle Action (Only show in primary pane or header) */}
+        {/* Split Editor Toggle Action */}
         {paneId === 1 && (
           <button
             onClick={toggleSplitEditor}
             className={`p-1.5 rounded transition-colors cursor-pointer text-[#888] hover:text-white hover:bg-white/10 ${
               splitEditorOpen ? 'text-ide-accent bg-ide-accent/20' : ''
             }`}
-            title={splitEditorOpen ? "Close Split Editor" : "Split Editor Right"}
+            title={splitEditorOpen ? "Close Split Editor" : "Split Editor Right (Cmd+\\)"}
           >
             <Columns2 size={15} />
           </button>
@@ -200,7 +198,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           </div>
           {activeFile.isDirty && (
             <button
-              onClick={() => handleSave(activeFile, currentCodeRef.current)}
+              onClick={() => saveFile(activeFile.path)}
               className="ml-auto text-[10px] text-ide-accent hover:text-white flex items-center gap-1 cursor-pointer font-medium"
               title="Save file (Cmd+S)"
             >
@@ -218,12 +216,14 @@ const SinglePane: React.FC<SinglePaneProps> = ({
             theme={settings.theme}
             path={`${paneId}-${activeFile.path}`}
             language={getLanguageFromFilename(activeFile.name)}
-            value={isLoading ? "Loading..." : code}
+            value={editorValue}
             onChange={(val) => {
-              setCode(val || "")
-              if (!activeFile.isDirty && !isLoading) {
+              const newContent = val || ""
+              setFileContent(activeFile.path, newContent)
+              if (!activeFile.isDirty) {
                 setFileDirty(activeFile.path, true)
               }
+              triggerAutoSave(activeFile.path)
             }}
             onMount={handleEditorMount}
             options={{
@@ -251,6 +251,17 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           </div>
         )}
       </div>
+
+      {/* Tab Context Menu */}
+      {contextMenu && (
+        <TabContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          file={contextMenu.file}
+          pane={paneId}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }

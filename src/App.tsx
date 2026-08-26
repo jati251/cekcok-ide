@@ -6,6 +6,7 @@ import { EditorPane } from './components/EditorPane'
 import { TerminalPane } from './components/TerminalPane'
 import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
+import { UnsavedConfirmModal } from './components/UnsavedConfirmModal'
 import { useIDEStore } from './store/useIDEStore'
 import { THEMES } from './utils/themes'
 import './index.css'
@@ -20,7 +21,14 @@ function App() {
     refreshPackageJson,
     sidebarOpen,
     terminalOpen,
-    settings
+    settings,
+    activePane,
+    pane1ActiveFile,
+    pane2ActiveFile,
+    requestCloseFile,
+    saveActiveFile,
+    toggleSplitEditor,
+    setActivePane
   } = useIDEStore()
 
   useEffect(() => {
@@ -40,6 +48,34 @@ function App() {
         e.preventDefault()
         setQuickOpenOpen(true)
       }
+      // Cmd+W: Close active tab with dirty check
+      else if (isCmdOrCtrl && (e.key === 'W' || e.key === 'w')) {
+        e.preventDefault()
+        const activeFile = activePane === 1 ? pane1ActiveFile : pane2ActiveFile
+        if (activeFile) {
+          requestCloseFile(activeFile.path, activePane)
+        }
+      }
+      // Cmd+S: Save active file
+      else if (isCmdOrCtrl && !e.shiftKey && (e.key === 'S' || e.key === 's')) {
+        e.preventDefault()
+        saveActiveFile()
+      }
+      // Cmd+\: Toggle Split Editor
+      else if (isCmdOrCtrl && e.key === '\\') {
+        e.preventDefault()
+        toggleSplitEditor()
+      }
+      // Cmd+1: Switch to Pane 1
+      else if (isCmdOrCtrl && e.key === '1') {
+        e.preventDefault()
+        setActivePane(1)
+      }
+      // Cmd+2: Switch to Pane 2
+      else if (isCmdOrCtrl && e.key === '2') {
+        e.preventDefault()
+        setActivePane(2)
+      }
       // Cmd+B: Toggle Sidebar
       else if (isCmdOrCtrl && (e.key === 'B' || e.key === 'b')) {
         e.preventDefault()
@@ -54,7 +90,21 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [setCommandPaletteOpen, setQuickOpenOpen, toggleSidebar, toggleTerminal, refreshGitStatus, refreshPackageJson])
+  }, [
+    setCommandPaletteOpen, 
+    setQuickOpenOpen, 
+    toggleSidebar, 
+    toggleTerminal, 
+    refreshGitStatus, 
+    refreshPackageJson,
+    activePane,
+    pane1ActiveFile,
+    pane2ActiveFile,
+    requestCloseFile,
+    saveActiveFile,
+    toggleSplitEditor,
+    setActivePane
+  ])
 
   const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']
 
@@ -90,6 +140,9 @@ function App() {
 
       {/* Global Command Palette / Quick Open Modal */}
       <CommandPalette />
+
+      {/* Unsaved Changes Confirmation Modal */}
+      <UnsavedConfirmModal />
     </div>
   )
 }

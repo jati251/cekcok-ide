@@ -68,6 +68,12 @@ const loadSavedSettings = (): UserSettings => {
   return DEFAULT_SETTINGS
 }
 
+export interface PendingCloseFile {
+  path: string
+  pane: 1 | 2
+  name: string
+}
+
 export interface IDEState {
   // File System State
   currentDir: string
@@ -81,7 +87,7 @@ export interface IDEState {
   pane2Files: FileNode[]
   pane2ActiveFile: FileNode | null
 
-  // Backward-compat aliases for pane 1
+  // Backward-compat aliases
   openFiles: FileNode[]
   activeFile: FileNode | null
 
@@ -95,6 +101,7 @@ export interface IDEState {
   activeSidebarTab: SidebarTab
   commandPaletteOpen: boolean
   quickOpenOpen: boolean
+  pendingCloseFile: PendingCloseFile | null
 
   // User Settings
   settings: UserSettings
@@ -128,7 +135,17 @@ export interface IDEState {
   
   openFileInPane: (file: FileNode, pane: 1 | 2) => void
   closeFileInPane: (path: string, pane: 1 | 2) => void
+  requestCloseFile: (path: string, pane: 1 | 2) => void
+  handleUnsavedConfirm: (action: 'save' | 'dont_save' | 'cancel') => Promise<void>
+  setPendingCloseFile: (file: PendingCloseFile | null) => void
+  
+  closeOtherTabsInPane: (path: string, pane: 1 | 2) => void
+  closeTabsToRightInPane: (path: string, pane: 1 | 2) => void
+  closeAllTabsInPane: (pane: 1 | 2) => void
+
   setActiveFileInPane: (file: FileNode | null, pane: 1 | 2) => void
+  saveFile: (path: string) => Promise<void>
+  saveActiveFile: () => Promise<void>
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -165,6 +182,7 @@ export const useIDEStore = create<IDEState>((set, get) => ({
   activeSidebarTab: 'explorer',
   commandPaletteOpen: false,
   quickOpenOpen: false,
+  pendingCloseFile: null,
 
   settings: loadSavedSettings(),
 
@@ -248,6 +266,38 @@ export const useIDEStore = create<IDEState>((set, get) => ({
     get().closeFileInPane(path, 2)
   },
 
+  setPendingCloseFile: (file) => set({ pendingCloseFile: file }),
+
+  requestCloseFile: (path, pane) => {
+    const files = pane === 1 ? get().pane1Files : get().pane2Files
+    const file = files.find(f => f.path === path)
+    if (!file) return
+
+    if (file.isDirty) {
+      set({ pendingCloseFile: { path: file.path, pane, name: file.name } })
+    } else {
+      get().closeFileInPane(path, pane)
+    }
+  },
+
+  handleUnsavedConfirm: async (action) => {
+    const pending = get().pendingCloseFile
+    if (!pending) return
+
+    if (action === 'cancel') {
+      set({ pendingCloseFile: null })
+      return
+    }
+
+    if (action === 'save') {
+      await get().saveFile(pending.path)
+    }
+
+    // Close the file in the specified pane
+    get().closeFileInPane(pending.path, pending.pane)
+    set({ pendingCloseFile: null })
+  },
+
   closeFileInPane: (path, pane) => set((state) => {
     if (pane === 1) {
       const newOpenFiles = state.pane1Files.filter(f => f.path !== path)
@@ -270,6 +320,68 @@ export const useIDEStore = create<IDEState>((set, get) => ({
       return {
         pane2Files: newOpenFiles,
         pane2ActiveFile: newActiveFile
+      }
+    }
+  }),
+
+  closeOtherTabsInPane: (path, pane) => set((state) => {
+    if (pane === 1) {
+      const remaining = state.pane1Files.filter(f => f.path === path)
+      return {
+        pane1Files: remaining,
+        pane1ActiveFile: remaining[0] || null,
+        openFiles: remaining,
+        activeFile: remaining[0] || null
+      }
+    } else {
+      const remaining = state.pane2Files.filter(f => f.path === path)
+      return {
+        pane2Files: remaining,
+        pane2ActiveFile: remaining[0] || null
+      }
+    }
+  }),
+
+  closeTabsToRightInPane: (path, pane) => set((state) => {
+    if (pane === 1) {
+      const idx = state.pane1Files.findIndex(f => f.path === path)
+      if (idx === -1) return {}
+      const remaining = state.pane1Files.slice(0, idx + 1)
+      const newActive = remaining.some(f => f.path === state.pane1ActiveFile?.path)
+        ? state.pane1ActiveFile
+        : remaining[remaining.length - 1] || null
+      return {
+        pane1Files: remaining,
+        pane1ActiveFile: newActive,
+        openFiles: remaining,
+        activeFile: newActive
+      }
+    } else {
+      const idx = state.pane2Files.findIndex(f => f.path === path)
+      if (idx === -1) return {}
+      const remaining = state.pane2Files.slice(0, idx + 1)
+      const newActive = remaining.some(f => f.path === state.pane2ActiveFile?.path)
+        ? state.pane2ActiveFile
+        : remaining[remaining.length - 1] || null
+      return {
+        pane2Files: remaining,
+        pane2ActiveFile: newActive
+      }
+    }
+  }),
+
+  closeAllTabsInPane: (pane) => set(() => {
+    if (pane === 1) {
+      return {
+        pane1Files: [],
+        pane1ActiveFile: null,
+        openFiles: [],
+        activeFile: null
+      }
+    } else {
+      return {
+        pane2Files: [],
+        pane2ActiveFile: null
       }
     }
   }),
@@ -304,6 +416,27 @@ export const useIDEStore = create<IDEState>((set, get) => ({
     openFiles: state.openFiles.map(f => f.path === path ? { ...f, content } : f),
     activeFile: state.activeFile?.path === path ? { ...state.activeFile, content } : state.activeFile
   })),
+
+  saveFile: async (path) => {
+    const allFiles = [...get().pane1Files, ...get().pane2Files]
+    const target = allFiles.find(f => f.path === path)
+    if (!target || target.content === undefined) return
+    try {
+      await invoke('write_file', { path: target.path, content: target.content })
+      get().setFileDirty(path, false)
+      get().refreshGitStatus()
+    } catch (err) {
+      console.error('Failed to save file:', err)
+    }
+  },
+
+  saveActiveFile: async () => {
+    const pane = get().activePane
+    const file = pane === 1 ? get().pane1ActiveFile : get().pane2ActiveFile
+    if (file) {
+      await get().saveFile(file.path)
+    }
+  },
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
