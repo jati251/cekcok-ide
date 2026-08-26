@@ -37,14 +37,50 @@ export const App: React.FC = () => {
   useNativeMenu()
   useAutoSave()
 
-  // Track responsive screen size
+  // Track responsive screen size and global drag state
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768)
     }
     handleResize()
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+
+    // Global drag listener to intercept OS file drags and show Editor overlays (avoiding Monaco swallowing events)
+    let dragCounter = 0
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault()
+      dragCounter++
+      if (dragCounter === 1) {
+        useIDEStore.getState().setIsDraggingFile(true)
+      }
+    }
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault()
+      dragCounter--
+      if (dragCounter === 0) {
+        useIDEStore.getState().setIsDraggingFile(false)
+      }
+    }
+    const handleDrop = () => {
+      dragCounter = 0
+      useIDEStore.getState().setIsDraggingFile(false)
+    }
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault()
+    }
+
+    window.addEventListener('dragenter', handleDragEnter)
+    window.addEventListener('dragleave', handleDragLeave)
+    window.addEventListener('drop', handleDrop)
+    window.addEventListener('dragover', handleDragOver)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('dragenter', handleDragEnter)
+      window.removeEventListener('dragleave', handleDragLeave)
+      window.removeEventListener('drop', handleDrop)
+      window.removeEventListener('dragover', handleDragOver)
+    }
   }, [])
 
   // Handle Zoom at documentElement level

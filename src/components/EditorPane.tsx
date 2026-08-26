@@ -150,6 +150,29 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     editorInstanceRef.current = editor
     registerMonacoThemes(monaco)
 
+    // Configure TypeScript to support React/JSX and suppress missing node_modules errors
+    if (monaco.languages.typescript && monaco.languages.typescript.typescriptDefaults) {
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.Latest,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: 'React',
+        allowJs: true,
+        typeRoots: ['node_modules/@types']
+      })
+      
+      // Suppress semantic validation (the red squigglies for missing imports like 'react') 
+      // since we don't have a background language server injecting full node_modules here.
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: true,
+        noSyntaxValidation: false
+      })
+    }
+
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (activeFile) {
         saveFile(activeFile.path)
@@ -233,53 +256,63 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   }
 
   // Direct Pane Drop with Split Trigger
-  const handlePaneDrop = (e: React.DragEvent) => {
+  const handlePaneDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDraggingFile(false)
     const dropZone = activeDropZone
     setActiveDropZone(null)
 
+    let targetFile: FileNode | null = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let dropData: any = null
+
     const raw = e.dataTransfer.getData('application/json')
-    if (!raw) return
-
-    try {
-      const data = JSON.parse(raw)
-      const targetFile: FileNode = data.fileNode || (data.name && data.path ? data : null)
-      if (!targetFile && data.path) {
-        // Build file node
-        const fileName = data.path.split(/[/\\]/).pop() || data.path
-        openFileInPane({ name: fileName, path: data.path, is_dir: false }, paneId)
-        return
-      }
-      if (!targetFile) return
-
-      if (dropZone === 'right') {
-        updateSettings({ splitDirection: 'vertical' })
-        setSplitEditorOpen(true)
-        openFileInPane(targetFile, 2)
-      } else if (dropZone === 'left') {
-        updateSettings({ splitDirection: 'vertical' })
-        setSplitEditorOpen(true)
-        openFileInPane(targetFile, 1)
-      } else if (dropZone === 'bottom') {
-        updateSettings({ splitDirection: 'horizontal' })
-        setSplitEditorOpen(true)
-        openFileInPane(targetFile, 2)
-      } else if (dropZone === 'top') {
-        updateSettings({ splitDirection: 'horizontal' })
-        setSplitEditorOpen(true)
-        openFileInPane(targetFile, 1)
-      } else {
-        // Center / default tab add
-        if (data.type === 'tab' && data.pane !== paneId) {
-          moveTabBetweenPanes(data.path, data.pane, paneId)
-        } else {
-          openFileInPane(targetFile, paneId)
+    if (raw) {
+      try {
+        dropData = JSON.parse(raw)
+        targetFile = dropData.fileNode || (dropData.name && dropData.path ? dropData : null)
+        if (!targetFile && dropData.path) {
+          targetFile = { name: dropData.path.split(/[/\\]/).pop() || dropData.path, path: dropData.path, is_dir: false }
         }
+      } catch {
+        // ignore JSON parse error
       }
-    } catch {
-      // ignore
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // OS file drop support
+      const file = e.dataTransfer.files[0]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const path = (file as any).path || file.name // Note: Electron/Tauri injects .path on File objects sometimes, or we rely on Tauri's rust backend
+      if (path) {
+        targetFile = { name: file.name, path: path, is_dir: false }
+      }
+    }
+
+    if (!targetFile) return
+
+    if (dropZone === 'right') {
+      updateSettings({ splitDirection: 'vertical' })
+      setSplitEditorOpen(true)
+      openFileInPane(targetFile, 2)
+    } else if (dropZone === 'left') {
+      updateSettings({ splitDirection: 'vertical' })
+      setSplitEditorOpen(true)
+      openFileInPane(targetFile, 1)
+    } else if (dropZone === 'bottom') {
+      updateSettings({ splitDirection: 'horizontal' })
+      setSplitEditorOpen(true)
+      openFileInPane(targetFile, 2)
+    } else if (dropZone === 'top') {
+      updateSettings({ splitDirection: 'horizontal' })
+      setSplitEditorOpen(true)
+      openFileInPane(targetFile, 1)
+    } else {
+      // Center / default tab add
+      if (dropData?.type === 'tab' && dropData.pane !== paneId) {
+        moveTabBetweenPanes(dropData.path, dropData.pane, paneId)
+      } else {
+        openFileInPane(targetFile, paneId)
+      }
     }
   }
 
