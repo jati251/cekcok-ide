@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { TitleBar } from './components/TitleBar'
 import { ActivityBar } from './components/ActivityBar'
 import { Sidebar } from './components/Sidebar'
 import { ResizeHandle } from './components/ResizeHandle'
@@ -72,6 +73,9 @@ export const App: React.FC = () => {
         '--color-ide-accent-hover': activeTheme.colors.accentHover,
       }}
     >
+      {/* Top Native OS TitleBar & Menus */}
+      <TitleBar />
+
       {/* Main Workspace Layout with Dynamic Sidebar Position */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left-Aligned Sidebar & Activity Bar */}

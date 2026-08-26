@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { motion, AnimatePresence } from 'framer-motion'
 import { TerminalSquare, X, Play, Trash2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { Terminal } from '@xterm/xterm'
@@ -30,7 +29,7 @@ export const TerminalPane: React.FC = () => {
     currentDirRef.current = currentDir
   }, [currentDir])
 
-  const executeCommand = async (cmd: string) => {
+  const executeCommand = useCallback(async (cmd: string) => {
     if (!termInstance.current) return
     const term = termInstance.current
     term.writeln(`\r\n\x1b[32mcekcok-ide\x1b[0m $ ${cmd}`)
@@ -48,7 +47,7 @@ export const TerminalPane: React.FC = () => {
 
     term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
     refreshGitStatus()
-  }
+  }, [refreshGitStatus])
 
   // Toggle maximize terminal height
   const handleToggleMaximize = () => {
@@ -71,11 +70,11 @@ export const TerminalPane: React.FC = () => {
         executeCommand(cmd)
       }, 150)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingTerminalCommand])
+  }, [pendingTerminalCommand, clearPendingTerminalCommand, executeCommand])
 
+  // Initialize Xterm once and keep alive in DOM
   useEffect(() => {
-    if (!terminalOpen || !terminalRef.current) return
+    if (!terminalRef.current) return
 
     if (!termInstance.current) {
       const term = new Terminal({
@@ -152,83 +151,90 @@ export const TerminalPane: React.FC = () => {
 
     // Handle resize
     const handleResize = () => {
-      fitAddon.current?.fit()
+      if (terminalOpen) {
+        fitAddon.current?.fit()
+      }
     }
     window.addEventListener('resize', handleResize)
-
-    // Fit immediately after opening
-    setTimeout(() => handleResize(), 100)
 
     return () => {
       window.removeEventListener('resize', handleResize)
     }
-  }, [terminalOpen, refreshGitStatus])
+  }, [refreshGitStatus, terminalOpen])
+
+  // Fit terminal whenever it becomes visible
+  useEffect(() => {
+    if (terminalOpen) {
+      setTimeout(() => {
+        fitAddon.current?.fit()
+        termInstance.current?.focus()
+      }, 50)
+    }
+  }, [terminalOpen, terminalHeight])
 
   return (
-    <AnimatePresence>
-      {terminalOpen && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: terminalHeight, opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          style={{ height: terminalHeight }}
-          className="bg-[#181818] border-t border-ide-border flex flex-col z-10 select-none shrink-0"
-        >
-          <div className="flex justify-between items-center px-4 py-1.5 text-xs font-semibold uppercase text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
-            <div className="flex items-center gap-2">
-              <TerminalSquare size={14} className="text-green-400" />
-              <span>Terminal (Node / Zsh)</span>
-              <span className="text-[10px] bg-white/10 text-white/80 px-1.5 py-0.2 rounded font-mono">
-                bash
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  termInstance.current?.clear()
-                  termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
-                }}
-                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title="Clear Terminal"
-              >
-                <Trash2 size={13} />
-              </button>
-              <button
-                onClick={() => executeCommand('npm test')}
-                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title="Run npm test"
-              >
-                <Play size={13} />
-              </button>
-              <button
-                onClick={() => executeCommand('clear')}
-                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title="Reset Shell Session"
-              >
-                <RotateCcw size={13} />
-              </button>
-              <button
-                onClick={handleToggleMaximize}
-                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title={isMaximized ? 'Restore Terminal Panel' : 'Maximize Terminal Panel'}
-              >
-                {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              </button>
-              <button
-                onClick={toggleTerminal}
-                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title="Close Terminal Panel (Cmd+` / Cmd+J)"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 p-2 overflow-hidden relative">
-            <div ref={terminalRef} className="absolute inset-0 p-2" />
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      style={{
+        height: terminalHeight,
+        display: terminalOpen ? 'flex' : 'none',
+      }}
+      className="bg-[#181818] border-t border-ide-border flex-col z-10 select-none shrink-0"
+    >
+      {/* Terminal Header Bar */}
+      <div className="flex justify-between items-center px-4 py-1.5 text-xs font-semibold uppercase text-ide-muted border-b border-ide-border bg-[#1f1f1f] shrink-0">
+        <div className="flex items-center gap-2">
+          <TerminalSquare size={14} className="text-green-400" />
+          <span>Terminal (Node / Zsh)</span>
+          <span className="text-[10px] bg-white/10 text-white/80 px-1.5 py-0.2 rounded font-mono">
+            bash
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              termInstance.current?.clear()
+              termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
+            }}
+            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+            title="Clear Terminal"
+          >
+            <Trash2 size={13} />
+          </button>
+          <button
+            onClick={() => executeCommand('npm test')}
+            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+            title="Run npm test"
+          >
+            <Play size={13} />
+          </button>
+          <button
+            onClick={() => executeCommand('clear')}
+            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+            title="Reset Shell Session"
+          >
+            <RotateCcw size={13} />
+          </button>
+          <button
+            onClick={handleToggleMaximize}
+            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+            title={isMaximized ? 'Restore Terminal Panel' : 'Maximize Terminal Panel'}
+          >
+            {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+          <button
+            onClick={toggleTerminal}
+            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+            title="Close Terminal Panel (Cmd+` / Cmd+J)"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Terminal Canvas Container */}
+      <div className="flex-1 p-2 overflow-hidden relative">
+        <div ref={terminalRef} className="absolute inset-0 p-2" />
+      </div>
+    </div>
   )
 }
