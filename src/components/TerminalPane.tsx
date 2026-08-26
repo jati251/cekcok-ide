@@ -1,27 +1,30 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TerminalSquare, X, Play, Trash2 } from 'lucide-react'
+import { TerminalSquare, X, Play, Trash2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 
-export const TerminalPane = () => {
-  const { 
-    terminalOpen, 
+export const TerminalPane: React.FC = () => {
+  const {
+    terminalOpen,
     terminalHeight,
-    toggleTerminal, 
-    currentDir, 
-    pendingTerminalCommand, 
+    setTerminalHeight,
+    toggleTerminal,
+    currentDir,
+    pendingTerminalCommand,
     clearPendingTerminalCommand,
-    refreshGitStatus 
+    refreshGitStatus,
   } = useIDEStore()
 
+  const [isMaximized, setIsMaximized] = useState(false)
+  const previousHeightRef = useRef(terminalHeight)
   const terminalRef = useRef<HTMLDivElement>(null)
   const termInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
-  
+
   const currentDirRef = useRef(currentDir)
   useEffect(() => {
     currentDirRef.current = currentDir
@@ -31,23 +34,35 @@ export const TerminalPane = () => {
     if (!termInstance.current) return
     const term = termInstance.current
     term.writeln(`\r\n\x1b[32mcekcok-ide\x1b[0m $ ${cmd}`)
-    
+
     try {
-      const output = await invoke<string>('execute_shell', { 
+      const output = await invoke<string>('execute_shell', {
         cmd,
-        cwd: currentDirRef.current
+        cwd: currentDirRef.current,
       })
       if (output) term.write(output.replace(/\n/g, '\r\n'))
     } catch (err: unknown) {
       const errMsg = typeof err === 'string' ? err : String(err)
       term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
     }
-    
+
     term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
     refreshGitStatus()
   }
 
-  // Handle programmatic commands (e.g. from NPM scripts runner or Command Palette)
+  // Toggle maximize terminal height
+  const handleToggleMaximize = () => {
+    if (isMaximized) {
+      setTerminalHeight(previousHeightRef.current)
+      setIsMaximized(false)
+    } else {
+      previousHeightRef.current = terminalHeight
+      setTerminalHeight(window.innerHeight * 0.75)
+      setIsMaximized(true)
+    }
+  }
+
+  // Handle programmatic commands
   useEffect(() => {
     if (pendingTerminalCommand) {
       const cmd = pendingTerminalCommand
@@ -83,15 +98,15 @@ export const TerminalPane = () => {
       })
       const fit = new FitAddon()
       term.loadAddon(fit)
-      
+
       term.open(terminalRef.current)
       fit.fit()
-      
+
       termInstance.current = term
       fitAddon.current = fit
 
       const prompt = () => term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
-      
+
       term.writeln('\x1b[1;34mCekcok Native Node.js & Shell Terminal\x1b[0m')
       term.writeln('Type standard bash/node commands or run npm scripts from the sidebar.')
       prompt()
@@ -100,15 +115,15 @@ export const TerminalPane = () => {
 
       term.onData(async (data) => {
         const code = data.charCodeAt(0)
-        
+
         // Enter key
         if (code === 13) {
           term.write('\r\n')
           if (currentCommand.trim()) {
             try {
-              const output = await invoke<string>('execute_shell', { 
+              const output = await invoke<string>('execute_shell', {
                 cmd: currentCommand,
-                cwd: currentDirRef.current
+                cwd: currentDirRef.current,
               })
               if (output) term.write(output.replace(/\n/g, '\r\n'))
             } catch (err: unknown) {
@@ -119,14 +134,14 @@ export const TerminalPane = () => {
           }
           currentCommand = ''
           prompt()
-        } 
+        }
         // Backspace
         else if (code === 127) {
           if (currentCommand.length > 0) {
             currentCommand = currentCommand.slice(0, -1)
             term.write('\b \b')
           }
-        } 
+        }
         // Readable chars
         else if (code >= 32 && code <= 126) {
           currentCommand += data
@@ -140,7 +155,7 @@ export const TerminalPane = () => {
       fitAddon.current?.fit()
     }
     window.addEventListener('resize', handleResize)
-    
+
     // Fit immediately after opening
     setTimeout(() => handleResize(), 100)
 
@@ -164,9 +179,12 @@ export const TerminalPane = () => {
             <div className="flex items-center gap-2">
               <TerminalSquare size={14} className="text-green-400" />
               <span>Terminal (Node / Zsh)</span>
+              <span className="text-[10px] bg-white/10 text-white/80 px-1.5 py-0.2 rounded font-mono">
+                bash
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <button 
+            <div className="flex items-center gap-1.5">
+              <button
                 onClick={() => {
                   termInstance.current?.clear()
                   termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
@@ -176,17 +194,31 @@ export const TerminalPane = () => {
               >
                 <Trash2 size={13} />
               </button>
-              <button 
+              <button
                 onClick={() => executeCommand('npm test')}
                 className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
                 title="Run npm test"
               >
                 <Play size={13} />
               </button>
-              <button 
-                onClick={toggleTerminal} 
+              <button
+                onClick={() => executeCommand('clear')}
                 className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-                title="Close Terminal Pane"
+                title="Reset Shell Session"
+              >
+                <RotateCcw size={13} />
+              </button>
+              <button
+                onClick={handleToggleMaximize}
+                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+                title={isMaximized ? 'Restore Terminal Panel' : 'Maximize Terminal Panel'}
+              >
+                {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              </button>
+              <button
+                onClick={toggleTerminal}
+                className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
+                title="Close Terminal Panel (Cmd+` / Cmd+J)"
               >
                 <X size={14} />
               </button>

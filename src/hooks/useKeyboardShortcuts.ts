@@ -85,8 +85,8 @@ export const useKeyboardShortcuts = () => {
         e.preventDefault()
         toggleSidebar()
       }
-      // Cmd+J: Toggle Terminal
-      else if (isCmdOrCtrl && (e.key === 'J' || e.key === 'j')) {
+      // Cmd+` or Cmd+J: Toggle Terminal
+      else if (isCmdOrCtrl && (e.key === '`' || e.key === '~' || e.key === 'J' || e.key === 'j')) {
         e.preventDefault()
         toggleTerminal()
       }

@@ -209,6 +209,21 @@ export const SettingsView = () => {
                   </select>
                 </div>
               )}
+
+              {matchesSearch('Hidden Files') && (
+                <div className="flex items-center justify-between pb-4 border-b border-ide-border/40">
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">Files: Show Hidden Files</h4>
+                    <p className="text-[11px] text-ide-muted">Controls whether dotfiles (e.g. .env, .gitignore) are shown.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.showHiddenFiles}
+                    onChange={(e) => updateSettings({ showHiddenFiles: e.target.checked })}
+                    className="w-4 h-4 accent-ide-accent cursor-pointer"
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

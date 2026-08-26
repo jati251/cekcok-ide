@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { renderFileOrFolderIcon } from '../utils/fileIcons'
+import { FileTreeContextMenu } from './FileTreeContextMenu'
 
 interface FileTreeItemProps {
   node: FileNode
@@ -9,11 +10,42 @@ interface FileTreeItemProps {
 }
 
 export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) => {
-  const { openFile, activeFile, expandedFolders, folderChildren, toggleFolder } = useIDEStore()
+  const {
+    openFile,
+    activeFile,
+    expandedFolders,
+    folderChildren,
+    toggleFolder,
+    renamePathItem,
+    createFileInDir,
+    createFolderInDir,
+  } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
   const children = folderChildren[node.path] || []
   const isActive = activeFile?.path === node.path
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(node.name)
+  const [creatingChild, setCreatingChild] = useState<{ isDir: boolean } | null>(null)
+  const [newChildName, setNewChildName] = useState('')
+
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const newChildInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isRenaming) {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    }
+  }, [isRenaming])
+
+  useEffect(() => {
+    if (creatingChild) {
+      newChildInputRef.current?.focus()
+    }
+  }, [creatingChild])
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -24,17 +56,48 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     }
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
   const handleDragStart = (e: React.DragEvent) => {
     if (node.is_dir) return
     e.dataTransfer.setData('application/json', JSON.stringify(node))
     e.dataTransfer.setData('text/plain', node.path)
   }
 
+  const handleRenameSubmit = async () => {
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== node.name) {
+      const sep = node.path.includes('/') ? '/' : '\\'
+      const parent = node.path.substring(0, Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')))
+      const newPath = parent ? `${parent}${sep}${trimmed}` : trimmed
+      await renamePathItem(node.path, newPath)
+    }
+    setIsRenaming(false)
+  }
+
+  const handleNewChildSubmit = async () => {
+    const trimmed = newChildName.trim()
+    if (trimmed && creatingChild) {
+      if (creatingChild.isDir) {
+        await createFolderInDir(node.path, trimmed)
+      } else {
+        await createFileInDir(node.path, trimmed)
+      }
+    }
+    setCreatingChild(null)
+    setNewChildName('')
+  }
+
   return (
     <div>
       <div
         onClick={handleClick}
-        draggable={!node.is_dir}
+        onContextMenu={handleContextMenu}
+        draggable={!node.is_dir && !isRenaming}
         onDragStart={handleDragStart}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative ${
@@ -69,14 +132,55 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
         {/* File/Folder Icon */}
         {renderFileOrFolderIcon(node.name, node.is_dir, isExpanded)}
 
-        {/* Label */}
-        <span className="truncate text-xs">{node.name}</span>
+        {/* Label or Inline Rename Input */}
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={handleRenameSubmit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit()
+              if (e.key === 'Escape') setIsRenaming(false)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#3c3c3c] text-white text-xs px-1 py-0.5 rounded border border-ide-accent outline-none w-full"
+          />
+        ) : (
+          <span className="truncate text-xs">{node.name}</span>
+        )}
       </div>
+
+      {/* Inline New Child Creation Input */}
+      {creatingChild && (
+        <div
+          style={{ paddingLeft: `${(depth + 1) * 14 + 8}px` }}
+          className="flex items-center gap-1.5 py-1 pr-2"
+        >
+          <span className="w-4 shrink-0" />
+          {renderFileOrFolderIcon(newChildName || 'new', creatingChild.isDir, false)}
+          <input
+            ref={newChildInputRef}
+            type="text"
+            placeholder={creatingChild.isDir ? 'Folder name...' : 'File name...'}
+            value={newChildName}
+            onChange={(e) => setNewChildName(e.target.value)}
+            onBlur={handleNewChildSubmit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleNewChildSubmit()
+              if (e.key === 'Escape') setCreatingChild(null)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#3c3c3c] text-white text-xs px-1 py-0.5 rounded border border-ide-accent outline-none w-full"
+          />
+        </div>
+      )}
 
       {/* Recursive Children */}
       {node.is_dir && isExpanded && (
         <div>
-          {children.length === 0 ? (
+          {children.length === 0 && !creatingChild ? (
             <div
               style={{ paddingLeft: `${(depth + 1) * 14 + 22}px` }}
               className="py-0.5 text-[11px] text-[#777] italic"
@@ -89,6 +193,28 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
             ))
           )}
         </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <FileTreeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          node={node}
+          onClose={() => setContextMenu(null)}
+          onNewFile={() => {
+            if (!isExpanded) toggleFolder(node.path)
+            setCreatingChild({ isDir: false })
+          }}
+          onNewFolder={() => {
+            if (!isExpanded) toggleFolder(node.path)
+            setCreatingChild({ isDir: true })
+          }}
+          onRename={() => {
+            setRenameValue(node.name)
+            setIsRenaming(true)
+          }}
+        />
       )}
     </div>
   )

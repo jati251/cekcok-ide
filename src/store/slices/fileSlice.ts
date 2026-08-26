@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import { FileNode } from '../../types/ide'
+import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import { FullIDEStore } from '../useIDEStore'
 
 export interface FileSlice {
@@ -9,6 +10,7 @@ export interface FileSlice {
   folderChildren: Record<string, FileNode[]>
 
   splitEditorOpen: boolean
+  splitRatio: number
   activePane: 1 | 2
   pane1Files: FileNode[]
   pane1ActiveFile: FileNode | null
@@ -20,8 +22,15 @@ export interface FileSlice {
   activeFile: FileNode | null
 
   setFileTree: (files: FileNode[]) => void
+  setSplitRatio: (ratio: number) => void
   toggleFolder: (path: string) => Promise<void>
   collapseAllFolders: () => void
+  refreshDirectory: (path?: string) => Promise<void>
+
+  createFileInDir: (dirPath: string, name: string) => Promise<void>
+  createFolderInDir: (dirPath: string, name: string) => Promise<void>
+  deletePathItem: (path: string) => Promise<void>
+  renamePathItem: (oldPath: string, newPath: string) => Promise<void>
 
   setActivePane: (pane: 1 | 2) => void
   toggleSplitEditor: () => void
@@ -56,6 +65,7 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   folderChildren: {},
 
   splitEditorOpen: false,
+  splitRatio: LAYOUT_CONSTRAINTS.SPLIT_DEFAULT_RATIO,
   activePane: 1,
   pane1Files: [],
   pane1ActiveFile: null,
@@ -66,6 +76,64 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   activeFile: null,
 
   setFileTree: (files) => set({ fileTree: files }),
+
+  setSplitRatio: (ratio) => set({
+    splitRatio: Math.max(LAYOUT_CONSTRAINTS.SPLIT_MIN_RATIO, Math.min(ratio, LAYOUT_CONSTRAINTS.SPLIT_MAX_RATIO))
+  }),
+
+  refreshDirectory: async (path) => {
+    const targetDir = path || get().currentDir
+    try {
+      const files = await invoke<FileNode[]>('read_dir', { path: targetDir })
+      if (targetDir === get().currentDir) {
+        set({ fileTree: files })
+      } else {
+        set((state) => ({
+          folderChildren: { ...state.folderChildren, [targetDir]: files }
+        }))
+      }
+    } catch (err) {
+      console.error(`Failed to refresh directory ${targetDir}:`, err)
+    }
+  },
+
+  createFileInDir: async (dirPath, name) => {
+    const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
+    const fullPath = `${dirPath}${sep}${name}`
+    await invoke('create_file', { path: fullPath })
+    await get().refreshDirectory(dirPath)
+    get().openFile({ name, path: fullPath, is_dir: false })
+  },
+
+  createFolderInDir: async (dirPath, name) => {
+    const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
+    const fullPath = `${dirPath}${sep}${name}`
+    await invoke('create_dir', { path: fullPath })
+    await get().refreshDirectory(dirPath)
+  },
+
+  deletePathItem: async (path) => {
+    await invoke('delete_path', { path })
+    get().closeFile(path)
+    // Find parent dir to refresh
+    const parent = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))) || get().currentDir
+    await get().refreshDirectory(parent)
+    if (parent !== get().currentDir) {
+      await get().refreshDirectory(get().currentDir)
+    }
+  },
+
+  renamePathItem: async (oldPath, newPath) => {
+    await invoke('rename_path', { oldPath, newPath })
+    get().closeFile(oldPath)
+    const newName = newPath.split(/[/\\]/).pop() || newPath
+    get().openFile({ name: newName, path: newPath, is_dir: false })
+    const parent = oldPath.substring(0, Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\'))) || get().currentDir
+    await get().refreshDirectory(parent)
+    if (parent !== get().currentDir) {
+      await get().refreshDirectory(get().currentDir)
+    }
+  },
 
   toggleFolder: async (path) => {
     const isExpanded = !!get().expandedFolders[path]

@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoSave: 'afterDelay',
   lineNumbers: 'on',
   startupBehavior: 'restoreLastProject',
+  showHiddenFiles: false,
+  showIgnoredFiles: true,
 }
 
 export const INITIAL_GIT_STATUS: GitStatusResult = {
@@ -34,6 +36,9 @@ export const LAYOUT_CONSTRAINTS = {
   TERMINAL_MIN_HEIGHT: 80,
   TERMINAL_MAX_HEIGHT: 600,
   TERMINAL_DEFAULT_HEIGHT: 220,
+  SPLIT_MIN_RATIO: 0.2,
+  SPLIT_MAX_RATIO: 0.8,
+  SPLIT_DEFAULT_RATIO: 0.5,
   ZOOM_MIN: 0.6,
   ZOOM_MAX: 1.8,
   ZOOM_DEFAULT: 1.0,

@@ -41,6 +41,8 @@ export interface UserSettings {
   autoSave: 'off' | 'afterDelay' | 'onFocusChange'
   lineNumbers: 'on' | 'off' | 'relative'
   startupBehavior: 'restoreLastProject' | 'welcomePage' | 'empty'
+  showHiddenFiles: boolean
+  showIgnoredFiles: boolean
 }
 
 export interface PendingCloseFile {

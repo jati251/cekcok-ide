@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
 import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings, Compass } from 'lucide-react'
@@ -364,6 +364,8 @@ const SinglePane: React.FC<SinglePaneProps> = ({
 export const EditorPane: React.FC = () => {
   const {
     splitEditorOpen,
+    splitRatio,
+    setSplitRatio,
     activePane,
     pane1Files,
     pane1ActiveFile,
@@ -371,22 +373,65 @@ export const EditorPane: React.FC = () => {
     pane2ActiveFile,
   } = useIDEStore()
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+
+  const handleSplitMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const newRatio = (moveEvent.clientX - rect.left) / rect.width
+      setSplitRatio(newRatio)
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
   return (
-    <main className="flex-1 flex flex-row bg-ide-bg overflow-hidden min-w-0">
-      <SinglePane
-        paneId={1}
-        files={pane1Files}
-        activeFile={pane1ActiveFile}
-        isActivePane={activePane === 1}
-      />
+    <main ref={containerRef} className="flex-1 flex flex-row bg-ide-bg overflow-hidden min-w-0 relative">
+      <div
+        style={{ width: splitEditorOpen ? `${splitRatio * 100}%` : '100%' }}
+        className="h-full flex flex-col min-w-0"
+      >
+        <SinglePane
+          paneId={1}
+          files={pane1Files}
+          activeFile={pane1ActiveFile}
+          isActivePane={activePane === 1}
+        />
+      </div>
 
       {splitEditorOpen && (
-        <SinglePane
-          paneId={2}
-          files={pane2Files}
-          activeFile={pane2ActiveFile}
-          isActivePane={activePane === 2}
-        />
+        <>
+          {/* Draggable Split Divider */}
+          <div
+            onMouseDown={handleSplitMouseDown}
+            className="w-1 hover:w-1.5 bg-ide-border hover:bg-ide-accent cursor-col-resize z-20 transition-all shrink-0 h-full select-none"
+            title="Drag to resize split panes"
+          />
+
+          <div
+            style={{ width: `${(1 - splitRatio) * 100}%` }}
+            className="h-full flex flex-col min-w-0"
+          >
+            <SinglePane
+              paneId={2}
+              files={pane2Files}
+              activeFile={pane2ActiveFile}
+              isActivePane={activePane === 2}
+            />
+          </div>
+        </>
       )}
     </main>
   )
