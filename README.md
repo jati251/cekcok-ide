@@ -121,24 +121,62 @@ The compiled binaries will be output to:
 
 ```
 cekcok-ide/
-├── public/                 # Static brand assets, favicon, mascot logo
-├── src/                    # Frontend UI (React 19 + TypeScript + Tailwind v4)
-│   ├── components/         # Modular IDE views
-│   │   ├── bottom-panel/   # Rich Bottom Panel (Problems, Output, Debug, Ports, Terminal)
-│   │   ├── sidebar/        # Explorer, Git, Search, and Node Sidebars
-│   │   ├── EditorPane.tsx  # Monaco Editor & Multi-Pane Grid
-│   │   ├── TitleBar.tsx    # Native OS Header & Window Drag Handler
-│   │   └── StatusBar.tsx   # Status bar with diagnostic and port badges
-│   ├── hooks/              # Global shortcuts & native menu event listeners
-│   ├── store/              # Zustand state slices (file, ui, git, node)
-│   └── utils/              # Dynamic platform helpers, themes, languages
-└── src-tauri/              # Backend (Rust + Tauri v2 Engine)
+├── public/                     # Static brand assets, favicon, mascot logo
+├── src/                        # Frontend UI (React 19 + TypeScript + Tailwind v4)
+│   ├── components/             # Modular IDE views
+│   │   ├── bottom-panel/       # Rich Bottom Panel
+│   │   │   ├── BottomPanel.tsx         # Panel container & tab switcher
+│   │   │   ├── ProblemsView.tsx        # Monaco diagnostics viewer
+│   │   │   ├── OutputView.tsx          # Filterable output channels
+│   │   │   ├── DebugConsoleView.tsx    # Interactive JS/Node REPL
+│   │   │   ├── PortsView.tsx           # Local port forwarder & status
+│   │   │   └── MultiTerminalView.tsx   # Multi-tab native PTY terminal
+│   │   ├── editor/             # Monaco Editor & Multi-Pane Grid
+│   │   │   ├── EditorPane.tsx          # Pane container & drop zone logic
+│   │   │   ├── components/             # Editor sub-components (tabs, gutter, etc.)
+│   │   │   ├── hooks/                  # Editor-scoped hooks
+│   │   │   └── types.ts                # Editor type definitions
+│   │   ├── sidebar/            # Explorer, Git, Search, and Node Sidebars
+│   │   │   ├── ExplorerSidebar.tsx     # File tree & folder explorer
+│   │   │   ├── GitSidebar.tsx          # Source control panel
+│   │   │   ├── SearchSidebar.tsx       # Workspace text search
+│   │   │   └── NodeSidebar.tsx         # NPM scripts & dependency viewer
+│   │   ├── ActivityBar.tsx     # Left icon rail for sidebar switching
+│   │   ├── CommandPalette.tsx  # Cmd/Ctrl+Shift+P command palette
+│   │   ├── TitleBar.tsx        # Native OS header & window drag handler
+│   │   ├── StatusBar.tsx       # Status bar with diagnostic & port badges
+│   │   ├── SettingsView.tsx    # IDE settings UI
+│   │   ├── WelcomeView.tsx     # Welcome/landing screen
+│   │   └── ...                 # Context menus, modals, layout customizer
+│   ├── hooks/                  # Global shortcuts & native menu event listeners
+│   │   ├── useKeyboardShortcuts.ts
+│   │   ├── useNativeMenu.ts
+│   │   └── useAutoSave.ts
+│   ├── store/                  # Zustand state management
+│   │   ├── useIDEStore.ts              # Root store composition
+│   │   └── slices/                     # Modular state slices
+│   │       ├── fileSlice.ts            # Open files, tabs, dirty tracking
+│   │       ├── uiSlice.ts             # Panels, layout, theme state
+│   │       ├── gitSlice.ts            # Git status & operations state
+│   │       └── nodeSlice.ts           # NPM/Node.js project state
+│   ├── types/                  # Shared TypeScript type definitions
+│   ├── constants/              # App-wide defaults & configuration
+│   └── utils/                  # Dynamic platform helpers, themes, languages
+│       ├── tauriBridge.ts              # Tauri IPC command wrappers
+│       ├── themes.ts                   # Editor color themes
+│       ├── languages.ts                # Language detection & mappings
+│       ├── fileIcons.tsx               # File/folder icon resolver
+│       ├── platform.ts                 # OS-aware keyboard shortcut labels
+│       ├── storage.ts                  # Persistent storage helpers
+│       └── localHistory.ts            # Local file revision history
+└── src-tauri/                  # Backend (Rust + Tauri v2 Engine)
     ├── src/
-    │   ├── fs_commands.rs      # File system operations & streaming shell process
-    │   ├── git_commands.rs     # Git status, stage, discard, commit, push, pull
-    │   ├── search_commands.rs  # Rayon + ripgrep regex file search
-    │   └── lib.rs              # Tauri setup, native menus & command registration
-    └── capabilities/           # Tauri v2 security policies & window permissions
+    │   ├── lib.rs                  # Tauri setup, native menus & command registration
+    │   ├── fs_commands.rs          # File system operations & streaming shell process
+    │   ├── git_commands.rs         # Git status, stage, discard, commit, push, pull
+    │   └── search_commands.rs      # Rayon + ripgrep regex file search
+    ├── capabilities/               # Tauri v2 security policies & window permissions
+    └── tauri.conf.json             # Tauri app configuration
 ```
 
 ---
