@@ -1,5 +1,5 @@
 import React from 'react'
-
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
   Search,
   Code2,
@@ -19,21 +19,31 @@ export const TitleBar: React.FC = () => {
     ? `${activeFile.name} — ${projectName}`
     : `${projectName} — Cekcok IDE`
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only drag on left click and when not clicking an interactive control
+    if (e.button === 0 && !(e.target as HTMLElement).closest('button, input, [data-no-drag]')) {
+      getCurrentWindow().startDragging()
+    }
+  }
+
   return (
     <header 
-      className="h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2 pointer-events-none select-none"
+      data-tauri-drag-region
+      onMouseDown={handleMouseDown}
+      className="h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2 select-none cursor-default"
     >
       {/* Left Section: OS Window Controls */}
-      <div className="flex items-center gap-2">
+      <div data-tauri-drag-region className="flex items-center gap-2">
         {/* Mac OS Native Traffic Lights Placeholder */}
-        <div className="w-[70px] shrink-0" />
+        <div data-tauri-drag-region className="w-[70px] shrink-0" />
       </div>
 
       {/* Center Section: Quick Search Pill & Title */}
-      <div className="flex-1 flex items-center justify-center px-4">
+      <div data-tauri-drag-region className="flex-1 flex items-center justify-center px-4">
         <button
+          data-no-drag
           onClick={() => setQuickOpenOpen(true)}
-          className="pointer-events-auto flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer"
+          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer"
         >
           <div className="flex items-center gap-1.5 truncate">
             <Search size={12} className="text-[#777]" />
@@ -46,11 +56,11 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Right Section: Layout Controls & Branding */}
-      <div className="flex items-center gap-2">
-        <div className="pointer-events-auto">
+      <div data-tauri-drag-region className="flex items-center gap-2">
+        <div data-no-drag>
           <LayoutCustomizer />
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10 pointer-events-auto">
+        <div data-tauri-drag-region className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
           <Code2 size={12} className="text-ide-accent" />
           <span>Cekcok</span>
         </div>

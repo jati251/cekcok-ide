@@ -94,6 +94,8 @@ export const TerminalPane: React.FC = () => {
         fontFamily: "'Consolas', 'Menlo', 'Courier New', monospace",
         fontSize: 13,
         cursorBlink: true,
+        scrollback: 5000,
+        convertEol: true,
       })
       const fit = new FitAddon()
       term.loadAddon(fit)
@@ -111,8 +113,52 @@ export const TerminalPane: React.FC = () => {
       prompt()
 
       let currentCommand = ''
+      const history: string[] = []
+      let historyIndex = -1
 
       term.onData(async (data) => {
+        // Handle ANSI escape sequences for arrow keys
+        if (data === '\x1b[A') {
+          // Up arrow: Navigate history back
+          if (history.length > 0) {
+            if (historyIndex === -1) {
+              historyIndex = history.length - 1
+            } else if (historyIndex > 0) {
+              historyIndex--
+            }
+            // Clear current line
+            while (currentCommand.length > 0) {
+              term.write('\b \b')
+              currentCommand = currentCommand.slice(0, -1)
+            }
+            currentCommand = history[historyIndex] || ''
+            term.write(currentCommand)
+          }
+          return
+        }
+
+        if (data === '\x1b[B') {
+          // Down arrow: Navigate history forward
+          if (historyIndex !== -1) {
+            if (historyIndex < history.length - 1) {
+              historyIndex++
+              while (currentCommand.length > 0) {
+                term.write('\b \b')
+                currentCommand = currentCommand.slice(0, -1)
+              }
+              currentCommand = history[historyIndex] || ''
+              term.write(currentCommand)
+            } else {
+              historyIndex = -1
+              while (currentCommand.length > 0) {
+                term.write('\b \b')
+                currentCommand = currentCommand.slice(0, -1)
+              }
+            }
+          }
+          return
+        }
+
         const code = data.charCodeAt(0)
 
         // Ctrl+C
@@ -120,6 +166,7 @@ export const TerminalPane: React.FC = () => {
           term.write('^C\r\n')
           invoke('kill_shell').catch(console.error)
           currentCommand = ''
+          historyIndex = -1
           prompt()
           return
         }
@@ -127,10 +174,13 @@ export const TerminalPane: React.FC = () => {
         // Enter key
         if (code === 13) {
           term.write('\r\n')
-          if (currentCommand.trim()) {
+          const cmdToRun = currentCommand.trim()
+          if (cmdToRun) {
+            history.push(cmdToRun)
+            historyIndex = -1
             try {
               await invoke('spawn_shell', {
-                cmd: currentCommand,
+                cmd: cmdToRun,
                 cwd: currentDirRef.current,
               })
             } catch (err: unknown) {
@@ -165,12 +215,16 @@ export const TerminalPane: React.FC = () => {
             termInstance.current.write(event.payload)
           }
         })
-        const ex = await listen<number>('terminal-exit', (event) => {
+        const ex = await listen<number | null>('terminal-exit', (event) => {
           if (termInstance.current) {
-            termInstance.current.write(`\r\n[Process exited with code ${event.payload}]\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+            if (event.payload !== null && event.payload !== undefined && event.payload !== 0) {
+              termInstance.current.write(`\r\n\x1b[33m[Process exited with code ${event.payload}]\x1b[0m\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+            } else {
+              termInstance.current.write(`\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+            }
           }
         })
-        unlistenRef.current = { out, ex }
+        unlistenRef.current = { out, ex: ex as unknown as UnlistenFn }
       }
       setupListeners()
     }
