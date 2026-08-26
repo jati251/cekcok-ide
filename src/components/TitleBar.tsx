@@ -20,46 +20,57 @@ export const TitleBar: React.FC = () => {
     : `${projectName} — Cekcok IDE`
 
   return (
-    <header
-      data-tauri-drag-region
-      className="h-[32px] bg-[#181818] border-b border-ide-border flex items-center justify-between px-2 select-none z-40 text-xs text-[#cccccc] font-sans shrink-0 [-webkit-app-region:drag]"
-    >
-      {/* Left Section: OS Window Controls & Menus */}
-      <div className="flex items-center gap-2 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
-        {/* Mac OS Native Traffic Lights Placeholder */}
-        <div className="w-[70px] h-full shrink-0 [-webkit-app-region:drag]" data-tauri-drag-region />
+    <header className="relative h-[32px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 overflow-hidden select-none">
+      {/* 
+        FOOLPROOF DRAG REGION
+        This layer covers the entire header and serves ONLY to catch drag events.
+        It sits at the bottom (z-0).
+      */}
+      <div 
+        data-tauri-drag-region 
+        className="absolute inset-0 z-0 [-webkit-app-region:drag]" 
+      />
 
-        {/* Removed redundant HTML menu bar (macOS has native global menu) */}
-      </div>
+      {/* 
+        CONTENT LAYER
+        This sits on top (z-10). It uses pointer-events-none so all drag clicks 
+        fall through to the drag region, except for buttons which use pointer-events-auto.
+      */}
+      <div className="relative z-10 w-full h-full flex items-center justify-between px-2 pointer-events-none">
+        
+        {/* Left Section: OS Window Controls */}
+        <div className="flex items-center gap-2">
+          {/* Mac OS Native Traffic Lights Placeholder */}
+          <div className="w-[70px] shrink-0" />
+        </div>
 
-      {/* Center Section: Quick Search Pill & Title */}
-      <div
-        data-tauri-drag-region
-        className="flex-1 flex items-center justify-center px-4 overflow-hidden h-full [-webkit-app-region:drag]"
-      >
-        <button
-          onClick={() => setQuickOpenOpen(true)}
-          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer [-webkit-app-region:no-drag]"
-        >
-          <div className="flex items-center gap-1.5 truncate">
-            <Search size={12} className="text-[#777]" />
-            <span className="truncate">{displayTitle}</span>
+        {/* Center Section: Quick Search Pill & Title */}
+        <div className="flex-1 flex items-center justify-center px-4">
+          <button
+            onClick={() => setQuickOpenOpen(true)}
+            className="pointer-events-auto flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer [-webkit-app-region:no-drag]"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <Search size={12} className="text-[#777]" />
+              <span className="truncate">{displayTitle}</span>
+            </div>
+            <kbd className="font-mono text-[9px] bg-white/10 px-1 py-0.2 rounded text-[#bbb]">
+              Cmd+P
+            </kbd>
+          </button>
+        </div>
+
+        {/* Right Section: Layout Controls & Branding */}
+        <div className="flex items-center gap-2">
+          <div className="pointer-events-auto [-webkit-app-region:no-drag]">
+            <LayoutCustomizer />
           </div>
-          <kbd className="font-mono text-[9px] bg-white/10 px-1 py-0.2 rounded text-[#bbb]">
-            Cmd+P
-          </kbd>
-        </button>
-      </div>
+          <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
+            <Code2 size={12} className="text-ide-accent" />
+            <span>Cekcok</span>
+          </div>
+        </div>
 
-      {/* Right Section: Layout Controls & Branding */}
-      <div className="flex items-center gap-2 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
-        <div className="[-webkit-app-region:no-drag]">
-          <LayoutCustomizer />
-        </div>
-        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
-          <Code2 size={12} className="text-ide-accent [-webkit-app-region:drag]" data-tauri-drag-region />
-          <span className="[-webkit-app-region:drag]" data-tauri-drag-region>Cekcok</span>
-        </div>
       </div>
     </header>
   )
