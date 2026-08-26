@@ -183,7 +183,7 @@ export const CommandPalette = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.98 }}
           transition={{ duration: 0.15 }}
-          className="w-[580px] max-h-[420px] bg-[#252526] border border-ide-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+          className="w-full max-w-[95vw] sm:w-[580px] max-h-[80vh] sm:max-h-[420px] bg-[#252526] border border-ide-border rounded-lg shadow-2xl flex flex-col overflow-hidden mx-2"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Search Input Box */}

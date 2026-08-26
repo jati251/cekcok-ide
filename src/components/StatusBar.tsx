@@ -3,7 +3,6 @@ import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw } from
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
 import { LayoutCustomizer } from './LayoutCustomizer'
-
 import { formatShortcut } from '../utils/platform'
 
 export const StatusBar: React.FC = () => {
@@ -25,10 +24,10 @@ export const StatusBar: React.FC = () => {
   } = useIDEStore()
 
   return (
-    <footer className="h-[26px] bg-ide-accent text-white flex items-center justify-between px-3 text-[11px] select-none z-30 font-sans">
-      <div className="flex items-center gap-2">
+    <footer className="h-[26px] bg-ide-accent text-white flex items-center justify-between px-2 sm:px-3 text-[10px] sm:text-[11px] select-none z-30 font-sans shrink-0 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Toggle UI Buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <button
             onClick={toggleSidebar}
             className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer"
@@ -55,7 +54,7 @@ export const StatusBar: React.FC = () => {
             <GitBranch size={13} />
             <span className="font-mono">{gitStatus.branch}</span>
             {(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
-              <span className="text-[10px] opacity-90">
+              <span className="text-[9px] sm:text-[10px] opacity-90 hidden xs:inline">
                 ↑{gitStatus.ahead} ↓{gitStatus.behind}
               </span>
             )}
@@ -76,11 +75,11 @@ export const StatusBar: React.FC = () => {
         {packageJson && (
           <div
             onClick={() => setActiveSidebarTab('node' as SidebarTab)}
-            className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+            className="hidden sm:flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
             title={`Node.js: ${packageJson.name || 'Project'} (v${packageJson.version || '1.0.0'})`}
           >
             <PackageCheck size={12} />
-            <span>{packageJson.name || 'node-app'}</span>
+            <span className="truncate max-w-[100px]">{packageJson.name || 'node-app'}</span>
           </div>
         )}
 
@@ -101,7 +100,7 @@ export const StatusBar: React.FC = () => {
         {/* Ports Badge */}
         <div
           onClick={() => setActiveBottomTab('ports')}
-          className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+          className="hidden md:flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
           title="Forwarded Ports (Click to view active services)"
         >
           <span className="text-[10px]">🌐</span>
@@ -109,13 +108,13 @@ export const StatusBar: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {activeFile && (
           <>
-            <div className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
+            <div className="hidden md:block hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               Ln 1, Col 1
             </div>
-            <div className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
+            <div className="hidden sm:block hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               UTF-8
             </div>
             <div className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
@@ -125,12 +124,14 @@ export const StatusBar: React.FC = () => {
         )}
         <button
           onClick={() => setZoomLevel(1.0)}
-          className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-mono text-[10px]"
+          className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-mono text-[9px] sm:text-[10px]"
           title={`Zoom Level (Click to reset to 100%, ${formatShortcut('Cmd+=')} to zoom in, ${formatShortcut('Cmd+-')} to zoom out)`}
         >
           {Math.round(zoomLevel * 100)}%
         </button>
-        <LayoutCustomizer />
+        <div className="hidden xs:block">
+          <LayoutCustomizer />
+        </div>
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"

@@ -82,9 +82,9 @@ export const SearchEverywhereModal: React.FC = () => {
   if (!searchEverywhereOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/40 backdrop-blur-sm" onClick={() => setSearchEverywhereOpen(false)}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-8 sm:pt-[15vh] px-2 bg-black/40 backdrop-blur-sm" onClick={() => setSearchEverywhereOpen(false)}>
       <div 
-        className="bg-[#252526] border border-ide-border shadow-2xl rounded-lg w-[600px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
+        className="bg-[#252526] border border-ide-border shadow-2xl rounded-lg w-full max-w-[95vw] sm:w-[600px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center border-b border-ide-border bg-[#1e1e1e] p-2 text-xs">
