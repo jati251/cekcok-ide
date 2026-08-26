@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { ActivityBar } from './components/ActivityBar'
 import { Sidebar } from './components/Sidebar'
+import { ResizeHandle } from './components/ResizeHandle'
 import { EditorPane } from './components/EditorPane'
 import { TerminalPane } from './components/TerminalPane'
 import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
 import { useIDEStore } from './store/useIDEStore'
+import { THEMES } from './utils/themes'
 import './index.css'
 
 function App() {
@@ -15,7 +17,10 @@ function App() {
     toggleSidebar,
     toggleTerminal,
     refreshGitStatus,
-    refreshPackageJson
+    refreshPackageJson,
+    sidebarOpen,
+    terminalOpen,
+    settings
   } = useIDEStore()
 
   useEffect(() => {
@@ -51,15 +56,31 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setCommandPaletteOpen, setQuickOpenOpen, toggleSidebar, toggleTerminal, refreshGitStatus, refreshPackageJson])
 
+  const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']
+
   return (
-    <div className="h-screen w-screen flex flex-col bg-ide-bg text-ide-text overflow-hidden font-sans select-none">
+    <div 
+      className="h-screen w-screen flex flex-col overflow-hidden font-sans select-none"
+      style={{
+        backgroundColor: activeTheme.colors.bg,
+        color: activeTheme.colors.text,
+        // @ts-expect-error custom CSS variable mapping for themes
+        '--color-ide-bg': activeTheme.colors.bg,
+        '--color-ide-sidebar': activeTheme.colors.sidebar,
+        '--color-ide-border': activeTheme.colors.border,
+        '--color-ide-accent': activeTheme.colors.accent,
+        '--color-ide-accent-hover': activeTheme.colors.accentHover,
+      }}
+    >
       {/* Main Workspace Layout */}
       <div className="flex flex-1 h-[calc(100vh-26px)] overflow-hidden">
         <ActivityBar />
         <Sidebar />
+        {sidebarOpen && <ResizeHandle direction="vertical" />}
         
-        <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+        <div className="flex-1 flex flex-col min-w-0" style={{ backgroundColor: activeTheme.colors.bg }}>
           <EditorPane />
+          {terminalOpen && <ResizeHandle direction="horizontal" />}
           <TerminalPane />
         </div>
       </div>

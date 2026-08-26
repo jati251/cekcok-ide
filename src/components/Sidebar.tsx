@@ -19,10 +19,10 @@ import {
   RotateCcw,
   Check,
   ArrowUp,
-  ArrowDown,
-  Sliders
+  ArrowDown
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
+import { SettingsView } from './SettingsView'
 
 interface SearchResultItem {
   file_path: string
@@ -45,6 +45,7 @@ const getIconForFile = (filename: string, isDir: boolean) => {
 export const Sidebar = () => {
   const { 
     sidebarOpen, 
+    sidebarWidth,
     activeSidebarTab,
     fileTree, 
     activeFile, 
@@ -248,10 +249,11 @@ export const Sidebar = () => {
       {sidebarOpen && (
         <motion.aside
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: 280, opacity: 1 }}
+          animate={{ width: sidebarWidth, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="flex flex-col bg-ide-sidebar border-r border-ide-border overflow-hidden whitespace-nowrap select-none h-full z-10"
+          style={{ width: sidebarWidth }}
+          className="flex flex-col bg-ide-sidebar border-r border-ide-border overflow-hidden whitespace-nowrap select-none h-full z-10 shrink-0"
         >
           {/* VIEW: EXPLORER */}
           {activeSidebarTab === 'explorer' && (
@@ -669,40 +671,7 @@ export const Sidebar = () => {
 
           {/* VIEW: SETTINGS */}
           {activeSidebarTab === 'settings' && (
-            <div className="flex flex-col h-full p-4 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border pb-2">
-                <Sliders size={14} />
-                <span>Settings</span>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="space-y-1">
-                  <label className="text-white/90 font-medium">Editor Theme</label>
-                  <select className="w-full bg-[#3c3c3c] text-white text-xs p-1.5 rounded border border-ide-border focus:outline-none cursor-pointer">
-                    <option value="vs-dark">VS Dark (Default)</option>
-                    <option value="vs-light">VS Light</option>
-                    <option value="hc-black">High Contrast</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-white/90 font-medium">Font Family</label>
-                  <input
-                    type="text"
-                    defaultValue="'Consolas', 'Courier New', monospace"
-                    className="w-full bg-[#3c3c3c] text-white text-xs p-1.5 rounded border border-ide-border focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-white/90 font-medium">Tab Size</label>
-                  <select className="w-full bg-[#3c3c3c] text-white text-xs p-1.5 rounded border border-ide-border focus:outline-none cursor-pointer">
-                    <option value="2">2 Spaces</option>
-                    <option value="4">4 Spaces</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+            <SettingsView />
           )}
         </motion.aside>
       )}

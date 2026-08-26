@@ -10,6 +10,7 @@ import '@xterm/xterm/css/xterm.css'
 export const TerminalPane = () => {
   const { 
     terminalOpen, 
+    terminalHeight,
     toggleTerminal, 
     currentDir, 
     pendingTerminalCommand, 
@@ -153,10 +154,11 @@ export const TerminalPane = () => {
       {terminalOpen && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 230, opacity: 1 }}
+          animate={{ height: terminalHeight, opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="bg-[#181818] border-t border-ide-border flex flex-col z-10 select-none"
+          style={{ height: terminalHeight }}
+          className="bg-[#181818] border-t border-ide-border flex flex-col z-10 select-none shrink-0"
         >
           <div className="flex justify-between items-center px-4 py-1.5 text-xs font-semibold uppercase text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
             <div className="flex items-center gap-2">
