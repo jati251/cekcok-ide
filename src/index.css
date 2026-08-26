@@ -1,185 +1,42 @@
-:root {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  --bg-color: #1e1e1e;
-  --sidebar-bg: #252526;
-  --panel-bg: #1e1e1e;
-  --border-color: #333333;
-  --text-primary: #cccccc;
-  --text-secondary: #888888;
-  --accent-color: #007acc;
-  --accent-hover: #005f9e;
+@import "tailwindcss";
+
+@theme {
+  --color-ide-bg: #1e1e1e;
+  --color-ide-sidebar: #252526;
+  --color-ide-panel: #1e1e1e;
+  --color-ide-border: #333333;
+  --color-ide-text: #cccccc;
+  --color-ide-muted: #888888;
+  --color-ide-accent: #007acc;
+  --color-ide-accent-hover: #005f9e;
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  height: 100vh;
-  width: 100vw;
-  background-color: var(--bg-color);
-  color: var(--text-primary);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+@layer base {
+  body {
+    @apply m-0 p-0 h-screen w-screen overflow-hidden flex flex-col font-sans;
+    background-color: var(--color-ide-bg);
+    color: var(--color-ide-text);
+  }
+
+  #root {
+    @apply h-full w-full flex flex-col;
+  }
 }
 
-#root {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-.ide-container {
-  display: flex;
-  flex: 1;
-  height: calc(100vh - 30px);
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #424242; 
 }
 
-/* SIDEBAR */
-.sidebar {
-  width: 250px;
-  background-color: var(--sidebar-bg);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-header {
-  padding: 10px 15px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-primary);
-  transition: background-color 0.15s ease;
-}
-
-.file-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.file-item.active {
-  background-color: rgba(0, 122, 204, 0.2);
-  color: #ffffff;
-}
-
-/* MAIN CONTENT */
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg-color);
-}
-
-.editor-tabs {
-  display: flex;
-  background-color: #2d2d2d;
-  height: 35px;
-  overflow-x: auto;
-}
-
-.editor-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 15px;
-  background-color: var(--bg-color);
-  border-right: 1px solid var(--border-color);
-  border-top: 2px solid var(--accent-color);
-  font-size: 13px;
-  cursor: pointer;
-  color: #ffffff;
-}
-
-.editor-container {
-  flex: 1;
-  position: relative;
-}
-
-/* TERMINAL PANEL */
-.terminal-panel {
-  height: 200px;
-  background-color: var(--panel-bg);
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-}
-
-.terminal-header {
-  padding: 8px 15px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-}
-
-.terminal-content {
-  flex: 1;
-  padding: 10px 15px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 13px;
-  overflow-y: auto;
-  color: #cccccc;
-}
-
-.terminal-line {
-  margin-bottom: 4px;
-}
-
-.terminal-prompt {
-  color: #4CAF50;
-  margin-right: 8px;
-}
-
-/* STATUS BAR */
-.status-bar {
-  height: 30px;
-  background-color: #007acc;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 15px;
-  font-size: 12px;
-}
-
-.status-left, .status-right {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.status-item:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  padding: 2px 4px;
-  margin: -2px -4px;
+::-webkit-scrollbar-thumb:hover {
+  background: #4f4f4f; 
 }
