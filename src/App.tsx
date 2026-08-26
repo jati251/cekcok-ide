@@ -52,14 +52,7 @@ export const App: React.FC = () => {
   const isSidebarRight = settings.sidebarPosition === 'right'
   const isPanelRight = settings.panelPosition === 'right'
 
-  const sidebarGroup = (
-    <>
-      {isSidebarRight && sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
-      {!zenMode && <Sidebar />}
-      {!isSidebarRight && sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
-      {!zenMode && <ActivityBar />}
-    </>
-  )
+
 
   return (
     <div
@@ -81,7 +74,13 @@ export const App: React.FC = () => {
       {/* Main Workspace Layout with Dynamic Sidebar Position */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left-Aligned Sidebar & Activity Bar */}
-        {!isSidebarRight && sidebarGroup}
+        {!isSidebarRight && (
+          <>
+            {!zenMode && <ActivityBar />}
+            {!zenMode && <Sidebar />}
+            {sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
+          </>
+        )}
 
         {/* Central Editor & Terminal Area (Dynamic Bottom / Right Panel Position) */}
         <div
@@ -96,7 +95,13 @@ export const App: React.FC = () => {
         </div>
 
         {/* Right-Aligned Sidebar & Activity Bar */}
-        {isSidebarRight && sidebarGroup}
+        {isSidebarRight && (
+          <>
+            {sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
+            {!zenMode && <Sidebar />}
+            {!zenMode && <ActivityBar />}
+          </>
+        )}
       </div>
 
       {/* Bottom Status Bar */}
