@@ -342,51 +342,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       }`}
       onClick={() => setActivePane(paneId)}
     >
-      {/* Visual Drop Zone Previews */}
-      {activeDropZone && (
-        <div className="absolute inset-0 z-50 pointer-events-none transition-all duration-150">
-          {activeDropZone === 'right' && (
-            <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-blue-500/25 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-              <ArrowRight size={28} className="text-blue-300 mb-1" />
-              <span>Split Editor Right</span>
-            </div>
-          )}
-          {activeDropZone === 'left' && (
-            <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-blue-500/25 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-              <ArrowLeft size={28} className="text-blue-300 mb-1" />
-              <span>Split Editor Left</span>
-            </div>
-          )}
-          {activeDropZone === 'bottom' && (
-            <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-emerald-500/25 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-              <ArrowDown size={28} className="text-emerald-300 mb-1" />
-              <span>Split Editor Down</span>
-            </div>
-          )}
-          {activeDropZone === 'top' && (
-            <div className="absolute left-0 right-0 top-0 h-1/2 bg-emerald-500/25 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-              <ArrowUp size={28} className="text-emerald-300 mb-1" />
-              <span>Split Editor Up</span>
-            </div>
-          )}
-          {activeDropZone === 'center' && (
-            <div className="absolute inset-0 bg-ide-accent/20 border-2 border-dashed border-ide-accent backdrop-blur-[2px] rounded-lg m-1 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
-              <Plus size={28} className="text-white mb-1" />
-              <span>Open in Pane {paneId}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Transparent overlay that captures all mouse movements over Monaco Editor when dragging */}
-      {isDraggingFile && (
-        <div
-          className="absolute inset-0 z-40 bg-transparent"
-          onDragOver={handlePaneDragOver}
-          onDrop={handlePaneDrop}
-        />
-      )}
-
       {/* Tab Bar Header */}
       <div
         className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0"
@@ -604,6 +559,51 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           file={contextMenu.file}
           pane={paneId}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Visual Drop Zone Previews - Rendered at root z-50 level */}
+      {activeDropZone && (
+        <div className="absolute inset-0 z-50 pointer-events-none transition-all duration-150">
+          {activeDropZone === 'right' && (
+            <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-blue-500/30 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1.5 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowRight size={32} className="text-blue-300 mb-1 animate-pulse" />
+              <span className="font-semibold tracking-wide shadow-sm">Split Editor Right</span>
+            </div>
+          )}
+          {activeDropZone === 'left' && (
+            <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-blue-500/30 border-2 border-dashed border-blue-400 backdrop-blur-[2px] rounded-lg m-1.5 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowLeft size={32} className="text-blue-300 mb-1 animate-pulse" />
+              <span className="font-semibold tracking-wide shadow-sm">Split Editor Left</span>
+            </div>
+          )}
+          {activeDropZone === 'bottom' && (
+            <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-emerald-500/30 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1.5 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowDown size={32} className="text-emerald-300 mb-1 animate-pulse" />
+              <span className="font-semibold tracking-wide shadow-sm">Split Editor Down</span>
+            </div>
+          )}
+          {activeDropZone === 'top' && (
+            <div className="absolute left-0 right-0 top-0 h-1/2 bg-emerald-500/30 border-2 border-dashed border-emerald-400 backdrop-blur-[2px] rounded-lg m-1.5 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <ArrowUp size={32} className="text-emerald-300 mb-1 animate-pulse" />
+              <span className="font-semibold tracking-wide shadow-sm">Split Editor Up</span>
+            </div>
+          )}
+          {activeDropZone === 'center' && (
+            <div className="absolute inset-0 bg-ide-accent/25 border-2 border-dashed border-ide-accent backdrop-blur-[2px] rounded-lg m-1.5 flex flex-col items-center justify-center text-white font-medium text-sm shadow-2xl animate-in fade-in zoom-in-95 duration-100">
+              <Plus size={32} className="text-white mb-1 animate-pulse" />
+              <span className="font-semibold tracking-wide shadow-sm">Open in Pane {paneId}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Global Transparent Overlay capturing all drag/drop events over Monaco */}
+      {isDraggingFile && (
+        <div
+          className="absolute inset-0 z-40 bg-transparent cursor-copy"
+          onDragOver={handlePaneDragOver}
+          onDrop={handlePaneDrop}
         />
       )}
     </div>

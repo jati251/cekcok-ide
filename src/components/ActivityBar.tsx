@@ -1,4 +1,4 @@
-import { Files, Search, GitBranch, Package, Settings, Command } from 'lucide-react'
+import { Files, Search, GitBranch, Layers, Settings, Command } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
 
@@ -18,7 +18,7 @@ export const ActivityBar = () => {
     { id: 'explorer', label: 'Explorer', icon: Files },
     { id: 'search', label: 'Search', icon: Search },
     { id: 'git', label: 'Source Control', icon: GitBranch, badge: totalChanges },
-    { id: 'node', label: 'Node.js & NPM', icon: Package },
+    { id: 'node', label: 'Project & Build Suite', icon: Layers },
   ]
 
   return (

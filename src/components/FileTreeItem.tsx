@@ -74,12 +74,19 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
 
   const handleDragStart = (e: React.DragEvent) => {
     if (node.is_dir) return
-    e.dataTransfer.setData('application/json', JSON.stringify(node))
+    const payload = {
+      type: 'file' as const,
+      file: node,
+    }
+    e.dataTransfer.setData('application/json', JSON.stringify(payload))
     e.dataTransfer.setData('text/plain', node.path)
+    e.dataTransfer.effectAllowed = 'copyMove'
+    useIDEStore.getState().setDragPayload(payload)
     setIsDraggingFile(true)
   }
 
   const handleDragEnd = () => {
+    useIDEStore.getState().setDragPayload(null)
     setIsDraggingFile(false)
   }
 
