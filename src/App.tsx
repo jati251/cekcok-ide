@@ -11,6 +11,8 @@ import { SearchEverywhereModal } from './components/SearchEverywhereModal'
 import { UnsavedConfirmModal } from './components/UnsavedConfirmModal'
 import { useIDEStore } from './store/useIDEStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useNativeMenu } from './hooks/useNativeMenu'
+import { useAutoSave } from './hooks/useAutoSave'
 import { getSavedLastProject } from './utils/storage'
 import { THEMES } from './utils/themes'
 import './index.css'
@@ -29,6 +31,8 @@ export const App: React.FC = () => {
 
   // Register all global keybindings
   useKeyboardShortcuts()
+  useNativeMenu()
+  const { triggerAutoSave } = useAutoSave()
 
   // Handle Zoom at documentElement level so layout dynamically stretches to fill window 100%
   useEffect(() => {
