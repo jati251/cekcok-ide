@@ -1,26 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import Editor from '@monaco-editor/react'
 import { X, Circle, ChevronRight, FileCode2, Save, Columns2, Settings, Compass } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { registerMonacoThemes } from '../utils/themes'
+import { getLanguageFromFilename } from '../utils/languages'
+import { useAutoSave } from '../hooks/useAutoSave'
 import { TabContextMenu } from './TabContextMenu'
 import { SettingsView } from './SettingsView'
 import { WelcomeView } from './WelcomeView'
-
-const getLanguageFromFilename = (filename: string) => {
-  const ext = filename.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'rs': return 'rust'
-    case 'ts': case 'tsx': return 'typescript'
-    case 'js': case 'jsx': case 'mjs': case 'cjs': return 'javascript'
-    case 'json': return 'json'
-    case 'md': return 'markdown'
-    case 'css': return 'css'
-    case 'html': return 'html'
-    default: return 'plaintext'
-  }
-}
 
 interface SinglePaneProps {
   paneId: 1 | 2
@@ -33,12 +21,12 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   paneId,
   files,
   activeFile,
-  isActivePane
+  isActivePane,
 }) => {
-  const { 
-    setActiveFileInPane, 
-    requestCloseFile, 
-    setFileDirty, 
+  const {
+    setActiveFileInPane,
+    requestCloseFile,
+    setFileDirty,
     setFileContent,
     setActivePane,
     saveFile,
@@ -47,22 +35,14 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     splitEditorOpen,
     reorderTabsInPane,
     moveTabBetweenPanes,
-    openFileInPane
+    openFileInPane,
   } = useIDEStore()
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(
+    null
+  )
   const [isDragOver, setIsDragOver] = useState(false)
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Auto-save debounced handler
-  const triggerAutoSave = useCallback((path: string) => {
-    if (settings.autoSave === 'afterDelay') {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
-      autoSaveTimerRef.current = setTimeout(() => {
-        saveFile(path)
-      }, 1000)
-    }
-  }, [settings.autoSave, saveFile])
+  const { triggerAutoSave } = useAutoSave()
 
   // Fetch file content when active file changes if not already in store
   useEffect(() => {
@@ -73,7 +53,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     let isMounted = true
     const fetchContent = async () => {
       try {
-        const content = await invoke<string>("read_file", { path: activeFile.path })
+        const content = await invoke<string>('read_file', { path: activeFile.path })
         if (isMounted) {
           setFileContent(activeFile.path, content)
           setFileDirty(activeFile.path, false)
@@ -121,18 +101,21 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
-      file
+      file,
     })
   }
 
   // Tab Drag and Drop handling
   const handleTabDragStart = (e: React.DragEvent, file: FileNode, index: number) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'tab',
-      path: file.path,
-      pane: paneId,
-      index
-    }))
+    e.dataTransfer.setData(
+      'application/json',
+      JSON.stringify({
+        type: 'tab',
+        path: file.path,
+        pane: paneId,
+        index,
+      })
+    )
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -150,7 +133,6 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           moveTabBetweenPanes(data.path, data.pane, paneId, targetIndex)
         }
       } else if (data.name && data.path) {
-        // Dropped a file from file tree
         openFileInPane(data, paneId)
       }
     } catch {
@@ -178,10 +160,10 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   }
 
   const pathSegments = activeFile ? activeFile.path.split(/[/\\]/).filter(Boolean) : []
-  const editorValue = activeFile?.content ?? ""
+  const editorValue = activeFile?.content ?? ''
 
   return (
-    <div 
+    <div
       className={`flex-1 flex flex-col min-w-0 h-full border-r border-ide-border last:border-r-0 relative ${
         isActivePane ? 'ring-1 ring-ide-accent/40' : ''
       } ${isDragOver ? 'bg-ide-accent/5' : ''}`}
@@ -194,7 +176,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       onDrop={handleContainerDrop}
     >
       {/* Tab Bar Header */}
-      <div 
+      <div
         className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2"
         onDragOver={(e) => e.preventDefault()}
       >
@@ -210,7 +192,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
               const isWelcomeTab = file.path === 'welcome://get-started'
 
               return (
-                <div 
+                <div
                   key={file.path}
                   draggable={true}
                   onDragStart={(e) => handleTabDragStart(e, file, idx)}
@@ -219,21 +201,25 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                   onClick={() => setActiveFileInPane(file, paneId)}
                   onContextMenu={(e) => handleTabContextMenu(e, file)}
                   className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
-                    isActive 
-                      ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white font-medium' 
+                    isActive
+                      ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white font-medium'
                       : 'bg-[#181818] border-t-2 border-t-transparent text-ide-muted hover:bg-[#1f1f1f] hover:text-white'
                   }`}
                 >
                   {isSettingsTab && <Settings size={13} className="text-[#4fc1ff] shrink-0" />}
                   {isWelcomeTab && <Compass size={13} className="text-purple-400 shrink-0" />}
                   <span className="truncate flex-1">{file.name}</span>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation()
                       requestCloseFile(file.path, paneId)
                     }}
                     className={`p-0.5 rounded hover:bg-white/15 cursor-pointer ${
-                      isActive ? 'opacity-100 text-white' : (file.isDirty ? 'opacity-100 text-white' : 'opacity-0 group-hover:opacity-100 text-ide-muted')
+                      isActive
+                        ? 'opacity-100 text-white'
+                        : file.isDirty
+                        ? 'opacity-100 text-white'
+                        : 'opacity-0 group-hover:opacity-100 text-ide-muted'
                     }`}
                     title={file.isDirty ? 'Unsaved changes' : 'Close Tab (Cmd+W)'}
                   >
@@ -252,7 +238,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
             className={`p-1.5 rounded transition-colors cursor-pointer text-[#888] hover:text-white hover:bg-white/10 ${
               splitEditorOpen ? 'text-ide-accent bg-ide-accent/20' : ''
             }`}
-            title={splitEditorOpen ? "Close Split Editor" : "Split Editor Right (Cmd+\\)"}
+            title={splitEditorOpen ? 'Close Split Editor' : 'Split Editor Right (Cmd+\\)'}
           >
             <Columns2 size={15} />
           </button>
@@ -283,7 +269,13 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                 {pathSegments.map((segment, idx) => (
                   <div key={idx} className="flex items-center gap-1">
                     {idx > 0 && <ChevronRight size={10} className="text-ide-muted/60" />}
-                    <span className={idx === pathSegments.length - 1 ? 'text-white/90 font-medium' : 'hover:text-white cursor-pointer'}>
+                    <span
+                      className={
+                        idx === pathSegments.length - 1
+                          ? 'text-white/90 font-medium'
+                          : 'hover:text-white cursor-pointer'
+                      }
+                    >
                       {segment}
                     </span>
                   </div>
@@ -318,7 +310,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
               language={getLanguageFromFilename(activeFile.name)}
               value={editorValue}
               onChange={(val) => {
-                const newContent = val || ""
+                const newContent = val || ''
                 setFileContent(activeFile.path, newContent)
                 if (!activeFile.isDirty) {
                   setFileDirty(activeFile.path, true)
@@ -333,9 +325,9 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                 wordWrap: settings.wordWrap,
                 padding: { top: 12 },
                 fontFamily: settings.fontFamily,
-                renderLineHighlight: "all",
-                cursorBlinking: "smooth",
-                cursorSmoothCaretAnimation: "on",
+                renderLineHighlight: 'all',
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
                 smoothScrolling: true,
                 bracketPairColorization: { enabled: true },
                 guides: { bracketPairs: true, indentation: true },
@@ -369,14 +361,14 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   )
 }
 
-export const EditorPane = () => {
-  const { 
+export const EditorPane: React.FC = () => {
+  const {
     splitEditorOpen,
     activePane,
     pane1Files,
     pane1ActiveFile,
     pane2Files,
-    pane2ActiveFile
+    pane2ActiveFile,
   } = useIDEStore()
 
   return (

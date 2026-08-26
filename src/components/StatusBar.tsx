@@ -1,51 +1,38 @@
+import React from 'react'
 import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
+import { getLanguageLabel } from '../utils/languages'
 
-export const StatusBar = () => {
-  const { 
-    activeFile, 
-    toggleSidebar, 
-    toggleTerminal, 
-    gitStatus, 
+export const StatusBar: React.FC = () => {
+  const {
+    activeFile,
+    toggleSidebar,
+    toggleTerminal,
+    gitStatus,
     setActiveSidebarTab,
     packageJson,
     setCommandPaletteOpen,
     refreshGitStatus,
     isGitLoading,
     zoomLevel,
-    setZoomLevel
+    setZoomLevel,
   } = useIDEStore()
-
-  const getLanguage = () => {
-    if (!activeFile) return 'PLAINTEXT'
-    const ext = activeFile.name.split('.').pop()?.toLowerCase() || ''
-    switch (ext) {
-      case 'ts': case 'tsx': return 'TypeScript'
-      case 'js': case 'jsx': return 'JavaScript'
-      case 'json': return 'JSON'
-      case 'rs': return 'Rust'
-      case 'md': return 'Markdown'
-      case 'css': return 'CSS'
-      case 'html': return 'HTML'
-      default: return ext.toUpperCase()
-    }
-  }
 
   return (
     <footer className="h-[26px] bg-ide-accent text-white flex items-center justify-between px-3 text-[11px] select-none z-30 font-sans">
       <div className="flex items-center gap-2">
         {/* Toggle UI Buttons */}
         <div className="flex items-center gap-1">
-          <button 
-            onClick={toggleSidebar} 
-            className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer" 
+          <button
+            onClick={toggleSidebar}
+            className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer"
             title="Toggle Primary Sidebar"
           >
             <PanelLeft size={13} />
           </button>
-          <button 
-            onClick={toggleTerminal} 
-            className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer" 
+          <button
+            onClick={toggleTerminal}
+            className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer"
             title="Toggle Terminal Panel"
           >
             <Terminal size={13} />
@@ -54,7 +41,7 @@ export const StatusBar = () => {
 
         {/* Git Branch & Sync */}
         {gitStatus.is_repo && (
-          <div 
+          <div
             onClick={() => setActiveSidebarTab('git' as SidebarTab)}
             className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
             title={`Git branch: ${gitStatus.branch} (${gitStatus.ahead} ahead, ${gitStatus.behind} behind)`}
@@ -81,7 +68,7 @@ export const StatusBar = () => {
 
         {/* Node.js Project Indicator */}
         {packageJson && (
-          <div 
+          <div
             onClick={() => setActiveSidebarTab('node' as SidebarTab)}
             className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
             title={`Node.js: ${packageJson.name || 'Project'} (v${packageJson.version || '1.0.0'})`}
@@ -91,7 +78,7 @@ export const StatusBar = () => {
           </div>
         )}
       </div>
-      
+
       <div className="flex items-center gap-2">
         {activeFile && (
           <>
@@ -102,7 +89,7 @@ export const StatusBar = () => {
               UTF-8
             </div>
             <div className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
-              {getLanguage()}
+              {getLanguageLabel(activeFile.name)}
             </div>
           </>
         )}
@@ -113,7 +100,7 @@ export const StatusBar = () => {
         >
           {Math.round(zoomLevel * 100)}%
         </button>
-        <button 
+        <button
           onClick={() => setCommandPaletteOpen(true)}
           className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
           title="Command Palette (Cmd+P / Cmd+Shift+P)"
