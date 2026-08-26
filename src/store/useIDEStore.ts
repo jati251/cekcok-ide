@@ -5,6 +5,7 @@ export interface FileNode {
   path: string
   is_dir: boolean
   isDirty?: boolean
+  content?: string
 }
 
 export interface IDEState {
@@ -27,6 +28,7 @@ export interface IDEState {
   closeFile: (path: string) => void
   setActiveFile: (file: FileNode | null) => void
   setFileDirty: (path: string, isDirty: boolean) => void
+  setFileContent: (path: string, content: string) => void
   toggleSidebar: () => void
   toggleTerminal: () => void
 }
@@ -73,6 +75,11 @@ export const useIDEStore = create<IDEState>((set) => ({
   setFileDirty: (path, isDirty) => set((state) => ({
     openFiles: state.openFiles.map(f => f.path === path ? { ...f, isDirty } : f),
     activeFile: state.activeFile?.path === path ? { ...state.activeFile, isDirty } : state.activeFile
+  })),
+  
+  setFileContent: (path, content) => set((state) => ({
+    openFiles: state.openFiles.map(f => f.path === path ? { ...f, content } : f),
+    activeFile: state.activeFile?.path === path ? { ...state.activeFile, content } : state.activeFile
   })),
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

@@ -19,27 +19,46 @@ const getLanguageFromFilename = (filename: string) => {
 }
 
 export const EditorPane = () => {
-  const { openFiles, activeFile, setActiveFile, closeFile, setFileDirty } = useIDEStore()
+  const { openFiles, activeFile, setActiveFile, closeFile, setFileDirty, setFileContent } = useIDEStore()
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
   const currentCodeRef = useRef(code)
+  const currentFilePathRef = useRef<string | null>(null)
   
   useEffect(() => {
     currentCodeRef.current = code
   }, [code])
 
-  // Fetch file content when active file changes
+  // Fetch or load from cache when active file changes
   useEffect(() => {
+    // 1. Save current code to previous file's state before switching
+    if (currentFilePathRef.current && currentFilePathRef.current !== activeFile?.path) {
+       setFileContent(currentFilePathRef.current, currentCodeRef.current)
+    }
+
+    // 2. Load new file
+    if (!activeFile) {
+      setTimeout(() => setCode(""), 0)
+      currentFilePathRef.current = null
+      return
+    }
+
+    currentFilePathRef.current = activeFile.path
+
+    // Use cached content if available
+    if (activeFile.content !== undefined) {
+      setTimeout(() => setCode(activeFile.content as string), 0)
+      return
+    }
+
+    // 3. Fetch if not in cache
     const fetchContent = async () => {
-      if (!activeFile) {
-        setCode("")
-        return
-      }
       setIsLoading(true)
       try {
         const content = await invoke<string>("read_file", { path: activeFile.path })
         setCode(content)
+        setFileContent(activeFile.path, content)
         setFileDirty(activeFile.path, false)
       } catch (error) {
         setCode(`// Error loading file:\n${error}`)
@@ -48,7 +67,7 @@ export const EditorPane = () => {
       }
     }
     fetchContent()
-  }, [activeFile, setFileDirty])
+  }, [activeFile, setFileDirty, setFileContent])
 
   const handleSave = async (file: FileNode, content: string) => {
     try {
