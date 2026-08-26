@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio, Child};
+use std::sync::{Arc, Mutex};
+use std::io::{BufRead, BufReader};
+use tauri::{AppHandle, Emitter, State};
+
+pub struct TerminalState {
+    pub process: Arc<Mutex<Option<Child>>>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileNode {
@@ -184,4 +191,76 @@ pub fn execute_shell(cmd: &str, cwd: &str) -> Result<String, String> {
     } else {
         Err(format!("{}{}", stdout, stderr))
     }
+}
+
+#[tauri::command]
+pub fn spawn_shell(app: AppHandle, state: State<'_, TerminalState>, cmd: &str, cwd: &str) -> Result<(), String> {
+    // If a process is already running, kill it before spawning a new one
+    kill_shell(state.clone())?;
+
+    let mut child = Command::new("sh")
+        .current_dir(cwd)
+        .arg("-c")
+        .arg(cmd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
+
+    // Save the child process in state so it can be killed later
+    {
+        let mut process_guard = state.process.lock().unwrap();
+        *process_guard = Some(child);
+    }
+
+    let app_clone1 = app.clone();
+    let app_clone2 = app.clone();
+
+    // Stream Stdout
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for l in reader.lines().map_while(Result::ok) {
+            let _ = app_clone1.emit("terminal-output", format!("{}\r\n", l));
+        }
+    });
+
+    // Stream Stderr
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for l in reader.lines().map_while(Result::ok) {
+            let _ = app_clone2.emit("terminal-output", format!("\x1b[31m{}\x1b[0m\r\n", l));
+        }
+    });
+
+    // Wait for process to exit
+    let app_clone3 = app.clone();
+    let state_clone = state.process.clone();
+    std::thread::spawn(move || {
+        // Wait for the process to actually finish by acquiring the lock
+        let mut exit_status = None;
+        {
+            let mut guard = state_clone.lock().unwrap();
+            if let Some(child) = guard.as_mut() {
+                exit_status = child.wait().ok();
+            }
+            // Once finished, remove it from state
+            *guard = None;
+        }
+        let _ = app_clone3.emit("terminal-exit", exit_status.map(|s| s.code()).unwrap_or(Some(0)));
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn kill_shell(state: State<'_, TerminalState>) -> Result<(), String> {
+    let mut process_guard = state.process.lock().unwrap();
+    if let Some(mut child) = process_guard.take() {
+        let _ = child.kill();
+        let _ = child.wait(); // ensure zombie process is reaped
+    }
+    Ok(())
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import { TerminalSquare, X, Play, Trash2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { Terminal } from '@xterm/xterm'
@@ -35,17 +36,15 @@ export const TerminalPane: React.FC = () => {
     term.writeln(`\r\n\x1b[32mcekcok-ide\x1b[0m $ ${cmd}`)
 
     try {
-      const output = await invoke<string>('execute_shell', {
+      await invoke('spawn_shell', {
         cmd,
         cwd: currentDirRef.current,
       })
-      if (output) term.write(output.replace(/\n/g, '\r\n'))
     } catch (err: unknown) {
       const errMsg = typeof err === 'string' ? err : String(err)
       term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
+      term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
     }
-
-    term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
     refreshGitStatus()
   }, [refreshGitStatus])
 
@@ -75,6 +74,9 @@ export const TerminalPane: React.FC = () => {
   // Initialize Xterm once and keep alive in DOM
   useEffect(() => {
     if (!terminalRef.current) return
+
+    let unlistenOutput: UnlistenFn | null = null
+    let unlistenExit: UnlistenFn | null = null
 
     if (!termInstance.current) {
       const term = new Terminal({
@@ -115,24 +117,34 @@ export const TerminalPane: React.FC = () => {
       term.onData(async (data) => {
         const code = data.charCodeAt(0)
 
+        // Ctrl+C
+        if (code === 3) {
+          term.write('^C\r\n')
+          invoke('kill_shell').catch(console.error)
+          currentCommand = ''
+          prompt()
+          return
+        }
+        
         // Enter key
         if (code === 13) {
           term.write('\r\n')
           if (currentCommand.trim()) {
             try {
-              const output = await invoke<string>('execute_shell', {
+              await invoke('spawn_shell', {
                 cmd: currentCommand,
                 cwd: currentDirRef.current,
               })
-              if (output) term.write(output.replace(/\n/g, '\r\n'))
             } catch (err: unknown) {
               const errMsg = typeof err === 'string' ? err : String(err)
-              term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m`)
+              term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
+              prompt()
             }
             refreshGitStatus()
+          } else {
+            prompt()
           }
           currentCommand = ''
-          prompt()
         }
         // Backspace
         else if (code === 127) {
@@ -149,6 +161,21 @@ export const TerminalPane: React.FC = () => {
       })
     }
 
+    // Listen to streaming output
+    const setupListeners = async () => {
+      unlistenOutput = await listen<string>('terminal-output', (event) => {
+        if (termInstance.current) {
+          termInstance.current.write(event.payload)
+        }
+      })
+      unlistenExit = await listen<number>('terminal-exit', (event) => {
+        if (termInstance.current) {
+          termInstance.current.write(`\r\n[Process exited with code ${event.payload}]\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+        }
+      })
+    }
+    setupListeners()
+
     // Handle resize
     const handleResize = () => {
       if (terminalOpen) {
@@ -159,6 +186,8 @@ export const TerminalPane: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      if (unlistenOutput) unlistenOutput()
+      if (unlistenExit) unlistenExit()
     }
   }, [refreshGitStatus, terminalOpen])
 

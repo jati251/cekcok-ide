@@ -4,7 +4,7 @@ pub mod search_commands;
 
 use fs_commands::{
     create_dir, create_file, delete_path, execute_shell, read_dir, read_file, rename_path,
-    reveal_in_file_manager, write_file,
+    reveal_in_file_manager, write_file, spawn_shell, kill_shell, TerminalState,
 };
 use git_commands::{
     git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage,
@@ -24,6 +24,8 @@ pub fn run() {
             read_dir,
             read_file,
             execute_shell,
+            spawn_shell,
+            kill_shell,
             write_file,
             create_file,
             create_dir,
@@ -40,6 +42,13 @@ pub fn run() {
             search_files
         ])
         .setup(|app| {
+            use std::sync::{Arc, Mutex};
+            use tauri::Manager;
+            
+            app.manage(TerminalState {
+                process: Arc::new(Mutex::new(None)),
+            });
+
             use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, AboutMetadata};
 
             let file_menu = Submenu::with_items(
