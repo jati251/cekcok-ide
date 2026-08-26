@@ -73,3 +73,30 @@ export interface DragPayload {
   fromPane?: 1 | 2
   fromIndex?: number
 }
+
+export type BottomPanelTab = 'problems' | 'output' | 'debug' | 'terminal' | 'ports'
+
+export interface DiagnosticItem {
+  id: string
+  file: string
+  line: number
+  col: number
+  message: string
+  severity: 'error' | 'warning' | 'info'
+  source?: string
+}
+
+export type OutputChannel = 'Git' | 'Build' | 'System'
+
+export interface PortItem {
+  port: number
+  process: string
+  url: string
+  isAuto?: boolean
+}
+
+export interface TerminalSession {
+  id: string
+  name: string
+}
+

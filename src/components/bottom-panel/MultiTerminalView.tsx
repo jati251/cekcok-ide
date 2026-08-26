@@ -1,26 +1,26 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
-import { TerminalSquare, X, Play, Trash2, Maximize2, Minimize2, RotateCcw } from 'lucide-react'
-import { useIDEStore } from '../store/useIDEStore'
+import { Plus, Trash2, RotateCcw, Play, TerminalSquare, X } from 'lucide-react'
+import { useIDEStore } from '../../store/useIDEStore'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 
-export const TerminalPane: React.FC = () => {
+export const MultiTerminalView: React.FC = () => {
   const {
-    terminalOpen,
-    terminalHeight,
-    setTerminalHeight,
-    toggleTerminal,
     currentDir,
     pendingTerminalCommand,
     clearPendingTerminalCommand,
     refreshGitStatus,
+    terminalOpen,
+    terminals,
+    activeTerminalId,
+    addTerminalSession,
+    removeTerminalSession,
+    setActiveTerminalId,
   } = useIDEStore()
 
-  const [isMaximized, setIsMaximized] = useState(false)
-  const previousHeightRef = useRef(terminalHeight)
   const terminalRef = useRef<HTMLDivElement>(null)
   const termInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
@@ -31,37 +31,28 @@ export const TerminalPane: React.FC = () => {
     currentDirRef.current = currentDir
   }, [currentDir])
 
-  const executeCommand = useCallback(async (cmd: string) => {
-    if (!termInstance.current) return
-    const term = termInstance.current
-    term.writeln(`\r\n\x1b[32mcekcok-ide\x1b[0m $ ${cmd}`)
+  const executeCommand = useCallback(
+    async (cmd: string) => {
+      if (!termInstance.current) return
+      const term = termInstance.current
+      term.writeln(`\r\n\x1b[32mcekcok-ide\x1b[0m $ ${cmd}`)
 
-    try {
-      await invoke('spawn_shell', {
-        cmd,
-        cwd: currentDirRef.current,
-      })
-    } catch (err: unknown) {
-      const errMsg = typeof err === 'string' ? err : String(err)
-      term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
-      term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
-    }
-    refreshGitStatus()
-  }, [refreshGitStatus])
+      try {
+        await invoke('spawn_shell', {
+          cmd,
+          cwd: currentDirRef.current,
+        })
+      } catch (err: unknown) {
+        const errMsg = typeof err === 'string' ? err : String(err)
+        term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
+        term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
+      }
+      refreshGitStatus()
+    },
+    [refreshGitStatus]
+  )
 
-  // Toggle maximize terminal height
-  const handleToggleMaximize = () => {
-    if (isMaximized) {
-      setTerminalHeight(previousHeightRef.current)
-      setIsMaximized(false)
-    } else {
-      previousHeightRef.current = terminalHeight
-      setTerminalHeight(window.innerHeight * 0.75)
-      setIsMaximized(true)
-    }
-  }
-
-  // Handle programmatic commands
+  // Handle programmatic commands (e.g. from sidebar scripts)
   useEffect(() => {
     if (pendingTerminalCommand) {
       const cmd = pendingTerminalCommand
@@ -72,7 +63,7 @@ export const TerminalPane: React.FC = () => {
     }
   }, [pendingTerminalCommand, clearPendingTerminalCommand, executeCommand])
 
-  // Initialize Xterm once and keep alive in DOM
+  // Initialize Xterm once
   useEffect(() => {
     if (!terminalRef.current) return
 
@@ -117,16 +108,14 @@ export const TerminalPane: React.FC = () => {
       let historyIndex = -1
 
       term.onData(async (data) => {
-        // Handle ANSI escape sequences for arrow keys
+        // Arrow keys history navigation
         if (data === '\x1b[A') {
-          // Up arrow: Navigate history back
           if (history.length > 0) {
             if (historyIndex === -1) {
               historyIndex = history.length - 1
             } else if (historyIndex > 0) {
               historyIndex--
             }
-            // Clear current line
             while (currentCommand.length > 0) {
               term.write('\b \b')
               currentCommand = currentCommand.slice(0, -1)
@@ -138,7 +127,6 @@ export const TerminalPane: React.FC = () => {
         }
 
         if (data === '\x1b[B') {
-          // Down arrow: Navigate history forward
           if (historyIndex !== -1) {
             if (historyIndex < history.length - 1) {
               historyIndex++
@@ -170,7 +158,7 @@ export const TerminalPane: React.FC = () => {
           prompt()
           return
         }
-        
+
         // Enter key
         if (code === 13) {
           term.write('\r\n')
@@ -201,14 +189,14 @@ export const TerminalPane: React.FC = () => {
             term.write('\b \b')
           }
         }
-        // Readable chars
+        // Printable ASCII
         else if (code >= 32 && code <= 126) {
           currentCommand += data
           term.write(data)
         }
       })
 
-      // Listen to streaming output ONCE
+      // Listen to output events
       const setupListeners = async () => {
         const out = await listen<string>('terminal-output', (event) => {
           if (termInstance.current) {
@@ -218,7 +206,9 @@ export const TerminalPane: React.FC = () => {
         const ex = await listen<number | null>('terminal-exit', (event) => {
           if (termInstance.current) {
             if (event.payload !== null && event.payload !== undefined && event.payload !== 0) {
-              termInstance.current.write(`\r\n\x1b[33m[Process exited with code ${event.payload}]\x1b[0m\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+              termInstance.current.write(
+                `\r\n\x1b[33m[Process exited with code ${event.payload}]\x1b[0m\r\n\x1b[32mcekcok-ide\x1b[0m $ `
+              )
             } else {
               termInstance.current.write(`\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
             }
@@ -229,7 +219,6 @@ export const TerminalPane: React.FC = () => {
       setupListeners()
     }
 
-    // Handle resize
     const handleResize = () => {
       if (terminalOpen) {
         fitAddon.current?.fit()
@@ -242,7 +231,6 @@ export const TerminalPane: React.FC = () => {
     }
   }, [refreshGitStatus, terminalOpen])
 
-  // Fit terminal whenever it becomes visible
   useEffect(() => {
     if (terminalOpen) {
       setTimeout(() => {
@@ -250,70 +238,92 @@ export const TerminalPane: React.FC = () => {
         termInstance.current?.focus()
       }, 50)
     }
-  }, [terminalOpen, terminalHeight])
+  }, [terminalOpen, activeTerminalId])
 
   return (
-    <div
-      style={{
-        height: terminalHeight,
-        display: terminalOpen ? 'flex' : 'none',
-      }}
-      className="bg-[#181818] border-t border-ide-border flex-col z-10 select-none shrink-0"
-    >
-      {/* Terminal Header Bar */}
-      <div className="flex justify-between items-center px-4 py-1.5 text-xs font-semibold uppercase text-ide-muted border-b border-ide-border bg-[#1f1f1f] shrink-0">
-        <div className="flex items-center gap-2">
-          <TerminalSquare size={14} className="text-green-400" />
-          <span>Terminal (Node / Zsh)</span>
-          <span className="text-[10px] bg-white/10 text-white/80 px-1.5 py-0.2 rounded font-mono">
-            bash
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              termInstance.current?.clear()
-              termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
-            }}
-            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-            title="Clear Terminal"
-          >
-            <Trash2 size={13} />
-          </button>
-          <button
-            onClick={() => executeCommand('npm test')}
-            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-            title="Run npm test"
-          >
-            <Play size={13} />
-          </button>
-          <button
-            onClick={() => executeCommand('clear')}
-            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-            title="Reset Shell Session"
-          >
-            <RotateCcw size={13} />
-          </button>
-          <button
-            onClick={handleToggleMaximize}
-            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-            title={isMaximized ? 'Restore Terminal Panel' : 'Maximize Terminal Panel'}
-          >
-            {isMaximized ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          </button>
-          <button
-            onClick={toggleTerminal}
-            className="hover:text-white text-[#888] transition-colors p-1 rounded hover:bg-white/10 cursor-pointer"
-            title="Close Terminal Panel (Cmd+` / Cmd+J)"
-          >
-            <X size={14} />
-          </button>
+    <div className="h-full flex bg-[#181818] overflow-hidden select-none">
+      {/* Terminal Main Canvas */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        <div className="flex-1 p-2 overflow-hidden relative">
+          <div ref={terminalRef} className="absolute inset-0 p-2" />
         </div>
       </div>
 
-      {/* Terminal Canvas Container */}
-      <div className="flex-1 p-2 overflow-hidden relative">
-        <div ref={terminalRef} className="absolute inset-0 p-2" />
+      {/* Terminal Side Tabs & Toolbar (VS Code Style) */}
+      <div className="w-48 bg-[#1f1f1f] border-l border-ide-border flex flex-col shrink-0">
+        {/* Terminal Sessions Toolbar */}
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-ide-border bg-[#1a1a1a] text-xs">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => addTerminalSession()}
+              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="New Terminal"
+            >
+              <Plus size={13} />
+            </button>
+            <button
+              onClick={() => executeCommand('npm test')}
+              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Run npm test"
+            >
+              <Play size={13} />
+            </button>
+            <button
+              onClick={() => {
+                termInstance.current?.clear()
+                termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
+              }}
+              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Clear Terminal"
+            >
+              <Trash2 size={13} />
+            </button>
+            <button
+              onClick={() => executeCommand('clear')}
+              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Reset Shell Session"
+            >
+              <RotateCcw size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Sessions List */}
+        <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+          {terminals.map((term, index) => {
+            const isActive = term.id === activeTerminalId
+            return (
+              <div
+                key={term.id}
+                onClick={() => setActiveTerminalId(term.id)}
+                className={`flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group transition-colors ${
+                  isActive
+                    ? 'bg-ide-accent/20 text-white font-medium'
+                    : 'text-ide-muted hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <TerminalSquare size={12} className={isActive ? 'text-ide-accent' : 'text-[#777]'} />
+                  <span className="truncate">
+                    {index + 1}: {term.name}
+                  </span>
+                </div>
+                {terminals.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeTerminalSession(term.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 text-ide-muted hover:text-white"
+                    title="Kill Terminal Session"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

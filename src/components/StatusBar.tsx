@@ -17,6 +17,9 @@ export const StatusBar: React.FC = () => {
     isGitLoading,
     zoomLevel,
     setZoomLevel,
+    diagnostics,
+    ports,
+    setActiveBottomTab,
   } = useIDEStore()
 
   return (
@@ -78,6 +81,30 @@ export const StatusBar: React.FC = () => {
             <span>{packageJson.name || 'node-app'}</span>
           </div>
         )}
+
+        {/* Problems Diagnostics Badge */}
+        <div
+          onClick={() => setActiveBottomTab('problems')}
+          className="flex items-center gap-1.5 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+          title="Problems / Diagnostics (Click to view)"
+        >
+          <span className="flex items-center gap-0.5">
+            <span className="font-bold">⊗</span> {diagnostics.filter((d) => d.severity === 'error').length}
+          </span>
+          <span className="flex items-center gap-0.5">
+            <span className="font-bold">⚠</span> {diagnostics.filter((d) => d.severity === 'warning').length}
+          </span>
+        </div>
+
+        {/* Ports Badge */}
+        <div
+          onClick={() => setActiveBottomTab('ports')}
+          className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+          title="Forwarded Ports (Click to view active services)"
+        >
+          <span className="text-[10px]">🌐</span>
+          <span>{ports.length} Ports</span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

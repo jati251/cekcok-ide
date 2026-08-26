@@ -60,6 +60,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     reorderTabsInPane,
     moveTabBetweenPanes,
     openFileInPane,
+    setDiagnostics,
   } = useIDEStore()
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(
@@ -133,6 +134,22 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       if (activeFile) {
         saveFile(activeFile.path)
       }
+    })
+
+    // Listen to Monaco Diagnostics & Markers for real-time Problems tab updates
+    monaco.editor.onDidChangeMarkers(() => {
+      const markers = monaco.editor.getModelMarkers({})
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items = markers.map((m: any, idx: number) => ({
+        id: `${m.resource.toString()}-${m.startLineNumber}-${m.startColumn}-${idx}`,
+        file: m.resource.path.replace(/^\//, ''),
+        line: m.startLineNumber,
+        col: m.startColumn,
+        message: m.message,
+        severity: m.severity === 8 ? 'error' : m.severity === 4 ? 'warning' : 'info',
+        source: m.source || 'Syntax/Type',
+      }))
+      setDiagnostics(items)
     })
 
     if (monaco.languages?.typescript?.typescriptDefaults) {

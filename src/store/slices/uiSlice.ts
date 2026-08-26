@@ -7,6 +7,11 @@ import {
   SidebarPosition,
   PanelPosition,
   SplitDirection,
+  BottomPanelTab,
+  DiagnosticItem,
+  OutputChannel,
+  PortItem,
+  TerminalSession,
 } from '../../types/ide'
 import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import {
@@ -25,6 +30,7 @@ export interface UISlice {
   sidebarOpen: boolean
   terminalOpen: boolean
   activeSidebarTab: SidebarTab
+  activeBottomTab: BottomPanelTab
   commandPaletteOpen: boolean
   quickOpenOpen: boolean
   pendingCloseFile: PendingCloseFile | null
@@ -35,6 +41,15 @@ export interface UISlice {
   dragPayload: DragPayload | null
   zenMode: boolean
   searchEverywhereOpen: boolean
+  
+  // Rich Bottom Panel States
+  diagnostics: DiagnosticItem[]
+  outputLogs: Record<OutputChannel, string[]>
+  activeOutputChannel: OutputChannel
+  debugLogs: Array<{ id: string; type: 'input' | 'output' | 'error'; text: string; timestamp: Date }>
+  ports: PortItem[]
+  terminals: TerminalSession[]
+  activeTerminalId: string
 
   setCurrentDir: (dir: string) => void
   setSidebarWidth: (w: number) => void
@@ -52,6 +67,7 @@ export interface UISlice {
   toggleTerminal: () => void
   setTerminalOpen: (open: boolean) => void
   setActiveSidebarTab: (tab: SidebarTab) => void
+  setActiveBottomTab: (tab: BottomPanelTab) => void
   setCommandPaletteOpen: (open: boolean) => void
   setQuickOpenOpen: (open: boolean) => void
   setPendingCloseFile: (file: PendingCloseFile | null) => void
@@ -60,6 +76,19 @@ export interface UISlice {
   setZenMode: (open: boolean) => void
   toggleZenMode: () => void
   setSearchEverywhereOpen: (open: boolean) => void
+
+  // Bottom Panel Actions
+  setDiagnostics: (items: DiagnosticItem[]) => void
+  addOutputLog: (channel: OutputChannel, line: string) => void
+  clearOutputLogs: (channel: OutputChannel) => void
+  setActiveOutputChannel: (channel: OutputChannel) => void
+  addDebugLog: (type: 'input' | 'output' | 'error', text: string) => void
+  clearDebugLogs: () => void
+  addPort: (port: PortItem) => void
+  removePort: (portNumber: number) => void
+  addTerminalSession: (name?: string) => string
+  removeTerminalSession: (id: string) => void
+  setActiveTerminalId: (id: string) => void
 }
 
 export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, get) => ({
@@ -70,6 +99,7 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   sidebarOpen: true,
   terminalOpen: true,
   activeSidebarTab: 'explorer',
+  activeBottomTab: 'terminal',
   commandPaletteOpen: false,
   quickOpenOpen: false,
   pendingCloseFile: null,
@@ -80,6 +110,30 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   dragPayload: null,
   zenMode: false,
   searchEverywhereOpen: false,
+
+  // Rich Bottom Panel States Default
+  diagnostics: [],
+  outputLogs: {
+    Git: ['[Git Channel initialized]'],
+    Build: ['[Build/Vite Channel initialized]'],
+    System: ['[System Diagnostics Channel initialized]'],
+  },
+  activeOutputChannel: 'System',
+  debugLogs: [
+    {
+      id: 'welcome-debug',
+      type: 'output',
+      text: 'Cekcok Debug Console (Node.js & JavaScript Evaluator). Type any JS expression to evaluate.',
+      timestamp: new Date(),
+    },
+  ],
+  ports: [
+    { port: 1420, process: 'Tauri Dev Server', url: 'http://localhost:1420', isAuto: true },
+    { port: 3000, process: 'Next.js / React Web', url: 'http://localhost:3000', isAuto: true },
+    { port: 5173, process: 'Vite Dev Server', url: 'http://localhost:5173', isAuto: true },
+  ],
+  terminals: [{ id: 'term-1', name: 'bash' }],
+  activeTerminalId: 'term-1',
 
   setCurrentDir: (dir) => {
     set({ currentDir: dir, expandedFolders: {}, folderChildren: {} })
@@ -155,6 +209,12 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
       return { activeSidebarTab: tab, sidebarOpen: true }
     }),
 
+  setActiveBottomTab: (tab) =>
+    set({
+      activeBottomTab: tab,
+      terminalOpen: true,
+    }),
+
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setQuickOpenOpen: (open) => set({ quickOpenOpen: open }),
   setPendingCloseFile: (file) => set({ pendingCloseFile: file }),
@@ -162,10 +222,68 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   runTerminalCommand: (cmd) =>
     set({
       terminalOpen: true,
+      activeBottomTab: 'terminal',
       pendingTerminalCommand: cmd,
     }),
   clearPendingTerminalCommand: () => set({ pendingTerminalCommand: null }),
   setZenMode: (open) => set({ zenMode: open }),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
+
+  // Bottom Panel Actions
+  setDiagnostics: (items) => set({ diagnostics: items }),
+  addOutputLog: (channel, line) =>
+    set((state) => ({
+      outputLogs: {
+        ...state.outputLogs,
+        [channel]: [...(state.outputLogs[channel] || []), line].slice(-500),
+      },
+    })),
+  clearOutputLogs: (channel) =>
+    set((state) => ({
+      outputLogs: {
+        ...state.outputLogs,
+        [channel]: [],
+      },
+    })),
+  setActiveOutputChannel: (channel) => set({ activeOutputChannel: channel }),
+  addDebugLog: (type, text) =>
+    set((state) => ({
+      debugLogs: [
+        ...state.debugLogs,
+        { id: Math.random().toString(36).substring(2, 9), type, text, timestamp: new Date() },
+      ].slice(-300),
+    })),
+  clearDebugLogs: () => set({ debugLogs: [] }),
+  addPort: (port) =>
+    set((state) => ({
+      ports: [...state.ports.filter((p) => p.port !== port.port), port],
+    })),
+  removePort: (portNumber) =>
+    set((state) => ({
+      ports: state.ports.filter((p) => p.port !== portNumber),
+    })),
+  addTerminalSession: (name) => {
+    const newId = `term-${Date.now()}`
+    const sessionName = name || `bash ${get().terminals.length + 1}`
+    set((state) => ({
+      terminals: [...state.terminals, { id: newId, name: sessionName }],
+      activeTerminalId: newId,
+    }))
+    return newId
+  },
+  removeTerminalSession: (id) =>
+    set((state) => {
+      const remaining = state.terminals.filter((t) => t.id !== id)
+      if (remaining.length === 0) {
+        const fallback = { id: 'term-1', name: 'bash' }
+        return { terminals: [fallback], activeTerminalId: 'term-1' }
+      }
+      return {
+        terminals: remaining,
+        activeTerminalId:
+          state.activeTerminalId === id ? remaining[0].id : state.activeTerminalId,
+      }
+    }),
+  setActiveTerminalId: (id) => set({ activeTerminalId: id }),
 })

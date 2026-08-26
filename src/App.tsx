@@ -4,7 +4,7 @@ import { ActivityBar } from './components/ActivityBar'
 import { Sidebar } from './components/Sidebar'
 import { ResizeHandle } from './components/ResizeHandle'
 import { EditorPane } from './components/EditorPane'
-import { TerminalPane } from './components/TerminalPane'
+import { BottomPanel } from './components/bottom-panel/BottomPanel'
 import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
 import { SearchEverywhereModal } from './components/SearchEverywhereModal'
@@ -95,7 +95,7 @@ export const App: React.FC = () => {
           {terminalOpen && !zenMode && (
             <ResizeHandle direction={isPanelRight ? 'vertical' : 'horizontal'} />
           )}
-          {!zenMode && <TerminalPane />}
+          {!zenMode && <BottomPanel />}
         </div>
 
         {/* Right-Aligned Sidebar & Activity Bar */}

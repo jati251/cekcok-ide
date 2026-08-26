@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { PlusCircle, Columns2 } from 'lucide-react'
+import { PlusCircle, Columns2, Rows2, SplitSquareVertical } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 
 export const DragDropOverlay: React.FC = () => {
@@ -7,6 +7,7 @@ export const DragDropOverlay: React.FC = () => {
     openFileInPane,
     splitEditorOpen,
     setSplitEditorOpen,
+    setSplitDirection,
     dragPayload,
     setDragPayload,
   } = useIDEStore()
@@ -58,98 +59,120 @@ export const DragDropOverlay: React.FC = () => {
 
   if (!isDragging && !dragPayload) return null
 
+  const getPayloadNode = (e: React.DragEvent): FileNode | null => {
+    if (dragPayload?.file) return dragPayload.file
+    const raw = e.dataTransfer.getData('application/json')
+    if (raw) {
+      try {
+        const data = JSON.parse(raw)
+        return data.file || (data.name && data.path ? data : null)
+      } catch {
+        return null
+      }
+    }
+    const textPath = e.dataTransfer.getData('text/plain')
+    if (textPath) {
+      const filename = textPath.split(/[/\\]/).filter(Boolean).pop() || textPath
+      return { name: filename, path: textPath, is_dir: false }
+    }
+    return null
+  }
+
   const handleDropOnPane = (e: React.DragEvent, pane: 1 | 2) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
 
-    if (dragPayload) {
-      openFileInPane(dragPayload.file, pane)
-      setDragPayload(null)
-      return
+    const node = getPayloadNode(e)
+    if (node) {
+      openFileInPane(node, pane)
     }
-
-    const raw = e.dataTransfer.getData('application/json')
-    if (raw) {
-      try {
-        const data = JSON.parse(raw)
-        const fileNode: FileNode = data.file || data
-        if (fileNode.name && fileNode.path) {
-          openFileInPane(fileNode, pane)
-        }
-      } catch {
-        // ignore
-      }
-    }
+    setDragPayload(null)
   }
 
-  const handleDropToSplit = (e: React.DragEvent) => {
+  const handleDropToSplitSide = (e: React.DragEvent, direction: 'horizontal' | 'vertical') => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
+    setSplitDirection(direction)
     setSplitEditorOpen(true)
 
-    if (dragPayload) {
-      openFileInPane(dragPayload.file, 2)
-      setDragPayload(null)
-      return
+    const node = getPayloadNode(e)
+    if (node) {
+      openFileInPane(node, 2)
     }
-
-    const raw = e.dataTransfer.getData('application/json')
-    if (raw) {
-      try {
-        const data = JSON.parse(raw)
-        const fileNode: FileNode = data.file || data
-        if (fileNode.name && fileNode.path) {
-          openFileInPane(fileNode, 2)
-        }
-      } catch {
-        // ignore
-      }
-    }
+    setDragPayload(null)
   }
 
   return (
-    <div className="absolute inset-0 z-40 pointer-events-none flex gap-2 p-3 bg-black/40 backdrop-blur-[2px] transition-all">
-      {/* Pane 1 Drop Target */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'copy'
-        }}
-        onDrop={(e) => handleDropOnPane(e, 1)}
-        className="flex-1 pointer-events-auto border-2 border-dashed border-ide-accent bg-ide-accent/15 rounded-xl flex flex-col items-center justify-center gap-2 text-white transition-all hover:bg-ide-accent/25 hover:scale-[0.99] cursor-pointer"
-      >
-        <PlusCircle size={28} className="text-ide-accent animate-pulse" />
-        <span className="text-sm font-semibold">Drop to Open in Editor (Pane 1)</span>
+    <div className="absolute inset-0 z-40 pointer-events-none flex flex-col gap-2 p-3 bg-black/60 backdrop-blur-[3px] transition-all">
+      {/* Top Banner */}
+      <div className="flex items-center justify-center text-xs text-white/80 font-medium py-1">
+        <SplitSquareVertical size={14} className="mr-1.5 text-ide-accent" />
+        <span>Drop file into any drop zone to open or create a split pane</span>
       </div>
 
-      {/* Pane 2 / Split Drop Target */}
-      {splitEditorOpen ? (
+      <div className="flex-1 flex gap-2 min-h-0">
+        {/* Pane 1 (Left / Primary) */}
         <div
           onDragOver={(e) => {
             e.preventDefault()
             e.dataTransfer.dropEffect = 'copy'
           }}
-          onDrop={(e) => handleDropOnPane(e, 2)}
-          className="flex-1 pointer-events-auto border-2 border-dashed border-ide-accent bg-ide-accent/15 rounded-xl flex flex-col items-center justify-center gap-2 text-white transition-all hover:bg-ide-accent/25 hover:scale-[0.99] cursor-pointer"
+          onDrop={(e) => handleDropOnPane(e, 1)}
+          className="flex-1 pointer-events-auto border-2 border-dashed border-ide-accent/80 bg-ide-accent/15 rounded-xl flex flex-col items-center justify-center gap-2 text-white transition-all hover:bg-ide-accent/30 hover:border-ide-accent hover:scale-[0.99] cursor-pointer"
         >
           <PlusCircle size={28} className="text-ide-accent animate-pulse" />
-          <span className="text-sm font-semibold">Drop to Open in Editor (Pane 2)</span>
+          <span className="text-sm font-semibold">Open in Pane 1</span>
+          <span className="text-[11px] text-white/60">Primary Editor Window</span>
         </div>
-      ) : (
-        <div
-          onDragOver={(e) => {
-            e.preventDefault()
-            e.dataTransfer.dropEffect = 'copy'
-          }}
-          onDrop={handleDropToSplit}
-          className="w-48 pointer-events-auto border-2 border-dashed border-purple-500 bg-purple-500/15 rounded-xl flex flex-col items-center justify-center gap-2 text-white transition-all hover:bg-purple-500/25 hover:scale-[0.99] cursor-pointer"
-        >
-          <Columns2 size={24} className="text-purple-400" />
-          <span className="text-xs font-semibold text-center px-2">Drop to Split Editor Right</span>
-        </div>
-      )}
+
+        {/* Pane 2 / Split Right Target */}
+        {splitEditorOpen ? (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+            }}
+            onDrop={(e) => handleDropOnPane(e, 2)}
+            className="flex-1 pointer-events-auto border-2 border-dashed border-ide-accent/80 bg-ide-accent/15 rounded-xl flex flex-col items-center justify-center gap-2 text-white transition-all hover:bg-ide-accent/30 hover:border-ide-accent hover:scale-[0.99] cursor-pointer"
+          >
+            <PlusCircle size={28} className="text-ide-accent animate-pulse" />
+            <span className="text-sm font-semibold">Open in Pane 2</span>
+            <span className="text-[11px] text-white/60">Secondary Editor Window</span>
+          </div>
+        ) : (
+          <div className="w-64 flex flex-col gap-2 pointer-events-auto">
+            {/* Split Right */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'copy'
+              }}
+              onDrop={(e) => handleDropToSplitSide(e, 'vertical')}
+              className="flex-1 border-2 border-dashed border-purple-500/80 bg-purple-500/15 rounded-xl flex flex-col items-center justify-center gap-1.5 text-white transition-all hover:bg-purple-500/30 hover:border-purple-400 hover:scale-[0.99] cursor-pointer p-2"
+            >
+              <Columns2 size={24} className="text-purple-400" />
+              <span className="text-xs font-semibold text-center">Split Right (Pane 2)</span>
+              <span className="text-[10px] text-purple-200/60">Side-by-side Layout</span>
+            </div>
+
+            {/* Split Down */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'copy'
+              }}
+              onDrop={(e) => handleDropToSplitSide(e, 'horizontal')}
+              className="flex-1 border-2 border-dashed border-emerald-500/80 bg-emerald-500/15 rounded-xl flex flex-col items-center justify-center gap-1.5 text-white transition-all hover:bg-emerald-500/30 hover:border-emerald-400 hover:scale-[0.99] cursor-pointer p-2"
+            >
+              <Rows2 size={24} className="text-emerald-400" />
+              <span className="text-xs font-semibold text-center">Split Down (Pane 2)</span>
+              <span className="text-[10px] text-emerald-200/60">Stacked Layout</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
