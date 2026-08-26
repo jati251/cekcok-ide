@@ -71,6 +71,25 @@ export const ExplorerSidebar: React.FC = () => {
 
   const rootFolderName = currentDir.split(/[/\\]/).filter(Boolean).pop() || currentDir
 
+  if (!currentDir) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
+          NO FOLDER OPENED
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="text-[#888] text-xs">You have not yet opened a folder.</div>
+          <button
+            onClick={handleOpenFolder}
+            className="bg-ide-accent hover:bg-ide-accent-hover text-white text-[11px] font-semibold px-4 py-2 rounded transition-colors cursor-pointer w-full shadow-sm uppercase tracking-wide"
+          >
+            Open Folder
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">

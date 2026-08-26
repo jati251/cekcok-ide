@@ -27,4 +27,6 @@ tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-os = "2"
 tauri-plugin-clipboard-manager = "2"
-
+ignore = "0.4"
+rayon = "1.10"
+regex = "1.11"

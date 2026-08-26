@@ -6,7 +6,8 @@ import {
   Edit3, 
   Trash2, 
   Copy, 
-  FolderSearch 
+  FolderSearch,
+  History
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 
@@ -85,6 +86,19 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
     onClose()
   }
 
+  const handleShowLocalHistory = async () => {
+    if (node.is_dir) return
+    const { getLocalHistory } = await import('../utils/localHistory')
+    const history = await getLocalHistory(node.path)
+    if (history.length === 0) {
+      alert('No local history found for this file yet.')
+    } else {
+      // For now we just alert, a full modal could be built in the future
+      alert(`Found ${history.length} snapshots for ${node.name}. Latest was saved at ${new Date(history[history.length-1].timestamp).toLocaleString()}`)
+    }
+    onClose()
+  }
+
   return (
     <div
       ref={menuRef}
@@ -142,6 +156,16 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
       </button>
 
       <div className="h-[1px] bg-ide-border my-1" />
+
+      {!node.is_dir && (
+        <button
+          onClick={handleShowLocalHistory}
+          className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+        >
+          <History size={14} className="text-[#a8c7fa]" />
+          <span className="flex-1">Show Local History</span>
+        </button>
+      )}
 
       <button
         onClick={handleCopyPath}

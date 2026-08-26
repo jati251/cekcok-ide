@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useIDEStore } from '../store/useIDEStore'
 
 export const useKeyboardShortcuts = () => {
@@ -16,11 +16,53 @@ export const useKeyboardShortcuts = () => {
     setActivePane,
     openSettingsTab,
     setZoomLevel,
+    toggleZenMode,
+    setSearchEverywhereOpen,
   } = useIDEStore()
+
+  const lastShiftTime = useRef<number>(0)
+  const isCmdKPressed = useRef<boolean>(false)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey
+
+      // Detect Double-Shift
+      if (e.key === 'Shift') {
+        const now = Date.now()
+        if (now - lastShiftTime.current < 300) {
+          e.preventDefault()
+          setSearchEverywhereOpen(true)
+          lastShiftTime.current = 0
+        } else {
+          lastShiftTime.current = now
+        }
+      } else {
+        // Reset if another key is pressed
+        if (e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Alt') {
+          lastShiftTime.current = 0
+        }
+      }
+
+      // Handle Cmd+K chords
+      if (isCmdOrCtrl && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        isCmdKPressed.current = true
+        // Reset the Cmd+K state after a short delay if no second key is pressed
+        setTimeout(() => {
+          isCmdKPressed.current = false
+        }, 1500)
+        return
+      }
+
+      if (isCmdKPressed.current) {
+        if (e.key === 'z' || e.key === 'Z') {
+          e.preventDefault()
+          toggleZenMode()
+          isCmdKPressed.current = false
+        }
+        return // Ignore other keys while in Cmd+K chord mode
+      }
 
       // Zoom In: Cmd + = / Cmd + +
       if (isCmdOrCtrl && (e.key === '=' || e.key === '+')) {
@@ -108,5 +150,7 @@ export const useKeyboardShortcuts = () => {
     setActivePane,
     openSettingsTab,
     setZoomLevel,
+    toggleZenMode,
+    setSearchEverywhereOpen,
   ])
 }

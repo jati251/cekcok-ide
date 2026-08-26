@@ -11,6 +11,28 @@ import { SettingsView } from './SettingsView'
 import { WelcomeView } from './WelcomeView'
 import { DragDropOverlay } from './DragDropOverlay'
 
+const Breadcrumbs: React.FC<{ path: string; currentDir: string }> = ({ path, currentDir }) => {
+  if (!path || path.startsWith('settings://') || path.startsWith('welcome://')) return null
+  
+  const relPath = path.replace(currentDir, '').replace(/^[/\\]/, '')
+  const segments = relPath.split(/[/\\]/).filter(Boolean)
+  
+  if (segments.length === 0) return null
+  
+  return (
+    <div className="flex items-center px-4 py-1.5 bg-[#1e1e1e] border-b border-ide-border text-[11px] text-[#888] font-mono overflow-x-auto whitespace-nowrap hide-scrollbar select-none">
+      {segments.map((seg, i) => (
+        <React.Fragment key={i}>
+          <span className={i === segments.length - 1 ? 'text-[#cccccc]' : 'text-[#888] hover:text-[#cccccc] cursor-pointer transition-colors'}>
+            {seg}
+          </span>
+          {i < segments.length - 1 && <span className="mx-2 text-[#555]">{'>'}</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  )
+}
+
 interface SinglePaneProps {
   paneId: 1 | 2
   files: FileNode[]
@@ -25,6 +47,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   isActivePane,
 }) => {
   const {
+    currentDir,
     setActiveFileInPane,
     requestCloseFile,
     setFileDirty,
@@ -301,6 +324,11 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         </div>
       )}
 
+      {/* Editor Breadcrumbs */}
+      {activeFile && (
+        <Breadcrumbs path={activeFile.path} currentDir={currentDir} />
+      )}
+
       {/* Canvas Area: Settings, Welcome, or Monaco Editor */}
       <div className="flex-1 min-h-0 relative overflow-hidden">
         {activeFile ? (
@@ -309,41 +337,53 @@ const SinglePane: React.FC<SinglePaneProps> = ({
           ) : activeFile.path === 'welcome://get-started' ? (
             <WelcomeView />
           ) : (
-            <Editor
-              height="100%"
-              theme={settings.theme}
-              path={`${paneId}-${activeFile.path}`}
-              language={getLanguageFromFilename(activeFile.name)}
-              value={editorValue}
-              onChange={(val) => {
-                const newContent = val || ''
-                setFileContent(activeFile.path, newContent)
-                if (!activeFile.isDirty) {
-                  setFileDirty(activeFile.path, true)
-                }
-                triggerAutoSave(activeFile.path)
-              }}
-              onMount={handleEditorMount}
-              options={{
-                automaticLayout: true,
-                minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
-                fontSize: settings.fontSize,
-                tabSize: settings.tabSize,
-                wordWrap: settings.wordWrap,
-                padding: { top: 12 },
-                fontFamily: settings.fontFamily,
-                renderLineHighlight: 'all',
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-                smoothScrolling: true,
-                bracketPairColorization: { enabled: true },
-                guides: { bracketPairs: true, indentation: true },
-                suggestOnTriggerCharacters: true,
-                quickSuggestions: { other: true, comments: false, strings: true },
-                formatOnPaste: true,
-                formatOnType: true,
-              }}
-            />
+            <div className="absolute inset-0 w-full h-full overflow-hidden">
+              <Editor
+                height="100%"
+                width="100%"
+                theme={settings.theme}
+                path={`${paneId}-${activeFile.path}`}
+                language={getLanguageFromFilename(activeFile.name)}
+                value={editorValue}
+                onChange={(val) => {
+                  const newContent = val || ''
+                  setFileContent(activeFile.path, newContent)
+                  if (!activeFile.isDirty) {
+                    setFileDirty(activeFile.path, true)
+                  }
+                  triggerAutoSave(activeFile.path)
+                }}
+                onMount={handleEditorMount}
+                options={{
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                  minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
+                  fontSize: settings.fontSize,
+                  tabSize: settings.tabSize,
+                  wordWrap: settings.wordWrap,
+                  padding: { top: 8, bottom: 12 },
+                  fontFamily: settings.fontFamily,
+                  renderLineHighlight: 'all',
+                  cursorBlinking: 'smooth',
+                  cursorSmoothCaretAnimation: 'on',
+                  smoothScrolling: true,
+                  bracketPairColorization: { enabled: true },
+                  guides: { bracketPairs: true, indentation: true },
+                  suggestOnTriggerCharacters: true,
+                  quickSuggestions: { other: true, comments: false, strings: true },
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  fixedOverflowWidgets: true,
+                  scrollbar: {
+                    vertical: 'visible',
+                    horizontal: 'visible',
+                    verticalScrollbarSize: 10,
+                    horizontalScrollbarSize: 10,
+                    useShadows: false,
+                  },
+                }}
+              />
+            </div>
           )
         ) : paneId === 1 && !splitEditorOpen ? (
           <WelcomeView />

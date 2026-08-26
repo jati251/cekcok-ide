@@ -7,6 +7,7 @@ import { EditorPane } from './components/EditorPane'
 import { TerminalPane } from './components/TerminalPane'
 import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
+import { SearchEverywhereModal } from './components/SearchEverywhereModal'
 import { UnsavedConfirmModal } from './components/UnsavedConfirmModal'
 import { useIDEStore } from './store/useIDEStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -15,7 +16,7 @@ import { THEMES } from './utils/themes'
 import './index.css'
 
 export const App: React.FC = () => {
-  const {
+    const {
     refreshGitStatus,
     refreshPackageJson,
     sidebarOpen,
@@ -23,6 +24,7 @@ export const App: React.FC = () => {
     settings,
     zoomLevel,
     setCurrentDir,
+    zenMode,
   } = useIDEStore()
 
   // Register all global keybindings
@@ -52,10 +54,10 @@ export const App: React.FC = () => {
 
   const sidebarGroup = (
     <>
-      {isSidebarRight && sidebarOpen && <ResizeHandle direction="vertical" />}
-      <Sidebar />
-      {!isSidebarRight && sidebarOpen && <ResizeHandle direction="vertical" />}
-      <ActivityBar />
+      {isSidebarRight && sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
+      {!zenMode && <Sidebar />}
+      {!isSidebarRight && sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
+      {!zenMode && <ActivityBar />}
     </>
   )
 
@@ -74,18 +76,12 @@ export const App: React.FC = () => {
       }}
     >
       {/* Top Native OS TitleBar & Menus */}
-      <TitleBar />
+      {!zenMode && <TitleBar />}
 
       {/* Main Workspace Layout with Dynamic Sidebar Position */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left-Aligned Sidebar & Activity Bar */}
-        {!isSidebarRight && (
-          <>
-            <ActivityBar />
-            <Sidebar />
-            {sidebarOpen && <ResizeHandle direction="vertical" />}
-          </>
-        )}
+        {!isSidebarRight && sidebarGroup}
 
         {/* Central Editor & Terminal Area (Dynamic Bottom / Right Panel Position) */}
         <div
@@ -93,10 +89,10 @@ export const App: React.FC = () => {
           style={{ backgroundColor: activeTheme.colors.bg }}
         >
           <EditorPane />
-          {terminalOpen && (
+          {terminalOpen && !zenMode && (
             <ResizeHandle direction={isPanelRight ? 'vertical' : 'horizontal'} />
           )}
-          <TerminalPane />
+          {!zenMode && <TerminalPane />}
         </div>
 
         {/* Right-Aligned Sidebar & Activity Bar */}
@@ -104,10 +100,13 @@ export const App: React.FC = () => {
       </div>
 
       {/* Bottom Status Bar */}
-      <StatusBar />
+      {!zenMode && <StatusBar />}
 
       {/* Global Command Palette / Quick Open Modal */}
       <CommandPalette />
+      
+      {/* Search Everywhere Modal */}
+      <SearchEverywhereModal />
 
       {/* Unsaved Changes Confirmation Modal */}
       <UnsavedConfirmModal />

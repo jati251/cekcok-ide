@@ -66,6 +66,10 @@ export const WelcomeView = () => {
 
               <button
                 onClick={() => {
+                  if (!currentDir) {
+                    alert('Please open a folder first to create a file.')
+                    return
+                  }
                   const filename = prompt('Enter filename to create (e.g. index.ts):')
                   if (filename) {
                     const sep = currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/'
@@ -73,7 +77,7 @@ export const WelcomeView = () => {
                     openFile({ name: filename, path, is_dir: false, content: '' })
                   }
                 }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg bg-[#252526] hover:bg-[#2d2d2d] border border-ide-border hover:border-ide-accent/50 transition-all text-left cursor-pointer group"
+                className={`w-full flex items-center gap-3 p-3 rounded-lg bg-[#252526] hover:bg-[#2d2d2d] border border-ide-border hover:border-ide-accent/50 transition-all text-left group ${!currentDir ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <div className="p-2 rounded bg-blue-500/10 text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <FilePlus size={18} />

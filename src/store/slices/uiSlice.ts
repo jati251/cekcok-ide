@@ -33,6 +33,8 @@ export interface UISlice {
   zoomLevel: number
   pendingTerminalCommand: string | null
   dragPayload: DragPayload | null
+  zenMode: boolean
+  searchEverywhereOpen: boolean
 
   setCurrentDir: (dir: string) => void
   setSidebarWidth: (w: number) => void
@@ -55,10 +57,13 @@ export interface UISlice {
   setPendingCloseFile: (file: PendingCloseFile | null) => void
   runTerminalCommand: (cmd: string) => void
   clearPendingTerminalCommand: () => void
+  setZenMode: (open: boolean) => void
+  toggleZenMode: () => void
+  setSearchEverywhereOpen: (open: boolean) => void
 }
 
 export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, get) => ({
-  currentDir: '.',
+  currentDir: '',
   sidebarWidth: LAYOUT_CONSTRAINTS.SIDEBAR_DEFAULT_WIDTH,
   terminalHeight: LAYOUT_CONSTRAINTS.TERMINAL_DEFAULT_HEIGHT,
   terminalWidth: LAYOUT_CONSTRAINTS.TERMINAL_DEFAULT_WIDTH,
@@ -73,6 +78,8 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   zoomLevel: LAYOUT_CONSTRAINTS.ZOOM_DEFAULT,
   pendingTerminalCommand: null,
   dragPayload: null,
+  zenMode: false,
+  searchEverywhereOpen: false,
 
   setCurrentDir: (dir) => {
     set({ currentDir: dir, expandedFolders: {}, folderChildren: {} })
@@ -158,4 +165,7 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
       pendingTerminalCommand: cmd,
     }),
   clearPendingTerminalCommand: () => set({ pendingTerminalCommand: null }),
+  setZenMode: (open) => set({ zenMode: open }),
+  toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
+  setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
 })

@@ -429,6 +429,11 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
       await invoke('write_file', { path: target.path, content: target.content })
       get().setFileDirty(path, false)
       get().refreshGitStatus()
+      
+      // Save local history snapshot (WebStorm feature)
+      // Import dynamically to avoid circular dependencies if any
+      const { saveLocalHistory } = await import('../../utils/localHistory')
+      await saveLocalHistory(path, target.content)
     } catch (err) {
       console.error('Failed to save file:', err)
     }
