@@ -1,6 +1,7 @@
 import { FolderOpen, FilePlus, GitBranch, Settings, Command, Search, Columns2, Terminal, ZoomIn } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useIDEStore } from '../store/useIDEStore'
+import { formatShortcut } from '../utils/platform'
 
 export const WelcomeView = () => {
   const { 
@@ -36,12 +37,27 @@ export const WelcomeView = () => {
   return (
     <div className="flex-1 h-full overflow-y-auto bg-ide-bg text-ide-text p-8 select-none">
       <div className="max-w-4xl mx-auto space-y-8 py-4">
-        {/* Hero Header */}
-        <div className="space-y-2 border-b border-ide-border/50 pb-6">
-          <h1 className="text-3xl font-bold text-white tracking-tight">Cekcok IDE</h1>
-          <p className="text-sm text-ide-muted">
-            High-performance, modular, native Rust + React code authoring environment.
-          </p>
+        {/* Hero Header with Quirky Mascot */}
+        <div className="flex items-center gap-6 border-b border-ide-border/50 pb-6">
+          <img
+            src="/logo.png"
+            alt="Cekcok IDE Mascot"
+            className="w-24 h-24 rounded-2xl shadow-xl ring-2 ring-ide-accent/40 shadow-cyan-500/10 shrink-0"
+          />
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-black text-white tracking-tight">Cekcok IDE</h1>
+              <span className="text-[10px] uppercase font-bold tracking-widest bg-ide-accent/20 text-ide-accent px-2 py-0.5 rounded-full border border-ide-accent/30">
+                v0.1.0-alpha
+              </span>
+            </div>
+            <p className="text-sm text-[#aaa]">
+              The high-velocity, cross-platform code editor for coders who argue over every semi-colon.
+            </p>
+            <p className="text-xs text-ide-muted font-mono">
+              Powered by Tauri v2 + Rust + React 19 + Monaco Engine.
+            </p>
+          </div>
         </div>
 
         {/* 2-Column Grid: Start & Recent */}
@@ -162,7 +178,9 @@ export const WelcomeView = () => {
                 <Search size={13} className="text-[#4fc1ff]" />
                 <span>Quick Open</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+P</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+P')}
+              </kbd>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded bg-[#252526] border border-ide-border">
@@ -170,7 +188,9 @@ export const WelcomeView = () => {
                 <Command size={13} className="text-[#4fc1ff]" />
                 <span>Command Palette</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+Shift+P</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+Shift+P')}
+              </kbd>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded bg-[#252526] border border-ide-border">
@@ -178,7 +198,9 @@ export const WelcomeView = () => {
                 <Settings size={13} className="text-[#4fc1ff]" />
                 <span>Settings</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+,</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+,')}
+              </kbd>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded bg-[#252526] border border-ide-border">
@@ -186,7 +208,9 @@ export const WelcomeView = () => {
                 <Columns2 size={13} className="text-[#4fc1ff]" />
                 <span>Split Editor Right</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+\</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+\\')}
+              </kbd>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded bg-[#252526] border border-ide-border">
@@ -194,7 +218,9 @@ export const WelcomeView = () => {
                 <Terminal size={13} className="text-[#4fc1ff]" />
                 <span>Toggle Terminal</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+J</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+`')}
+              </kbd>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded bg-[#252526] border border-ide-border">
@@ -202,7 +228,9 @@ export const WelcomeView = () => {
                 <ZoomIn size={13} className="text-[#4fc1ff]" />
                 <span>Zoom In / Out</span>
               </div>
-              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">Cmd+ / Cmd-</kbd>
+              <kbd className="bg-[#1e1e1e] px-1.5 py-0.5 rounded font-mono text-[11px] text-white">
+                {formatShortcut('Cmd+= / Cmd+-')}
+              </kbd>
             </div>
           </div>
         </div>

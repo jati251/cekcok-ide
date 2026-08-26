@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { X, Columns2, MoreHorizontal } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
+import { formatShortcut } from '../utils/platform'
 
 interface TabContextMenuProps {
   x: number
@@ -62,7 +63,7 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = ({
         className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-ide-accent hover:text-white text-[#cccccc] cursor-pointer text-left"
       >
         <span>Close</span>
-        <span className="text-[10px] opacity-70 font-mono">Cmd+W</span>
+        <span className="text-[10px] opacity-70 font-mono">{formatShortcut('Cmd+W')}</span>
       </button>
 
       <div className="h-[1px] bg-ide-border/50 my-1" />

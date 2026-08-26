@@ -1,5 +1,6 @@
 import { Files, Search, GitBranch, Package, Settings, Command } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
+import { formatShortcut } from '../utils/platform'
 
 export const ActivityBar = () => {
   const { 
@@ -60,14 +61,14 @@ export const ActivityBar = () => {
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
-          title="Command Palette (Cmd+Shift+P / Cmd+P)"
+          title={`Command Palette (${formatShortcut('Cmd+Shift+P')} / ${formatShortcut('Cmd+P')})`}
         >
           <Command size={18} strokeWidth={1.75} />
         </button>
         <button
           onClick={openSettingsTab}
           className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
-          title="Settings (Cmd+,)"
+          title={`Settings (${formatShortcut('Cmd+,')})`}
         >
           <Settings size={19} strokeWidth={1.75} />
         </button>

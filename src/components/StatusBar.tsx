@@ -4,6 +4,8 @@ import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
 import { LayoutCustomizer } from './LayoutCustomizer'
 
+import { formatShortcut } from '../utils/platform'
+
 export const StatusBar: React.FC = () => {
   const {
     activeFile,
@@ -124,7 +126,7 @@ export const StatusBar: React.FC = () => {
         <button
           onClick={() => setZoomLevel(1.0)}
           className="hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-mono text-[10px]"
-          title="Zoom Level (Click to reset to 100%, Cmd+= to zoom in, Cmd+- to zoom out)"
+          title={`Zoom Level (Click to reset to 100%, ${formatShortcut('Cmd+=')} to zoom in, ${formatShortcut('Cmd+-')} to zoom out)`}
         >
           {Math.round(zoomLevel * 100)}%
         </button>
@@ -132,7 +134,7 @@ export const StatusBar: React.FC = () => {
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
-          title="Command Palette (Cmd+P / Cmd+Shift+P)"
+          title={`Command Palette (${formatShortcut('Cmd+P')} / ${formatShortcut('Cmd+Shift+P')})`}
         >
           <Command size={12} />
         </button>

@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import { useIDEStore, SidebarPosition, PanelPosition, SplitDirection } from '../store/useIDEStore'
 
+import { formatShortcut } from '../utils/platform'
+
 export const LayoutCustomizer: React.FC = () => {
   const {
     settings,
@@ -159,7 +161,7 @@ export const LayoutCustomizer: React.FC = () => {
               className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/10 rounded cursor-pointer text-left"
             >
               <span>Toggle Primary Sidebar</span>
-              <kbd className="font-mono text-[10px] text-ide-muted">Cmd+B</kbd>
+              <kbd className="font-mono text-[10px] text-ide-muted">{formatShortcut('Cmd+B')}</kbd>
             </button>
             <button
               onClick={() => {
@@ -169,7 +171,7 @@ export const LayoutCustomizer: React.FC = () => {
               className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/10 rounded cursor-pointer text-left"
             >
               <span>Toggle Terminal Panel</span>
-              <kbd className="font-mono text-[10px] text-ide-muted">Cmd+`</kbd>
+              <kbd className="font-mono text-[10px] text-ide-muted">{formatShortcut('Cmd+`')}</kbd>
             </button>
             <button
               onClick={() => {
@@ -179,7 +181,7 @@ export const LayoutCustomizer: React.FC = () => {
               className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/10 rounded cursor-pointer text-left"
             >
               <span>{splitEditorOpen ? 'Close Split Editor' : 'Open Split Editor'}</span>
-              <kbd className="font-mono text-[10px] text-ide-muted">Cmd+\</kbd>
+              <kbd className="font-mono text-[10px] text-ide-muted">{formatShortcut('Cmd+\\')}</kbd>
             </button>
           </div>
         </div>

@@ -1,11 +1,9 @@
 import React from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import {
-  Search,
-  Code2,
-} from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { LayoutCustomizer } from './LayoutCustomizer'
+import { formatShortcut } from '../utils/platform'
 
 export const TitleBar: React.FC = () => {
   const {
@@ -54,7 +52,7 @@ export const TitleBar: React.FC = () => {
             <span className="truncate">{displayTitle}</span>
           </div>
           <kbd className="font-mono text-[9px] bg-white/10 px-1 py-0.2 rounded text-[#bbb]">
-            Cmd+P
+            {formatShortcut('Cmd+P')}
           </kbd>
         </button>
       </div>
@@ -64,9 +62,9 @@ export const TitleBar: React.FC = () => {
         <div data-no-drag>
           <LayoutCustomizer />
         </div>
-        <div data-tauri-drag-region className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10">
-          <Code2 size={12} className="text-ide-accent" />
-          <span>Cekcok</span>
+        <div data-tauri-drag-region className="flex items-center gap-1.5 text-[10px] text-ide-muted font-mono opacity-90 pl-1.5 border-l border-white/10">
+          <img src="/favicon.png" alt="Cekcok" className="w-4 h-4 rounded-sm" />
+          <span className="font-bold text-white tracking-wider">CEKCOK</span>
         </div>
       </div>
     </header>

@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Search, Palette, Type, Sliders, Check } from 'lucide-react'
 import { useIDEStore, UserSettings } from '../store/useIDEStore'
 import { THEMES } from '../utils/themes'
+import { formatShortcut } from '../utils/platform'
 
-export const SettingsView = () => {
+export const SettingsView: React.FC = () => {
   const { settings, updateSettings } = useIDEStore()
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<'all' | 'editor' | 'theme' | 'files'>('all')
@@ -187,7 +188,7 @@ export const SettingsView = () => {
                   >
                     <option value="afterDelay">afterDelay (Auto-saves changes in RAM)</option>
                     <option value="onFocusChange">onFocusChange (Save when switching tabs)</option>
-                    <option value="off">off (Manual Cmd+S only)</option>
+                    <option value="off">off (Manual {formatShortcut('Cmd+S')} only)</option>
                   </select>
                 </div>
               )}

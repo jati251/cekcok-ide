@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useIDEStore } from '../../store/useIDEStore'
 
+import { formatShortcut } from '../../utils/platform'
+
 export const GitSidebar: React.FC = () => {
   const {
     currentDir,
@@ -158,7 +160,7 @@ export const GitSidebar: React.FC = () => {
             <textarea
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
-              placeholder="Message (Cmd+Enter to commit)"
+              placeholder={`Message (${formatShortcut('Cmd+Enter')} to commit)`}
               rows={2}
               className="w-full bg-[#3c3c3c] text-white text-xs p-2 rounded border border-transparent focus:border-ide-accent focus:outline-none resize-none"
               onKeyDown={(e) => {

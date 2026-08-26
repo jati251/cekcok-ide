@@ -10,6 +10,7 @@ import { TabContextMenu } from './TabContextMenu'
 import { SettingsView } from './SettingsView'
 import { WelcomeView } from './WelcomeView'
 import { DragDropOverlay } from './DragDropOverlay'
+import { formatShortcut } from '../utils/platform'
 
 const Breadcrumbs: React.FC<{ path: string; currentDir: string }> = ({ path, currentDir }) => {
   if (!path || path.startsWith('settings://') || path.startsWith('welcome://')) return null
@@ -277,7 +278,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                         ? 'opacity-100 text-white'
                         : 'opacity-0 group-hover:opacity-100 text-ide-muted'
                     }`}
-                    title={file.isDirty ? 'Unsaved changes' : 'Close Tab (Cmd+W)'}
+                    title={file.isDirty ? 'Unsaved changes' : `Close Tab (${formatShortcut('Cmd+W')})`}
                   >
                     {file.isDirty ? <Circle size={9} fill="currentColor" /> : <X size={13} />}
                   </button>
@@ -294,7 +295,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
             className={`p-1.5 rounded transition-colors cursor-pointer text-[#888] hover:text-white hover:bg-white/10 ${
               splitEditorOpen ? 'text-ide-accent bg-ide-accent/20' : ''
             }`}
-            title={splitEditorOpen ? 'Close Split Editor' : 'Split Editor Right (Cmd+\\)'}
+            title={splitEditorOpen ? 'Close Split Editor' : `Split Editor Right (${formatShortcut('Cmd+\\')})`}
           >
             <Columns2 size={15} />
           </button>
@@ -341,7 +342,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                 <button
                   onClick={() => saveFile(activeFile.path)}
                   className="ml-auto text-[10px] text-ide-accent hover:text-white flex items-center gap-1 cursor-pointer font-medium"
-                  title="Save file (Cmd+S)"
+                  title={`Save file (${formatShortcut('Cmd+S')})`}
                 >
                   <Save size={11} /> Save
                 </button>

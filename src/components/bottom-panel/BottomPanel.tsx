@@ -16,6 +16,8 @@ import { OutputView } from './OutputView'
 import { DebugConsoleView } from './DebugConsoleView'
 import { PortsView } from './PortsView'
 
+import { formatShortcut } from '../../utils/platform'
+
 export const BottomPanel: React.FC = () => {
   const {
     terminalOpen,
@@ -133,7 +135,7 @@ export const BottomPanel: React.FC = () => {
           <button
             onClick={toggleTerminal}
             className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="Close Panel (Cmd+` / Cmd+J)"
+            title={`Close Panel (${formatShortcut('Cmd+`')} / ${formatShortcut('Cmd+J')})`}
           >
             <X size={14} />
           </button>
