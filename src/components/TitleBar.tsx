@@ -22,12 +22,12 @@ export const TitleBar: React.FC = () => {
   return (
     <header
       data-tauri-drag-region
-      className="h-[32px] bg-[#181818] border-b border-ide-border flex items-center justify-between px-2 select-none z-40 text-xs text-[#cccccc] font-sans shrink-0"
+      className="h-[32px] bg-[#181818] border-b border-ide-border flex items-center justify-between px-2 select-none z-40 text-xs text-[#cccccc] font-sans shrink-0 [-webkit-app-region:drag]"
     >
       {/* Left Section: OS Window Controls & Menus */}
-      <div className="flex items-center gap-2" data-tauri-drag-region>
+      <div className="flex items-center gap-2 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
         {/* Mac OS Native Traffic Lights Placeholder */}
-        <div className="w-[70px] shrink-0" data-tauri-drag-region />
+        <div className="w-[70px] h-full shrink-0 [-webkit-app-region:drag]" data-tauri-drag-region />
 
         {/* Removed redundant HTML menu bar (macOS has native global menu) */}
       </div>
@@ -35,11 +35,11 @@ export const TitleBar: React.FC = () => {
       {/* Center Section: Quick Search Pill & Title */}
       <div
         data-tauri-drag-region
-        className="flex-1 flex items-center justify-center px-4 overflow-hidden"
+        className="flex-1 flex items-center justify-center px-4 overflow-hidden h-full [-webkit-app-region:drag]"
       >
         <button
           onClick={() => setQuickOpenOpen(true)}
-          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer"
+          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-3 py-0.5 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-72 justify-between cursor-pointer [-webkit-app-region:no-drag]"
         >
           <div className="flex items-center gap-1.5 truncate">
             <Search size={12} className="text-[#777]" />
@@ -52,11 +52,13 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Right Section: Layout Controls & Branding */}
-      <div className="flex items-center gap-2" data-tauri-drag-region>
-        <LayoutCustomizer />
-        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10" data-tauri-drag-region>
-          <Code2 size={12} className="text-ide-accent" data-tauri-drag-region />
-          <span data-tauri-drag-region>Cekcok</span>
+      <div className="flex items-center gap-2 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
+        <div className="[-webkit-app-region:no-drag]">
+          <LayoutCustomizer />
+        </div>
+        <div className="flex items-center gap-1 text-[10px] text-ide-muted font-mono opacity-80 pl-1 border-l border-white/10 h-full [-webkit-app-region:drag]" data-tauri-drag-region>
+          <Code2 size={12} className="text-ide-accent [-webkit-app-region:drag]" data-tauri-drag-region />
+          <span className="[-webkit-app-region:drag]" data-tauri-drag-region>Cekcok</span>
         </div>
       </div>
     </header>
