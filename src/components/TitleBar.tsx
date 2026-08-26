@@ -20,8 +20,12 @@ export const TitleBar: React.FC = () => {
     : `${projectName} — Cekcok IDE`
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only drag on left click and when not clicking an interactive control
-    if (e.button === 0 && !(e.target as HTMLElement).closest('button, input, [data-no-drag]')) {
+    if ((e.target as HTMLElement).closest('button, input, [data-no-drag]')) {
+      return
+    }
+    if (e.detail === 2) {
+      getCurrentWindow().toggleMaximize()
+    } else if (e.button === 0 || e.buttons === 1) {
       getCurrentWindow().startDragging()
     }
   }
