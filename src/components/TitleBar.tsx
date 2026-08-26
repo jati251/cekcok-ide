@@ -23,7 +23,7 @@ export const TitleBar: React.FC = () => {
   return (
     <header
       data-tauri-drag-region
-      onPointerDown={(e) => {
+      onMouseDown={(e) => {
         if (e.target instanceof Element && e.target.closest('button, input, [data-no-drag]')) return
         getCurrentWindow().startDragging()
       }}
@@ -40,7 +40,7 @@ export const TitleBar: React.FC = () => {
       {/* Center Section: Quick Search Pill & Title */}
       <div
         data-tauri-drag-region
-        onPointerDown={(e) => {
+        onMouseDown={(e) => {
           if (e.target instanceof Element && e.target.closest('button, input, [data-no-drag]')) return
           getCurrentWindow().startDragging()
         }}
