@@ -46,6 +46,17 @@ export const App: React.FC = () => {
   }, [refreshGitStatus, refreshPackageJson, setCurrentDir, settings.startupBehavior])
 
   const activeTheme = THEMES[settings.theme] || THEMES['vs-dark']
+  const isSidebarRight = settings.sidebarPosition === 'right'
+  const isPanelRight = settings.panelPosition === 'right'
+
+  const sidebarGroup = (
+    <>
+      {isSidebarRight && sidebarOpen && <ResizeHandle direction="vertical" />}
+      <Sidebar />
+      {!isSidebarRight && sidebarOpen && <ResizeHandle direction="vertical" />}
+      <ActivityBar />
+    </>
+  )
 
   return (
     <div
@@ -61,20 +72,31 @@ export const App: React.FC = () => {
         '--color-ide-accent-hover': activeTheme.colors.accentHover,
       }}
     >
-      {/* Main Workspace Layout (Flex-1 ensures zero blank gaps or overflow) */}
+      {/* Main Workspace Layout with Dynamic Sidebar Position */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <ActivityBar />
-        <Sidebar />
-        {sidebarOpen && <ResizeHandle direction="vertical" />}
+        {/* Left-Aligned Sidebar & Activity Bar */}
+        {!isSidebarRight && (
+          <>
+            <ActivityBar />
+            <Sidebar />
+            {sidebarOpen && <ResizeHandle direction="vertical" />}
+          </>
+        )}
 
+        {/* Central Editor & Terminal Area (Dynamic Bottom / Right Panel Position) */}
         <div
-          className="flex-1 flex flex-col min-w-0 min-h-0"
+          className={`flex-1 flex min-w-0 min-h-0 ${isPanelRight ? 'flex-row' : 'flex-col'}`}
           style={{ backgroundColor: activeTheme.colors.bg }}
         >
           <EditorPane />
-          {terminalOpen && <ResizeHandle direction="horizontal" />}
+          {terminalOpen && (
+            <ResizeHandle direction={isPanelRight ? 'vertical' : 'horizontal'} />
+          )}
           <TerminalPane />
         </div>
+
+        {/* Right-Aligned Sidebar & Activity Bar */}
+        {isSidebarRight && sidebarGroup}
       </div>
 
       {/* Bottom Status Bar */}

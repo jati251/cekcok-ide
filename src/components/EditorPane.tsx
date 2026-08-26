@@ -9,6 +9,7 @@ import { useAutoSave } from '../hooks/useAutoSave'
 import { TabContextMenu } from './TabContextMenu'
 import { SettingsView } from './SettingsView'
 import { WelcomeView } from './WelcomeView'
+import { DragDropOverlay } from './DragDropOverlay'
 
 interface SinglePaneProps {
   paneId: 1 | 2
@@ -41,8 +42,12 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(
     null
   )
-  const [isDragOver, setIsDragOver] = useState(false)
   const { triggerAutoSave } = useAutoSave()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const editorInstanceRef = useRef<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const viewStateMapRef = useRef<Map<string, any>>(new Map())
+  const previousFilePathRef = useRef<string | null>(null)
 
   // Fetch file content when active file changes if not already in store
   useEffect(() => {
@@ -71,8 +76,34 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     }
   }, [activeFile, setFileContent, setFileDirty])
 
+  // Save and restore Monaco ViewState (cursor position, scroll, selection) across tab switches
+  useEffect(() => {
+    if (!editorInstanceRef.current) return
+    const editor = editorInstanceRef.current
+
+    // Save viewState of previous file
+    if (previousFilePathRef.current) {
+      const state = editor.saveViewState()
+      if (state) {
+        viewStateMapRef.current.set(previousFilePathRef.current, state)
+      }
+    }
+
+    // Restore viewState of current file
+    if (activeFile) {
+      const savedState = viewStateMapRef.current.get(activeFile.path)
+      if (savedState) {
+        editor.restoreViewState(savedState)
+      }
+      editor.focus()
+    }
+
+    previousFilePathRef.current = activeFile?.path || null
+  }, [activeFile])
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEditorMount = (editor: any, monaco: any) => {
+    editorInstanceRef.current = editor
     registerMonacoThemes(monaco)
 
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
@@ -140,44 +171,19 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     }
   }
 
-  const handleContainerDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const raw = e.dataTransfer.getData('application/json')
-    if (!raw) return
-    try {
-      const data = JSON.parse(raw)
-      if (data.type === 'tab') {
-        if (data.pane !== paneId) {
-          moveTabBetweenPanes(data.path, data.pane, paneId)
-        }
-      } else if (data.name && data.path) {
-        openFileInPane(data, paneId)
-      }
-    } catch {
-      // ignore
-    }
-  }
-
   const pathSegments = activeFile ? activeFile.path.split(/[/\\]/).filter(Boolean) : []
   const editorValue = activeFile?.content ?? ''
 
   return (
     <div
-      className={`flex-1 flex flex-col min-w-0 h-full border-r border-ide-border last:border-r-0 relative ${
+      className={`flex-1 flex flex-col min-w-0 min-h-0 h-full border-r border-ide-border last:border-r-0 relative overflow-hidden ${
         isActivePane ? 'ring-1 ring-ide-accent/40' : ''
-      } ${isDragOver ? 'bg-ide-accent/5' : ''}`}
+      }`}
       onClick={() => setActivePane(paneId)}
-      onDragOver={(e) => {
-        e.preventDefault()
-        setIsDragOver(true)
-      }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={handleContainerDrop}
     >
       {/* Tab Bar Header */}
       <div
-        className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2"
+        className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0"
         onDragOver={(e) => e.preventDefault()}
       >
         <div className="flex flex-1 overflow-x-auto no-scrollbar h-full">
@@ -247,7 +253,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
 
       {/* Breadcrumb Path Bar */}
       {activeFile && (
-        <div className="h-6 bg-ide-bg border-b border-ide-border/50 px-3 flex items-center text-[11px] text-ide-muted select-none">
+        <div className="h-6 bg-ide-bg border-b border-ide-border/50 px-3 flex items-center text-[11px] text-ide-muted select-none shrink-0">
           {activeFile.path === 'settings://preferences' ? (
             <div className="flex items-center gap-1">
               <Settings size={12} className="mr-1 text-[#4fc1ff] shrink-0" />
@@ -296,7 +302,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       )}
 
       {/* Canvas Area: Settings, Welcome, or Monaco Editor */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 min-h-0 relative overflow-hidden">
         {activeFile ? (
           activeFile.path === 'settings://preferences' ? (
             <SettingsView />
@@ -319,6 +325,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
               }}
               onMount={handleEditorMount}
               options={{
+                automaticLayout: true,
                 minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
                 fontSize: settings.fontSize,
                 tabSize: settings.tabSize,
@@ -334,6 +341,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                 suggestOnTriggerCharacters: true,
                 quickSuggestions: { other: true, comments: false, strings: true },
                 formatOnPaste: true,
+                formatOnType: true,
               }}
             />
           )
@@ -371,10 +379,12 @@ export const EditorPane: React.FC = () => {
     pane1ActiveFile,
     pane2Files,
     pane2ActiveFile,
+    settings,
   } = useIDEStore()
 
   const containerRef = useRef<HTMLDivElement>(null)
   const isDraggingRef = useRef(false)
+  const isHorizontal = settings.splitDirection === 'horizontal'
 
   const handleSplitMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -383,7 +393,9 @@ export const EditorPane: React.FC = () => {
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!isDraggingRef.current || !containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
-      const newRatio = (moveEvent.clientX - rect.left) / rect.width
+      const newRatio = isHorizontal
+        ? (moveEvent.clientY - rect.top) / rect.height
+        : (moveEvent.clientX - rect.left) / rect.width
       setSplitRatio(newRatio)
     }
 
@@ -398,10 +410,18 @@ export const EditorPane: React.FC = () => {
   }
 
   return (
-    <main ref={containerRef} className="flex-1 flex flex-row bg-ide-bg overflow-hidden min-w-0 relative">
+    <main
+      ref={containerRef}
+      className={`flex-1 flex bg-ide-bg overflow-hidden min-w-0 min-h-0 relative ${
+        isHorizontal ? 'flex-col' : 'flex-row'
+      }`}
+    >
       <div
-        style={{ width: splitEditorOpen ? `${splitRatio * 100}%` : '100%' }}
-        className="h-full flex flex-col min-w-0"
+        style={{
+          width: isHorizontal ? '100%' : splitEditorOpen ? `${splitRatio * 100}%` : '100%',
+          height: isHorizontal ? (splitEditorOpen ? `${splitRatio * 100}%` : '100%') : '100%',
+        }}
+        className="flex flex-col min-w-0 min-h-0 overflow-hidden"
       >
         <SinglePane
           paneId={1}
@@ -416,13 +436,20 @@ export const EditorPane: React.FC = () => {
           {/* Draggable Split Divider */}
           <div
             onMouseDown={handleSplitMouseDown}
-            className="w-1 hover:w-1.5 bg-ide-border hover:bg-ide-accent cursor-col-resize z-20 transition-all shrink-0 h-full select-none"
+            className={`bg-ide-border hover:bg-ide-accent z-20 transition-all shrink-0 select-none ${
+              isHorizontal
+                ? 'h-1 hover:h-1.5 w-full cursor-row-resize'
+                : 'w-1 hover:w-1.5 h-full cursor-col-resize'
+            }`}
             title="Drag to resize split panes"
           />
 
           <div
-            style={{ width: `${(1 - splitRatio) * 100}%` }}
-            className="h-full flex flex-col min-w-0"
+            style={{
+              width: isHorizontal ? '100%' : `${(1 - splitRatio) * 100}%`,
+              height: isHorizontal ? `${(1 - splitRatio) * 100}%` : '100%',
+            }}
+            className="flex flex-col min-w-0 min-h-0 overflow-hidden"
           >
             <SinglePane
               paneId={2}
@@ -433,6 +460,9 @@ export const EditorPane: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Global Drag & Drop Overlay Target */}
+      <DragDropOverlay />
     </main>
   )
 }

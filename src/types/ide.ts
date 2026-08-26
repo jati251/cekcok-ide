@@ -31,6 +31,10 @@ export interface PackageJson {
 
 export type SidebarTab = 'explorer' | 'search' | 'git' | 'node' | 'settings'
 
+export type SidebarPosition = 'left' | 'right'
+export type PanelPosition = 'bottom' | 'right'
+export type SplitDirection = 'horizontal' | 'vertical'
+
 export interface UserSettings {
   theme: string
   fontSize: number
@@ -43,6 +47,9 @@ export interface UserSettings {
   startupBehavior: 'restoreLastProject' | 'welcomePage' | 'empty'
   showHiddenFiles: boolean
   showIgnoredFiles: boolean
+  sidebarPosition: SidebarPosition
+  panelPosition: PanelPosition
+  splitDirection: SplitDirection
 }
 
 export interface PendingCloseFile {
@@ -56,4 +63,11 @@ export interface SearchResultItem {
   file_name: string
   line_number: number
   line_text: string
+}
+
+export interface DragPayload {
+  type: 'file' | 'tab'
+  file: FileNode
+  fromPane?: 1 | 2
+  fromIndex?: number
 }

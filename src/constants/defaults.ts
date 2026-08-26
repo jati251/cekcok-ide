@@ -18,6 +18,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   startupBehavior: 'restoreLastProject',
   showHiddenFiles: false,
   showIgnoredFiles: true,
+  sidebarPosition: 'left',
+  panelPosition: 'bottom',
+  splitDirection: 'vertical',
 }
 
 export const INITIAL_GIT_STATUS: GitStatusResult = {
@@ -36,6 +39,9 @@ export const LAYOUT_CONSTRAINTS = {
   TERMINAL_MIN_HEIGHT: 80,
   TERMINAL_MAX_HEIGHT: 600,
   TERMINAL_DEFAULT_HEIGHT: 220,
+  TERMINAL_MIN_WIDTH: 200,
+  TERMINAL_MAX_WIDTH: 800,
+  TERMINAL_DEFAULT_WIDTH: 360,
   SPLIT_MIN_RATIO: 0.2,
   SPLIT_MAX_RATIO: 0.8,
   SPLIT_DEFAULT_RATIO: 0.5,

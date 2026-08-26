@@ -2,6 +2,7 @@ import React from 'react'
 import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
+import { LayoutCustomizer } from './LayoutCustomizer'
 
 export const StatusBar: React.FC = () => {
   const {
@@ -100,6 +101,7 @@ export const StatusBar: React.FC = () => {
         >
           {Math.round(zoomLevel * 100)}%
         </button>
+        <LayoutCustomizer />
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="hover:bg-white/20 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
