@@ -1,4 +1,5 @@
 import React from 'react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 import {
   Search,
@@ -22,6 +23,11 @@ export const TitleBar: React.FC = () => {
   return (
     <header
       data-tauri-drag-region
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) {
+          getCurrentWindow().startDragging()
+        }
+      }}
       className="h-[32px] bg-[#181818] border-b border-ide-border flex items-center justify-between px-2 select-none z-40 text-xs text-[#cccccc] font-sans shrink-0"
     >
       {/* Left Section: OS Window Controls & Menus */}
@@ -35,6 +41,11 @@ export const TitleBar: React.FC = () => {
       {/* Center Section: Quick Search Pill & Title */}
       <div
         data-tauri-drag-region
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) {
+            getCurrentWindow().startDragging()
+          }
+        }}
         className="flex-1 flex items-center justify-center px-4 overflow-hidden"
       >
         <button

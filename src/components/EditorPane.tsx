@@ -147,6 +147,16 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         reactNamespace: 'React',
         allowJs: true,
       })
+
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: true,
+        noSyntaxValidation: false,
+      })
+
+      monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: true,
+        noSyntaxValidation: false,
+      })
     }
   }
 
