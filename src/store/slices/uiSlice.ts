@@ -41,6 +41,7 @@ export interface UISlice {
   dragPayload: DragPayload | null
   zenMode: boolean
   searchEverywhereOpen: boolean
+  isDraggingFile: boolean
   
   // Rich Bottom Panel States
   diagnostics: DiagnosticItem[]
@@ -76,6 +77,7 @@ export interface UISlice {
   setZenMode: (open: boolean) => void
   toggleZenMode: () => void
   setSearchEverywhereOpen: (open: boolean) => void
+  setIsDraggingFile: (dragging: boolean) => void
 
   // Bottom Panel Actions
   setDiagnostics: (items: DiagnosticItem[]) => void
@@ -108,6 +110,7 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   zoomLevel: LAYOUT_CONSTRAINTS.ZOOM_DEFAULT,
   pendingTerminalCommand: null,
   dragPayload: null,
+  isDraggingFile: false,
   zenMode: false,
   searchEverywhereOpen: false,
 
@@ -229,6 +232,7 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setZenMode: (open) => set({ zenMode: open }),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
+  setIsDraggingFile: (dragging) => set({ isDraggingFile: dragging }),
 
   // Bottom Panel Actions
   setDiagnostics: (items) => set({ diagnostics: items }),

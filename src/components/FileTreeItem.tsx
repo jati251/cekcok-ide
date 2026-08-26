@@ -20,6 +20,7 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     createFileInDir,
     createFolderInDir,
     settings,
+    setIsDraggingFile,
   } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
@@ -75,6 +76,11 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     if (node.is_dir) return
     e.dataTransfer.setData('application/json', JSON.stringify(node))
     e.dataTransfer.setData('text/plain', node.path)
+    setIsDraggingFile(true)
+  }
+
+  const handleDragEnd = () => {
+    setIsDraggingFile(false)
   }
 
   const handleRenameSubmit = async () => {
@@ -108,6 +114,7 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
         onContextMenu={handleContextMenu}
         draggable={!node.is_dir && !isRenaming}
         onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative ${
           isActive

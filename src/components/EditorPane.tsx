@@ -9,7 +9,6 @@ import {
   Columns2,
   Settings,
   Compass,
-  Split,
   Plus,
   ArrowRight,
   ArrowDown,
@@ -79,6 +78,8 @@ const SinglePane: React.FC<SinglePaneProps> = ({
     moveTabBetweenPanes,
     openFileInPane,
     setDiagnostics,
+    isDraggingFile,
+    setIsDraggingFile,
   } = useIDEStore()
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileNode } | null>(
@@ -193,6 +194,11 @@ const SinglePane: React.FC<SinglePaneProps> = ({
       })
     )
     e.dataTransfer.effectAllowed = 'move'
+    setIsDraggingFile(true)
+  }
+
+  const handleTabDragEnd = () => {
+    setIsDraggingFile(false)
   }
 
   // Interactive Drag Over on Pane
@@ -230,6 +236,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
   const handlePaneDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    setIsDraggingFile(false)
     const dropZone = activeDropZone
     setActiveDropZone(null)
 
@@ -326,6 +333,11 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         </div>
       )}
 
+      {/* Transparent overlay that captures all mouse movements over the Monaco Editor when dragging */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 z-40" />
+      )}
+
       {/* Tab Bar Header */}
       <div
         className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0"
@@ -346,6 +358,7 @@ const SinglePane: React.FC<SinglePaneProps> = ({
                   key={file.path}
                   draggable={true}
                   onDragStart={(e) => handleTabDragStart(e, file, idx)}
+                  onDragEnd={handleTabDragEnd}
                   onClick={() => setActiveFileInPane(file, paneId)}
                   onContextMenu={(e) => handleTabContextMenu(e, file)}
                   className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
@@ -507,11 +520,28 @@ const SinglePane: React.FC<SinglePaneProps> = ({
         ) : paneId === 1 && !splitEditorOpen ? (
           <WelcomeView />
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-ide-muted space-y-3 select-none p-6 text-center">
-            <Split size={32} className="text-white/20" />
-            <div className="text-base font-semibold text-white/40">Cekcok Split Pane {paneId}</div>
-            <div className="text-xs text-[#888] max-w-[220px]">
-              Drag any file from the explorer onto the edge to split or center to open
+          <div className="h-full flex flex-col items-center justify-center text-ide-muted select-none p-6 text-center animate-in fade-in duration-300">
+            <img src="/logo.png" alt="Cekcok IDE" className="w-16 h-16 rounded-xl opacity-20 grayscale mb-6 pointer-events-none" />
+            <div className="space-y-4 max-w-[300px]">
+              <div className="flex justify-between items-center text-xs">
+                <span>Show All Commands</span>
+                <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded opacity-70">{formatShortcut('Cmd+Shift+P')}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span>Go to File</span>
+                <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded opacity-70">{formatShortcut('Cmd+P')}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span>Find in Files</span>
+                <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded opacity-70">{formatShortcut('Cmd+Shift+F')}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span>Toggle Terminal</span>
+                <span className="font-mono bg-white/5 px-1.5 py-0.5 rounded opacity-70">{formatShortcut('Cmd+`')}</span>
+              </div>
+            </div>
+            <div className="mt-8 text-[11px] text-[#555] max-w-[220px]">
+              Drag a file from the explorer onto the edge to split, or center to open here
             </div>
           </div>
         )}
