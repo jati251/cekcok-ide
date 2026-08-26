@@ -24,6 +24,7 @@ export const TerminalPane: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement>(null)
   const termInstance = useRef<Terminal | null>(null)
   const fitAddon = useRef<FitAddon | null>(null)
+  const unlistenRef = useRef<{ out: UnlistenFn | null; ex: UnlistenFn | null }>({ out: null, ex: null })
 
   const currentDirRef = useRef(currentDir)
   useEffect(() => {
@@ -74,9 +75,6 @@ export const TerminalPane: React.FC = () => {
   // Initialize Xterm once and keep alive in DOM
   useEffect(() => {
     if (!terminalRef.current) return
-
-    let unlistenOutput: UnlistenFn | null = null
-    let unlistenExit: UnlistenFn | null = null
 
     if (!termInstance.current) {
       const term = new Terminal({
@@ -159,22 +157,23 @@ export const TerminalPane: React.FC = () => {
           term.write(data)
         }
       })
-    }
 
-    // Listen to streaming output
-    const setupListeners = async () => {
-      unlistenOutput = await listen<string>('terminal-output', (event) => {
-        if (termInstance.current) {
-          termInstance.current.write(event.payload)
-        }
-      })
-      unlistenExit = await listen<number>('terminal-exit', (event) => {
-        if (termInstance.current) {
-          termInstance.current.write(`\r\n[Process exited with code ${event.payload}]\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
-        }
-      })
+      // Listen to streaming output ONCE
+      const setupListeners = async () => {
+        const out = await listen<string>('terminal-output', (event) => {
+          if (termInstance.current) {
+            termInstance.current.write(event.payload)
+          }
+        })
+        const ex = await listen<number>('terminal-exit', (event) => {
+          if (termInstance.current) {
+            termInstance.current.write(`\r\n[Process exited with code ${event.payload}]\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
+          }
+        })
+        unlistenRef.current = { out, ex }
+      }
+      setupListeners()
     }
-    setupListeners()
 
     // Handle resize
     const handleResize = () => {
@@ -186,8 +185,6 @@ export const TerminalPane: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (unlistenOutput) unlistenOutput()
-      if (unlistenExit) unlistenExit()
     }
   }, [refreshGitStatus, terminalOpen])
 
