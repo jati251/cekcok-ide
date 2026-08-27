@@ -39,6 +39,9 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_PATH")"
 export TAURI_SIGNING_PRIVATE_KEY_PATH="$KEY_PATH"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 
+echo "🔍 Running linter check..."
+npm run lint
+
 echo "🔨 Building Tauri native bundle (macOS DMG & updater artifacts)..."
 npm run build
 npx tauri build
