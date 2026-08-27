@@ -134,7 +134,9 @@ Cekcok supports automated deployment of release artifacts (installers + auto-upd
 
 2. **Tauri signing key** at `src-tauri/cekcok.key` (generate with `npx tauri signer generate -w src-tauri/cekcok.key`)
 
-### Local Deploy (macOS)
+### Multi-Platform Deployment (macOS & Windows)
+
+Run the deployment script on macOS or Windows:
 
 ```bash
 # Build, sign, and upload to MinIO in one step
@@ -142,25 +144,11 @@ Cekcok supports automated deployment of release artifacts (installers + auto-upd
 ```
 
 This script will:
-- Build the Tauri app with signing enabled
-- Upload the `.dmg` installer to MinIO
-- Generate and upload `latest.json` for the auto-updater endpoint
-
-### CI/CD Deploy (GitHub Actions)
-
-The release workflow (`.github/workflows/release.yml`) automatically builds for macOS & Windows and deploys to MinIO when you push a version tag:
-
-```bash
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-**Required GitHub Secrets:**
-| Secret | Description |
-|:--|:--|
-| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater signing private key contents |
-| `MINIO_ACCESS_KEY` | MinIO access key |
-| `MINIO_SECRET_KEY` | MinIO secret key |
+- Run linter check (`npm run lint`)
+- Build the Tauri app with updater signing enabled
+- On **macOS**: uploads `.dmg` installer and `.app.tar.gz` updater bundle
+- On **Windows**: uploads `.exe` / `.msi` installers and `.nsis.zip` updater bundle
+- Atomically updates and preserves multi-platform signatures in `latest.json`
 
 ## 🏗️ Architecture
 
