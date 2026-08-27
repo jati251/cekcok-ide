@@ -47,6 +47,7 @@ export interface UserSettings {
   theme: string
   fontSize: number
   fontFamily: string
+  ideFontFamily: string
   tabSize: number
   wordWrap: 'on' | 'off'
   minimapEnabled: boolean

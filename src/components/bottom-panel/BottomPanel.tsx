@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { motion, LayoutGroup } from 'framer-motion'
 import {
   Maximize2,
   Minimize2,
@@ -50,7 +51,8 @@ export const BottomPanel: React.FC = () => {
       {/* Bottom Panel Navigation Header Bar */}
       <div className="flex justify-between items-center px-2 bg-[#1f1f1f] border-b border-ide-border shrink-0 select-none" data-drop-zone="bottom-tools">
         {/* Left Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar relative">
+          <LayoutGroup>
           {bottomTools.map((tab) => {
             const isActive = activeBottomTab === tab.id
             const Icon = tab.icon
@@ -60,7 +62,8 @@ export const BottomPanel: React.FC = () => {
             const badgeValue = tab.getBadge ? tab.getBadge(state) : undefined
 
             return (
-              <button
+              <motion.button
+                layout
                 key={tab.id}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClick={() => setActiveBottomTab(tab.id as any)}
@@ -72,18 +75,25 @@ export const BottomPanel: React.FC = () => {
                   })
                   useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase transition-colors cursor-pointer border-b-2 ${
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase transition-colors cursor-pointer ${
                   isActive
-                    ? 'text-white border-ide-accent bg-[#181818]'
-                    : 'text-ide-muted border-transparent hover:text-white hover:bg-white/5'
+                    ? 'text-white bg-[#181818]'
+                    : 'text-ide-muted hover:text-white hover:bg-white/5'
                 }`}
               >
                 <Icon size={13} className={isActive ? 'text-ide-accent' : 'text-ide-muted'} />
                 <span>{tab.label}</span>
                 {badgeValue}
-              </button>
+                {isActive && (
+                  <motion.div 
+                    layoutId="bottom-tab-indicator"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-ide-accent"
+                  />
+                )}
+              </motion.button>
             )
           })}
+          </LayoutGroup>
         </div>
 
         {/* Right Window Controls */}

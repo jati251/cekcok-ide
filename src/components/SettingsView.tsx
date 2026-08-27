@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Search, Palette, Type, Sliders, Check } from 'lucide-react'
 import { useIDEStore, UserSettings } from '../store/useIDEStore'
 import { THEMES } from '../utils/themes'
@@ -20,7 +21,11 @@ export const SettingsView: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-[#cccccc] select-none">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col h-full bg-[#1e1e1e] text-[#cccccc] select-none"
+    >
       {/* Header Search Bar */}
       <div className="p-3 border-b border-ide-border bg-[#252526] space-y-2">
         <div className="flex items-center justify-between">
@@ -105,6 +110,22 @@ export const SettingsView: React.FC = () => {
           {/* EDITOR FONT & SIZING */}
           {(activeCategory === 'all' || activeCategory === 'editor') && (
             <>
+              {matchesSearch('IDE Font Family') && (
+                <div className="space-y-1.5 pb-4 border-b border-ide-border/40">
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">App: IDE Font Family</h4>
+                    <p className="text-[11px] text-ide-muted">Controls the font family for the entire IDE UI.</p>
+                  </div>
+                  <input
+                    type="text"
+                    value={settings.ideFontFamily}
+                    onChange={(e) => updateSettings({ ideFontFamily: e.target.value })}
+                    className="w-full bg-[#3c3c3c] text-white text-xs px-2.5 py-1.5 rounded border border-ide-border focus:border-ide-accent focus:outline-none"
+                    placeholder="'Inter', system-ui, sans-serif"
+                  />
+                </div>
+              )}
+
               {matchesSearch('Font Size') && (
                 <div className="space-y-1.5 pb-4 border-b border-ide-border/40">
                   <div className="flex items-center justify-between">
@@ -229,6 +250,6 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

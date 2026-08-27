@@ -175,6 +175,7 @@ export const App: React.FC = () => {
     <div
       className="h-full w-full flex flex-col overflow-hidden font-sans select-none"
       style={{
+        fontFamily: settings.ideFontFamily,
         backgroundColor: activeTheme.colors.bg,
         color: activeTheme.colors.text,
         // @ts-expect-error custom CSS variable mapping for themes

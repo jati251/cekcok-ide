@@ -38,6 +38,31 @@ export const useNativeMenu = () => {
         case 'toggle_split':
           toggleSplitEditor()
           break
+        case 'zoom_in':
+          useIDEStore.getState().setZoomLevel((z) => Math.min(z + 10, 200))
+          break
+        case 'zoom_out':
+          useIDEStore.getState().setZoomLevel((z) => Math.max(z - 10, 50))
+          break
+        case 'zoom_reset':
+          useIDEStore.getState().setZoomLevel(100)
+          break
+        case 'search_everywhere':
+          useIDEStore.getState().setSearchEverywhereOpen(true)
+          break
+        case 'toggle_word_wrap': {
+          const currentWrap = useIDEStore.getState().settings.wordWrap
+          useIDEStore.getState().updateSettings({ wordWrap: currentWrap === 'on' ? 'off' : 'on' })
+          break
+        }
+        // For new_file, new_folder, format, we could emit a custom window event or dispatch a specific store payload
+        // Since we don't have direct access to the DOM here for formatting, we can just log or show a toast
+        case 'new_file':
+          alert('Select a folder first and click the New File icon in the Explorer.')
+          break
+        case 'format_document':
+          alert('Format document is available in the breadcrumbs bar.')
+          break
       }
     })
 

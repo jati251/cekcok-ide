@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { motion } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'react-hot-toast'
 import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
@@ -166,9 +167,26 @@ export const ExplorerSidebar: React.FC = () => {
         {fileTree.length === 0 ? (
           <div className="p-4 text-center text-xs text-[#888] italic">No files in directory</div>
         ) : (
-          fileTree.map((file) => (
-            <FileTreeItem key={file.path} node={file} depth={0} />
-          ))
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+            }}
+          >
+            {fileTree.map((file) => (
+              <motion.div
+                key={file.path}
+                variants={{
+                  hidden: { opacity: 0, x: -10 },
+                  visible: { opacity: 1, x: 0 }
+                }}
+              >
+                <FileTreeItem node={file} depth={0} />
+              </motion.div>
+            ))}
+          </motion.div>
         )}
       </div>
     </div>

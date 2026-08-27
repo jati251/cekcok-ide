@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'vs-dark',
   fontSize: 14,
   fontFamily: "'Consolas', 'Menlo', 'Courier New', monospace",
+  ideFontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
   tabSize: 2,
   wordWrap: 'on',
   minimapEnabled: true,

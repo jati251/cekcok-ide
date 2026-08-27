@@ -64,6 +64,10 @@ pub fn run() {
                 "File",
                 true,
                 &[
+                    &MenuItem::with_id(app, "new_file", "New File", true, Some("CmdOrCtrl+N"))?,
+                    &MenuItem::with_id(app, "new_folder", "New Folder", true, Some("CmdOrCtrl+Shift+N"))?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "open_folder", "Open Folder...", true, Some("CmdOrCtrl+O"))?,
                     &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "settings", "Preferences: Settings", true, Some("CmdOrCtrl+,"))?,
@@ -86,6 +90,9 @@ pub fn run() {
                     &PredefinedMenuItem::paste(app, None::<&str>)?,
                     &PredefinedMenuItem::select_all(app, None::<&str>)?,
                     &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "format_document", "Format Document", true, Some("Shift+Alt+F"))?,
+                    &MenuItem::with_id(app, "toggle_word_wrap", "Toggle Word Wrap", true, Some("Alt+Z"))?,
+                    &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "command_palette", "Command Palette...", true, Some("CmdOrCtrl+Shift+P"))?,
                 ],
             )?;
@@ -98,6 +105,19 @@ pub fn run() {
                     &MenuItem::with_id(app, "toggle_sidebar", "Toggle Primary Sidebar", true, Some("CmdOrCtrl+B"))?,
                     &MenuItem::with_id(app, "toggle_terminal", "Toggle Terminal Panel", true, Some("CmdOrCtrl+`"))?,
                     &MenuItem::with_id(app, "toggle_split", "Toggle Split Editor", true, Some("CmdOrCtrl+\\"))?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "zoom_in", "Zoom In", true, Some("CmdOrCtrl+="))?,
+                    &MenuItem::with_id(app, "zoom_out", "Zoom Out", true, Some("CmdOrCtrl+-"))?,
+                    &MenuItem::with_id(app, "zoom_reset", "Reset Zoom", true, Some("CmdOrCtrl+Num0"))?,
+                ],
+            )?;
+
+            let go_menu = Submenu::with_items(
+                app,
+                "Go",
+                true,
+                &[
+                    &MenuItem::with_id(app, "search_everywhere", "Go to File...", true, Some("CmdOrCtrl+P"))?,
                 ],
             )?;
 
@@ -119,13 +139,13 @@ pub fn run() {
                         &PredefinedMenuItem::quit(app, None::<&str>)?,
                     ],
                 )?;
-                let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &view_menu])?;
+                let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &view_menu, &go_menu])?;
                 app.set_menu(menu)?;
             }
 
             #[cfg(not(target_os = "macos"))]
             {
-                let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu])?;
+                let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu, &go_menu])?;
                 app.set_menu(menu)?;
             }
 
@@ -134,7 +154,13 @@ pub fn run() {
         .on_menu_event(|app, event| {
             use tauri::Emitter;
             let id = event.id.as_ref();
-            if ["save", "settings", "welcome", "command_palette", "toggle_sidebar", "toggle_terminal", "toggle_split"].contains(&id) {
+            if [
+                "new_file", "new_folder", "open_folder", "save", "settings", "welcome",
+                "format_document", "toggle_word_wrap", "command_palette",
+                "toggle_sidebar", "toggle_terminal", "toggle_split",
+                "zoom_in", "zoom_out", "zoom_reset",
+                "search_everywhere"
+            ].contains(&id) {
                 app.emit("menu-action", id).unwrap_or_default();
             }
         })
