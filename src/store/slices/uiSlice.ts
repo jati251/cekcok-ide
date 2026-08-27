@@ -15,6 +15,7 @@ import {
   ToolLayout,
   ToolId,
   ToolPanelPosition,
+  AppType,
 } from '../../types/ide'
 import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import {
@@ -26,6 +27,7 @@ import {
 import { FullIDEStore } from '../useIDEStore'
 
 export interface UISlice {
+  activeApp: AppType
   currentDir: string
   sidebarWidth: number
   terminalHeight: number
@@ -58,6 +60,7 @@ export interface UISlice {
   terminals: TerminalSession[]
   activeTerminalId: string
 
+  setActiveApp: (app: AppType) => void
   setCurrentDir: (dir: string) => void
   setSidebarWidth: (w: number) => void
   setTerminalHeight: (h: number) => void
@@ -105,6 +108,7 @@ export interface UISlice {
 }
 
 export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, get) => ({
+  activeApp: 'home',
   currentDir: '',
   sidebarWidth: LAYOUT_CONSTRAINTS.SIDEBAR_DEFAULT_WIDTH,
   terminalHeight: LAYOUT_CONSTRAINTS.TERMINAL_DEFAULT_HEIGHT,
@@ -337,4 +341,5 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
       }
     }),
   setActiveTerminalId: (id) => set({ activeTerminalId: id }),
+  setActiveApp: (app) => set({ activeApp: app }),
 })

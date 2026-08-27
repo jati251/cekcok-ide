@@ -31,6 +31,8 @@ export interface PackageJson {
   devDependencies?: Record<string, string>
 }
 
+export type AppType = 'home' | 'code' | 'spreadsheet' | 'document' | 'whiteboard'
+
 export type SidebarTab = 'explorer' | 'search' | 'git' | 'node' | 'settings'
 export type BottomPanelTab = 'problems' | 'output' | 'debug' | 'ports' | 'terminal'
 

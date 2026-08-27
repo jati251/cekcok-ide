@@ -1,14 +1,9 @@
 import { StateCreator } from 'zustand'
 import { safeInvoke } from '../../utils/tauriBridge'
 import { FileNode } from '../../types/ide'
-import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import { FullIDEStore } from '../useIDEStore'
 
-export interface FileSlice {
-  fileTree: FileNode[]
-  expandedFolders: Record<string, boolean>
-  folderChildren: Record<string, FileNode[]>
-
+export interface EditorSlice {
   splitEditorOpen: boolean
   splitRatio: number
   activePane: 1 | 2
@@ -17,22 +12,10 @@ export interface FileSlice {
   pane2Files: FileNode[]
   pane2ActiveFile: FileNode | null
 
-  // Aliases for compatibility
   openFiles: FileNode[]
   activeFile: FileNode | null
 
-  setFileTree: (files: FileNode[]) => void
   setSplitRatio: (ratio: number) => void
-  toggleFolder: (path: string) => Promise<void>
-  collapseAllFolders: () => void
-  refreshDirectory: (path?: string) => Promise<void>
-
-  createFileInDir: (dirPath: string, name: string) => Promise<void>
-  createFolderInDir: (dirPath: string, name: string) => Promise<void>
-  deletePathItem: (path: string) => Promise<void>
-  renamePathItem: (oldPath: string, newPath: string) => Promise<void>
-  movePathItem: (sourcePath: string, targetNode: FileNode) => Promise<void>
-
   setActivePane: (pane: 1 | 2) => void
   toggleSplitEditor: () => void
   setSplitEditorOpen: (open: boolean) => void
@@ -49,24 +32,20 @@ export interface FileSlice {
   reorderTabsInPane: (pane: 1 | 2, fromIndex: number, toIndex: number) => void
   moveTabBetweenPanes: (filePath: string, fromPane: 1 | 2, toPane: 1 | 2, targetIndex?: number) => void
 
-  setActiveFile: (file: FileNode | null) => void
-  setActiveFileInPane: (file: FileNode | null, pane: 1 | 2) => void
+  setActiveFile: (file: FileNode) => void
+  setActiveFileInPane: (file: FileNode, pane: 1 | 2) => void
   setFileDirty: (path: string, isDirty: boolean) => void
   setFileContent: (path: string, content: string) => void
   saveFile: (path: string) => Promise<void>
   saveActiveFile: () => Promise<void>
-
+  
   openSettingsTab: () => void
   openWelcomeTab: () => void
 }
 
-export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (set, get) => ({
-  fileTree: [],
-  expandedFolders: {},
-  folderChildren: {},
-
+export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> = (set, get) => ({
   splitEditorOpen: false,
-  splitRatio: LAYOUT_CONSTRAINTS.SPLIT_DEFAULT_RATIO,
+  splitRatio: 50,
   activePane: 1,
   pane1Files: [],
   pane1ActiveFile: null,
@@ -76,159 +55,30 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
   openFiles: [],
   activeFile: null,
 
-  setFileTree: (files) => set({ fileTree: files }),
-
-  setSplitRatio: (ratio) => set({
-    splitRatio: Math.max(LAYOUT_CONSTRAINTS.SPLIT_MIN_RATIO, Math.min(ratio, LAYOUT_CONSTRAINTS.SPLIT_MAX_RATIO))
-  }),
-
-  refreshDirectory: async (path) => {
-    const targetDir = path || get().currentDir
-    try {
-      const files = await safeInvoke<FileNode[]>('read_dir', {
-        path: targetDir,
-        showHidden: get().settings.showHiddenFiles,
-      })
-      if (targetDir === get().currentDir) {
-        set({ fileTree: files })
-      } else {
-        set((state) => ({
-          folderChildren: { ...state.folderChildren, [targetDir]: files }
-        }))
-      }
-    } catch (err) {
-      console.error(`Failed to refresh directory ${targetDir}:`, err)
-    }
-  },
-
-  createFileInDir: async (dirPath, name) => {
-    const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
-    const fullPath = `${dirPath}${sep}${name}`
-    await safeInvoke('create_file', { path: fullPath })
-    await get().refreshDirectory(dirPath)
-    get().openFile({ name, path: fullPath, is_dir: false })
-  },
-
-  createFolderInDir: async (dirPath, name) => {
-    const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
-    const fullPath = `${dirPath}${sep}${name}`
-    await safeInvoke('create_dir', { path: fullPath })
-    await get().refreshDirectory(dirPath)
-  },
-
-  deletePathItem: async (path) => {
-    await safeInvoke('delete_path', { path })
-    get().closeFile(path)
-    // Find parent dir to refresh
-    const parent = path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))) || get().currentDir
-    await get().refreshDirectory(parent)
-    if (parent !== get().currentDir) {
-      await get().refreshDirectory(get().currentDir)
-    }
-  },
-
-  renamePathItem: async (oldPath, newPath) => {
-    await safeInvoke('rename_path', { oldPath, newPath })
-    get().closeFile(oldPath)
-    const newName = newPath.split(/[/\\]/).pop() || newPath
-    get().openFile({ name: newName, path: newPath, is_dir: false })
-    const parent = oldPath.substring(0, Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\'))) || get().currentDir
-    await get().refreshDirectory(parent)
-    if (parent !== get().currentDir) {
-      await get().refreshDirectory(get().currentDir)
-    }
-  },
-
-  movePathItem: async (sourcePath, targetNode) => {
-    const sep = sourcePath.includes('/') ? '/' : '\\'
-    const sourceName = sourcePath.split(/[/\\]/).pop()
-    if (!sourceName) return
-
-    let targetDir = targetNode.path
-    if (!targetNode.is_dir) {
-      targetDir = targetNode.path.substring(0, Math.max(targetNode.path.lastIndexOf('/'), targetNode.path.lastIndexOf('\\'))) || get().currentDir
-    }
-
-    const newPath = `${targetDir}${sep}${sourceName}`
-    
-    // Don't move if it's the exact same directory
-    const sourceDir = sourcePath.substring(0, Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'))) || get().currentDir
-    if (sourceDir === targetDir) return
-
-    await get().renamePathItem(sourcePath, newPath)
-  },
-
-  toggleFolder: async (path) => {
-    const isExpanded = !!get().expandedFolders[path]
-    if (isExpanded) {
-      set((state) => ({
-        expandedFolders: { ...state.expandedFolders, [path]: false }
-      }))
-    } else {
-      if (!get().folderChildren[path]) {
-        try {
-          const children = await safeInvoke<FileNode[]>('read_dir', {
-            path,
-            showHidden: get().settings.showHiddenFiles,
-          })
-          set((state) => ({
-            folderChildren: { ...state.folderChildren, [path]: children },
-            expandedFolders: { ...state.expandedFolders, [path]: true }
-          }))
-          return
-        } catch (err) {
-          console.error(`Failed to read folder: ${path}`, err)
-        }
-      }
-      set((state) => ({
-        expandedFolders: { ...state.expandedFolders, [path]: true }
-      }))
-    }
-  },
-
-  collapseAllFolders: () => set({ expandedFolders: {} }),
-
+  setSplitRatio: (ratio) => set({ splitRatio: ratio }),
   setActivePane: (pane) => set({ activePane: pane }),
-
-  toggleSplitEditor: () => set((state) => {
-    const nextSplit = !state.splitEditorOpen
-    if (nextSplit && state.pane2Files.length === 0 && state.pane1ActiveFile) {
-      return {
-        splitEditorOpen: true,
-        activePane: 2,
-        pane2Files: [state.pane1ActiveFile],
-        pane2ActiveFile: state.pane1ActiveFile
-      }
-    }
-    return { splitEditorOpen: nextSplit }
-  }),
-
-  setSplitEditorOpen: (open) => set({ splitEditorOpen: open }),
+  
+  toggleSplitEditor: () => set((state) => ({ 
+    splitEditorOpen: !state.splitEditorOpen,
+    activePane: 1
+  })),
+  
+  setSplitEditorOpen: (open) => set({ splitEditorOpen: open, activePane: 1 }),
 
   openFile: (file) => {
-    const currentActivePane = get().activePane
-    get().openFileInPane(file, currentActivePane)
+    const pane = get().activePane
+    get().openFileInPane(file, pane)
   },
 
   openFileInPane: (file, pane) => set((state) => {
     if (pane === 1) {
-      const isOpen = state.pane1Files.some(f => f.path === file.path)
-      const newFiles = isOpen ? state.pane1Files : [...state.pane1Files, file]
-      return {
-        pane1Files: newFiles,
-        pane1ActiveFile: file,
-        openFiles: newFiles,
-        activeFile: file,
-        activePane: 1
-      }
+      const exists = state.pane1Files.some(f => f.path === file.path)
+      const list = exists ? state.pane1Files : [...state.pane1Files, file]
+      return { pane1Files: list, pane1ActiveFile: file, openFiles: list, activeFile: file, activePane: 1 }
     } else {
-      const isOpen = state.pane2Files.some(f => f.path === file.path)
-      const newFiles = isOpen ? state.pane2Files : [...state.pane2Files, file]
-      return {
-        pane2Files: newFiles,
-        pane2ActiveFile: file,
-        activePane: 2
-      }
+      const exists = state.pane2Files.some(f => f.path === file.path)
+      const list = exists ? state.pane2Files : [...state.pane2Files, file]
+      return { pane2Files: list, pane2ActiveFile: file, activePane: 2 }
     }
   }),
 
@@ -450,8 +300,6 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
       get().setFileDirty(path, false)
       get().refreshGitStatus()
       
-      // Save local history snapshot (WebStorm feature)
-      // Import dynamically to avoid circular dependencies if any
       const { saveLocalHistory } = await import('../../utils/localHistory')
       await saveLocalHistory(path, target.content)
     } catch (err) {
