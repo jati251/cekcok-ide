@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, FileCode, Play, GitBranch, Layout, Terminal } from 'lucide-react'
+import { Search, FileCode, Play, GitBranch, Layout, Terminal, Sparkles } from 'lucide-react'
 import { useIDEStore, FileNode, SidebarTab } from '../store/useIDEStore'
 
 interface PaletteAction {
@@ -47,6 +47,13 @@ export const CommandPalette = () => {
 
   // Build command palette actions
   const actions: PaletteAction[] = [
+    {
+      id: 'app-check-updates',
+      title: 'Application: Check for Updates',
+      category: 'Application',
+      icon: Sparkles,
+      run: () => window.dispatchEvent(new CustomEvent('check-for-updates')),
+    },
     {
       id: 'preferences-settings',
       title: 'Preferences: Open User Settings',

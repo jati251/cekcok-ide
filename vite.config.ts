@@ -14,10 +14,7 @@ export default defineConfig(async () => ({
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,
     strictPort: true,
@@ -30,8 +27,39 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Core React runtime
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/zustand/') ||
+              id.includes('/framer-motion/')
+            ) {
+              return 'vendor-react-core'
+            }
+            if (id.includes('@tauri-apps')) {
+              return 'vendor-tauri'
+            }
+            if (id.includes('@monaco-editor') || id.includes('/monaco-editor/')) {
+              return 'vendor-monaco'
+            }
+            if (id.includes('@xterm')) {
+              return 'vendor-xterm'
+            }
+            if (id.includes('/xlsx/')) {
+              return 'vendor-xlsx'
+            }
+          }
+        },
+      },
     },
   },
 }));

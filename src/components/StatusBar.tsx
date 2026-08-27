@@ -1,9 +1,10 @@
-import React from 'react'
-import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw, Sparkles } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
 import { LayoutCustomizer } from './LayoutCustomizer'
 import { formatShortcut } from '../utils/platform'
+import { updaterEventEmitter, UpdateInfo } from '../utils/updater'
 
 export const StatusBar: React.FC = () => {
   const {
@@ -22,6 +23,23 @@ export const StatusBar: React.FC = () => {
     ports,
     setActiveBottomTab,
   } = useIDEStore()
+
+  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
+
+  useEffect(() => {
+    const handleStatus = (e: Event) => {
+      const custom = e as CustomEvent
+      if (custom.detail?.stage === 'available' && custom.detail?.info) {
+        setAvailableUpdate(custom.detail.info)
+      } else if (custom.detail?.stage === 'idle') {
+        setAvailableUpdate(null)
+      }
+    }
+    updaterEventEmitter.addEventListener('update-status', handleStatus)
+    return () => {
+      updaterEventEmitter.removeEventListener('update-status', handleStatus)
+    }
+  }, [])
 
   return (
     <footer className="h-[26px] bg-ide-accent text-white flex items-center justify-between px-2 sm:px-3 text-[10px] sm:text-[11px] select-none z-30 font-sans shrink-0 overflow-x-auto no-scrollbar">
@@ -106,6 +124,18 @@ export const StatusBar: React.FC = () => {
           <span className="text-[10px]">🌐</span>
           <span>{ports.length} Ports</span>
         </div>
+
+        {/* In-App Update Badge if available */}
+        {availableUpdate && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('check-for-updates'))}
+            className="flex items-center gap-1 px-1.5 py-0.5 bg-cyan-400 text-black font-semibold rounded cursor-pointer animate-pulse hover:bg-cyan-300 transition-colors shadow-xs"
+            title={`Click to install update v${availableUpdate.version}`}
+          >
+            <Sparkles size={11} />
+            <span>Update v{availableUpdate.version}</span>
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">

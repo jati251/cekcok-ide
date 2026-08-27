@@ -1,19 +1,48 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Palette, Type, Sliders, Check } from 'lucide-react'
+import { Search, Palette, Type, Sliders, Check, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { useIDEStore, UserSettings } from '../store/useIDEStore'
 import { THEMES } from '../utils/themes'
 import { formatShortcut } from '../utils/platform'
+import { checkForAppUpdates, updaterEventEmitter, UpdateInfo } from '../utils/updater'
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings } = useIDEStore()
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState<'all' | 'editor' | 'theme' | 'files'>('all')
+  const [activeCategory, setActiveCategory] = useState<'all' | 'editor' | 'theme' | 'files' | 'updates'>('all')
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
+
+  useEffect(() => {
+    const handleStatus = (e: Event) => {
+      const custom = e as CustomEvent
+      if (custom.detail?.stage === 'available' && custom.detail?.info) {
+        setAvailableUpdate(custom.detail.info)
+      } else if (custom.detail?.stage === 'idle') {
+        setAvailableUpdate(null)
+      }
+    }
+    updaterEventEmitter.addEventListener('update-status', handleStatus)
+    return () => {
+      updaterEventEmitter.removeEventListener('update-status', handleStatus)
+    }
+  }, [])
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true)
+    try {
+      const info = await checkForAppUpdates(false)
+      setAvailableUpdate(info)
+    } finally {
+      setIsCheckingUpdate(false)
+    }
+  }
 
   const categories = [
     { id: 'all', label: 'Commonly Used', icon: Sliders },
     { id: 'theme', label: 'Workbench: Color Theme', icon: Palette },
     { id: 'editor', label: 'Text Editor', icon: Type },
+    { id: 'updates', label: 'Application Updates', icon: Sparkles },
   ]
 
   const matchesSearch = (text: string) => {
@@ -46,14 +75,14 @@ export const SettingsView: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Settings Category Sidebar */}
-        <div className="w-44 border-r border-ide-border bg-[#212121] p-2 space-y-0.5 shrink-0 overflow-y-auto">
+        <div className="w-48 border-r border-ide-border bg-[#212121] p-2 space-y-0.5 shrink-0 overflow-y-auto">
           {categories.map((cat) => {
             const Icon = cat.icon
             const isActive = activeCategory === cat.id
             return (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id as 'all' | 'editor' | 'theme' | 'files')}
+                onClick={() => setActiveCategory(cat.id as 'all' | 'editor' | 'theme' | 'files' | 'updates')}
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-xs transition-colors cursor-pointer text-left ${
                   isActive ? 'bg-ide-accent text-white font-medium' : 'hover:bg-white/5 text-[#999]'
                 }`}
@@ -67,6 +96,56 @@ export const SettingsView: React.FC = () => {
 
         {/* Settings Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {/* UPDATES SECTION */}
+          {(activeCategory === 'all' || activeCategory === 'updates') && matchesSearch('Application Updates') && (
+            <div className="space-y-3 pb-6 border-b border-ide-border/40">
+              <div>
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Sparkles size={16} className="text-cyan-400" />
+                  Application Updates
+                </h3>
+                <p className="text-xs text-ide-muted">Check for newer versions of Cekcok Super App with automated updater.</p>
+              </div>
+
+              <div className="bg-[#252526] border border-[#3c3c3c] rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">Current Version</h4>
+                    <p className="text-[11px] text-gray-400">Cekcok IDE v0.1.0 • Desktop Native Runtime</p>
+                  </div>
+                  <button
+                    onClick={handleCheckUpdate}
+                    disabled={isCheckingUpdate}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />
+                    <span>{isCheckingUpdate ? 'Checking...' : 'Check for Updates'}</span>
+                  </button>
+                </div>
+
+                {availableUpdate ? (
+                  <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-cyan-300">Version {availableUpdate.version} Available!</span>
+                      <p className="text-[11px] text-gray-300">Ready to download and install.</p>
+                    </div>
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('check-for-updates'))}
+                      className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs rounded-md shadow-xs transition-colors cursor-pointer"
+                    >
+                      Update Now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <CheckCircle2 size={14} />
+                    <span>Up to date. No pending updates found.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* THEME SECTION */}
           {(activeCategory === 'all' || activeCategory === 'theme') && matchesSearch('Color Theme') && (
             <div className="space-y-3">

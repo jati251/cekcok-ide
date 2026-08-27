@@ -102,9 +102,10 @@ export const useKeyboardShortcuts = () => {
           requestCloseFile(activeFile.path, activePane)
         }
       }
-      // Cmd+S: Save active file
+      // Cmd+S: Save active file / workspace
       else if (isCmdOrCtrl && !e.shiftKey && (e.key === 'S' || e.key === 's')) {
         e.preventDefault()
+        window.dispatchEvent(new CustomEvent('workspace-save'))
         saveActiveFile()
       }
       // Cmd+\: Toggle Split Editor

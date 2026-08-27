@@ -8,15 +8,11 @@ import {
   PanelPosition,
   SplitDirection,
   BottomPanelTab,
-  DiagnosticItem,
-  OutputChannel,
-  PortItem,
-  TerminalSession,
   ToolLayout,
   ToolId,
   ToolPanelPosition,
   AppType,
-} from '../../types/ide'
+} from '../../types'
 import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import {
   getSavedSettings,
@@ -50,15 +46,6 @@ export interface UISlice {
   searchEverywhereOpen: boolean
   isDraggingFile: boolean
   toolLayout: ToolLayout
-  
-  // Rich Bottom Panel States
-  diagnostics: DiagnosticItem[]
-  outputLogs: Record<OutputChannel, string[]>
-  activeOutputChannel: OutputChannel
-  debugLogs: Array<{ id: string; type: 'input' | 'output' | 'error'; text: string; timestamp: Date }>
-  ports: PortItem[]
-  terminals: TerminalSession[]
-  activeTerminalId: string
 
   setActiveApp: (app: AppType) => void
   setCurrentDir: (dir: string) => void
@@ -92,19 +79,6 @@ export interface UISlice {
   setSearchEverywhereOpen: (open: boolean) => void
   setToolLayout: (toolId: ToolId, position: ToolPanelPosition) => void
   setIsDraggingFile: (dragging: boolean) => void
-
-  // Bottom Panel Actions
-  setDiagnostics: (items: DiagnosticItem[]) => void
-  addOutputLog: (channel: OutputChannel, line: string) => void
-  clearOutputLogs: (channel: OutputChannel) => void
-  setActiveOutputChannel: (channel: OutputChannel) => void
-  addDebugLog: (type: 'input' | 'output' | 'error', text: string) => void
-  clearDebugLogs: () => void
-  addPort: (port: PortItem) => void
-  removePort: (portNumber: number) => void
-  addTerminalSession: (name?: string) => string
-  removeTerminalSession: (id: string) => void
-  setActiveTerminalId: (id: string) => void
 }
 
 export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, get) => ({
@@ -143,37 +117,27 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
     ports: 'bottom',
   },
 
-  // Rich Bottom Panel States Default
-  diagnostics: [],
-  outputLogs: {
-    Git: ['[Git Channel initialized]'],
-    Build: ['[Build/Vite Channel initialized]'],
-    System: ['[System Diagnostics Channel initialized]'],
-  },
-  activeOutputChannel: 'System',
-  debugLogs: [
-    {
-      id: 'welcome-debug',
-      type: 'output',
-      text: 'Cekcok Debug Console (Node.js & JavaScript Evaluator). Type any JS expression to evaluate.',
-      timestamp: new Date(),
-    },
-  ],
-  ports: [
-    { port: 1420, process: 'Tauri Dev Server', url: 'http://localhost:1420', isAuto: true },
-    { port: 3000, process: 'Next.js / React Web', url: 'http://localhost:3000', isAuto: true },
-    { port: 5173, process: 'Vite Dev Server', url: 'http://localhost:5173', isAuto: true },
-  ],
-  terminals: [{ id: 'term-1', name: 'bash' }],
-  activeTerminalId: 'term-1',
+  setActiveApp: (app) => set({ activeApp: app }),
 
   setCurrentDir: async (dir) => {
     set({ currentDir: dir, expandedFolders: {}, folderChildren: {} })
     get().addRecentProject(dir)
     get().refreshGitStatus()
     get().refreshPackageJson()
-    
-    // Advanced Architecture: Load Workspace Settings
+
+    // Record to unified recents
+    if (dir && dir !== '.') {
+      const { addRecentItem } = await import('../../utils/recentItems')
+      const dirName = dir.split(/[/\\]/).filter(Boolean).pop() || dir
+      addRecentItem({
+        title: dirName,
+        path: dir,
+        app: 'code',
+        description: dir,
+      })
+    }
+
+    // Load Workspace Settings
     const { loadWorkspaceSettings } = await import('../../utils/workspaceSettings')
     const workspaceSettings = await loadWorkspaceSettings(dir)
     if (workspaceSettings) {
@@ -238,7 +202,7 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
     set({ recentProjects: recents })
     saveRecentProjectsToStorage(recents, path)
   },
-  
+
   removeRecentProject: (path) => {
     const recents = get().recentProjects.filter((p) => p !== path)
     set({ recentProjects: recents })
@@ -280,66 +244,9 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setZenMode: (open) => set({ zenMode: open }),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
-  setToolLayout: (toolId, position) => set((state) => ({
-    toolLayout: { ...state.toolLayout, [toolId]: position }
-  })),
+  setToolLayout: (toolId, position) =>
+    set((state) => ({
+      toolLayout: { ...state.toolLayout, [toolId]: position },
+    })),
   setIsDraggingFile: (dragging) => set({ isDraggingFile: dragging }),
-
-  // Bottom Panel Actions
-  setDiagnostics: (items) => set({ diagnostics: items }),
-  addOutputLog: (channel, line) =>
-    set((state) => ({
-      outputLogs: {
-        ...state.outputLogs,
-        [channel]: [...(state.outputLogs[channel] || []), line].slice(-500),
-      },
-    })),
-  clearOutputLogs: (channel) =>
-    set((state) => ({
-      outputLogs: {
-        ...state.outputLogs,
-        [channel]: [],
-      },
-    })),
-  setActiveOutputChannel: (channel) => set({ activeOutputChannel: channel }),
-  addDebugLog: (type, text) =>
-    set((state) => ({
-      debugLogs: [
-        ...state.debugLogs,
-        { id: Math.random().toString(36).substring(2, 9), type, text, timestamp: new Date() },
-      ].slice(-300),
-    })),
-  clearDebugLogs: () => set({ debugLogs: [] }),
-  addPort: (port) =>
-    set((state) => ({
-      ports: [...state.ports.filter((p) => p.port !== port.port), port],
-    })),
-  removePort: (portNumber) =>
-    set((state) => ({
-      ports: state.ports.filter((p) => p.port !== portNumber),
-    })),
-  addTerminalSession: (name) => {
-    const newId = `term-${Date.now()}`
-    const sessionName = name || `bash ${get().terminals.length + 1}`
-    set((state) => ({
-      terminals: [...state.terminals, { id: newId, name: sessionName }],
-      activeTerminalId: newId,
-    }))
-    return newId
-  },
-  removeTerminalSession: (id) =>
-    set((state) => {
-      const remaining = state.terminals.filter((t) => t.id !== id)
-      if (remaining.length === 0) {
-        const fallback = { id: 'term-1', name: 'bash' }
-        return { terminals: [fallback], activeTerminalId: 'term-1' }
-      }
-      return {
-        terminals: remaining,
-        activeTerminalId:
-          state.activeTerminalId === id ? remaining[0].id : state.activeTerminalId,
-      }
-    }),
-  setActiveTerminalId: (id) => set({ activeTerminalId: id }),
-  setActiveApp: (app) => set({ activeApp: app }),
 })
