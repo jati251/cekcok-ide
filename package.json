@@ -9,8 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint .",
-    "deploy": "bash ./scripts/deploy-minio.sh",
-    "prepare": "husky"
+    "deploy": "bash ./scripts/deploy-minio.sh"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
