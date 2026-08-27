@@ -11,6 +11,11 @@ use git_commands::{
 };
 use search_commands::search_files;
 
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -42,7 +47,8 @@ pub fn run() {
             git_pull,
             git_log,
             git_checkout_branch,
-            search_files
+            search_files,
+            restart_app
         ])
         .setup(|app| {
             use std::sync::{Arc, Mutex};

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Download, X, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
+import { Sparkles, Download, X, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, RotateCcw } from 'lucide-react'
 import {
   checkForAppUpdates,
   installCurrentUpdate,
@@ -9,6 +9,7 @@ import {
   formatBytes,
   updaterEventEmitter,
 } from '../utils/updater'
+import { restartApp } from '../utils/tauriBridge'
 import { toast } from 'react-hot-toast'
 
 export const UpdateModal: React.FC = () => {
@@ -73,7 +74,8 @@ export const UpdateModal: React.FC = () => {
         setProgressState(state)
       })
 
-      toast.success('Update installed! Restarting application...', { duration: 4000 })
+      // Update is downloaded and installed — now waiting for user to click Restart
+      toast.success('Update installed! Click Restart to apply.', { duration: 5000 })
     } catch (err) {
       console.error('Installation error:', err)
       setProgressState((prev) => ({
@@ -82,6 +84,18 @@ export const UpdateModal: React.FC = () => {
         error: err instanceof Error ? err.message : 'Update failed',
       }))
       toast.error('Failed to install update.')
+    }
+  }
+
+  const handleRestart = async () => {
+    try {
+      toast.loading('Restarting Cekcok IDE...', { id: 'restarting' })
+      // Small delay so user sees the toast
+      await new Promise((r) => setTimeout(r, 500))
+      await restartApp()
+    } catch (err) {
+      console.error('Restart failed:', err)
+      toast.error('Could not restart automatically. Please close and reopen the app.')
     }
   }
 
@@ -158,7 +172,7 @@ export const UpdateModal: React.FC = () => {
                     {progressState.stage === 'ready_to_restart' && (
                       <>
                         <CheckCircle2 size={13} className="text-green-400" />
-                        Complete! Restarting Cekcok IDE...
+                        Update ready! Restart to apply.
                       </>
                     )}
                   </span>
@@ -200,7 +214,8 @@ export const UpdateModal: React.FC = () => {
             </span>
 
             <div className="flex items-center gap-2.5">
-              {!isWorking && (
+              {/* Show Later button only when idle/not working and not ready to restart */}
+              {!isWorking && progressState.stage !== 'ready_to_restart' && (
                 <button
                   onClick={() => setIsOpen(false)}
                   className="px-3.5 py-2 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
@@ -209,7 +224,24 @@ export const UpdateModal: React.FC = () => {
                 </button>
               )}
 
-              {progressState.stage === 'error' ? (
+              {progressState.stage === 'ready_to_restart' ? (
+                /* Restart Now button — the actual fix for stuck-after-download */
+                <>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="px-3.5 py-2 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Restart Later
+                  </button>
+                  <button
+                    onClick={handleRestart}
+                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    <RotateCcw size={14} />
+                    Restart Now
+                  </button>
+                </>
+              ) : progressState.stage === 'error' ? (
                 <button
                   onClick={handleInstall}
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl shadow-md transition-all cursor-pointer"

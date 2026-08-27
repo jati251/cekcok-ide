@@ -147,3 +147,15 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
       return null as unknown as T
   }
 }
+
+/**
+ * Restart the application via the Rust backend.
+ * Used after installing an update to relaunch with the new version.
+ */
+export const restartApp = async (): Promise<void> => {
+  if (isTauri()) {
+    await tauriInvoke('restart_app')
+  } else {
+    window.location.reload()
+  }
+}
