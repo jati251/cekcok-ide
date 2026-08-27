@@ -70,9 +70,9 @@ PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 if [ -d "$BUNDLE_DIR/dmg" ] || [ -d "$BUNDLE_DIR/macos" ]; then
     DMG_FILE=$(find "$BUNDLE_DIR/dmg" -name "*.dmg" 2>/dev/null | head -n 1)
     if [ -n "$DMG_FILE" ] && [ -f "$DMG_FILE" ]; then
-        DMG_NAME=$(basename "$DMG_FILE")
-        echo "Uploading macOS DMG: $DMG_NAME"
-        $MC_BIN cp "$DMG_FILE" "homelab/cekcok-releases/$DMG_NAME"
+        echo "Uploading macOS DMG as static clean name: Cekcok-macos.dmg"
+        $MC_BIN cp "$DMG_FILE" "homelab/cekcok-releases/Cekcok-macos.dmg"
+        $MC_BIN cp "$DMG_FILE" "homelab/cekcok-releases/Cekcok.dmg"
     fi
 
     MACOS_TAR=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" 2>/dev/null | head -n 1)
@@ -114,16 +114,15 @@ fi
 if [ -d "$BUNDLE_DIR/nsis" ] || [ -d "$BUNDLE_DIR/msi" ]; then
     EXE_FILE=$(find "$BUNDLE_DIR/nsis" -name "*.exe" 2>/dev/null | head -n 1)
     if [ -n "$EXE_FILE" ] && [ -f "$EXE_FILE" ]; then
-        EXE_NAME=$(basename "$EXE_FILE")
-        echo "Uploading Windows EXE: $EXE_NAME"
-        $MC_BIN cp "$EXE_FILE" "homelab/cekcok-releases/$EXE_NAME"
+        echo "Uploading Windows EXE as static clean name: Cekcok-windows.exe"
+        $MC_BIN cp "$EXE_FILE" "homelab/cekcok-releases/Cekcok-windows.exe"
+        $MC_BIN cp "$EXE_FILE" "homelab/cekcok-releases/Cekcok-setup.exe"
     fi
 
     MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" 2>/dev/null | head -n 1)
     if [ -n "$MSI_FILE" ] && [ -f "$MSI_FILE" ]; then
-        MSI_NAME=$(basename "$MSI_FILE")
-        echo "Uploading Windows MSI: $MSI_NAME"
-        $MC_BIN cp "$MSI_FILE" "homelab/cekcok-releases/$MSI_NAME"
+        echo "Uploading Windows MSI as static clean name: Cekcok-windows.msi"
+        $MC_BIN cp "$MSI_FILE" "homelab/cekcok-releases/Cekcok-windows.msi"
     fi
 
     WIN_ZIP=$(find "$BUNDLE_DIR/nsis" -name "*.nsis.zip" 2>/dev/null | head -n 1)
@@ -163,6 +162,9 @@ fi
 echo "=============================================================================="
 echo "✅ Deployment to MinIO Complete!"
 echo "🌐 Public Download Base:   https://releases.cekcok.my.id/cekcok-releases/"
+echo "📥 Static macOS DMG:       https://releases.cekcok.my.id/cekcok-releases/Cekcok-macos.dmg"
+echo "📥 Static Windows EXE:     https://releases.cekcok.my.id/cekcok-releases/Cekcok-windows.exe"
+echo "📥 Static Windows MSI:     https://releases.cekcok.my.id/cekcok-releases/Cekcok-windows.msi"
 echo "🔄 Updater Endpoint:       https://releases.cekcok.my.id/cekcok-releases/latest.json"
 echo "=============================================================================="
 
