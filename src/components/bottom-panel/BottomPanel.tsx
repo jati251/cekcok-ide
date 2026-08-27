@@ -62,7 +62,8 @@ export const BottomPanel: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveBottomTab(tab.id as BottomPanelTab)}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onClick={() => setActiveBottomTab(tab.id as any)}
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   useIDEStore.getState().setPendingDragPayload({

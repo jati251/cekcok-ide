@@ -16,7 +16,8 @@ export interface ToolDefinition {
   id: ToolId
   label: string
   icon: React.ComponentType<React.SVGProps<SVGSVGElement> & { size?: number | string; strokeWidth?: number | string }>
-  component: React.ComponentType<unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: React.ComponentType<any>
   getBadge?: (state: FullIDEStore) => React.ReactNode | number | undefined
 }
 

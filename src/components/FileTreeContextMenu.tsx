@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { ask } from '@tauri-apps/plugin-dialog'
+import { toast } from 'react-hot-toast'
 import { 
   FilePlus, 
   FolderPlus, 
@@ -80,8 +82,13 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
   }
 
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete '${node.name}'?`)) {
+    const confirmed = await ask(`Are you sure you want to delete '${node.name}'?`, {
+      title: 'Delete Confirmation',
+      kind: 'warning',
+    })
+    if (confirmed) {
       await deletePathItem(node.path)
+      toast.success(`Deleted ${node.name}`)
     }
     onClose()
   }
@@ -91,10 +98,10 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
     const { getLocalHistory } = await import('../utils/localHistory')
     const history = await getLocalHistory(node.path)
     if (history.length === 0) {
-      alert('No local history found for this file yet.')
+      toast.error('No local history found for this file yet.')
     } else {
       // For now we just alert, a full modal could be built in the future
-      alert(`Found ${history.length} snapshots for ${node.name}. Latest was saved at ${new Date(history[history.length-1].timestamp).toLocaleString()}`)
+      toast.success(`Found ${history.length} snapshots for ${node.name}. Latest was saved at ${new Date(history[history.length-1].timestamp).toLocaleString()}`, { duration: 4000 })
     }
     onClose()
   }

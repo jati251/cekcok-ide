@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'react-hot-toast'
 import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
@@ -65,7 +66,7 @@ export const ExplorerSidebar: React.FC = () => {
         openFile({ name, path: fullPath, is_dir: false })
       }
     } catch (error) {
-      alert(`Error creating ${isDir ? 'folder' : 'file'}: ${error}`)
+      toast.error(`Error creating ${isDir ? 'folder' : 'file'}: ${error}`)
     }
   }
 

@@ -7,7 +7,7 @@ use fs_commands::{
     reveal_in_file_manager, write_file, spawn_shell, kill_shell, TerminalState,
 };
 use git_commands::{
-    git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage,
+    git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage, git_log, git_checkout_branch
 };
 use search_commands::search_files;
 
@@ -39,6 +39,8 @@ pub fn run() {
             git_commit,
             git_push,
             git_pull,
+            git_log,
+            git_checkout_branch,
             search_files
         ])
         .setup(|app| {

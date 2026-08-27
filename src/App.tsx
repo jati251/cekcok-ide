@@ -9,6 +9,7 @@ import { StatusBar } from './components/StatusBar'
 import { CommandPalette } from './components/CommandPalette'
 import { SearchEverywhereModal } from './components/SearchEverywhereModal'
 import { UnsavedConfirmModal } from './components/UnsavedConfirmModal'
+import { Toaster } from 'react-hot-toast'
 import { useIDEStore } from './store/useIDEStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useNativeMenu } from './hooks/useNativeMenu'
@@ -245,6 +246,30 @@ export const App: React.FC = () => {
       <CommandPalette />
       <SearchEverywhereModal />
       <UnsavedConfirmModal />
+      
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#252525',
+            color: '#d7d7d7',
+            border: '1px solid #333',
+            fontSize: '12px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   )
 }

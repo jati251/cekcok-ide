@@ -206,3 +206,42 @@ pub fn git_pull(cwd: &str) -> Result<String, String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn git_log(cwd: &str, limit: Option<usize>) -> Result<Vec<String>, String> {
+    let limit_str = limit.unwrap_or(10).to_string();
+    let output = Command::new("git")
+        .current_dir(cwd)
+        .args(["log", &format!("-n{}", limit_str), "--pretty=format:%h - %s (%cr) <%an>"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let logs = stdout.lines().map(|s| s.to_string()).collect();
+        Ok(logs)
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
+pub fn git_checkout_branch(cwd: &str, branch: &str, create: bool) -> Result<String, String> {
+    let mut args = vec!["checkout"];
+    if create {
+        args.push("-b");
+    }
+    args.push(branch);
+
+    let output = Command::new("git")
+        .current_dir(cwd)
+        .args(&args)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() || String::from_utf8_lossy(&output.stderr).contains("Switched to") {
+        Ok(format!("Switched to branch {}", branch))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}

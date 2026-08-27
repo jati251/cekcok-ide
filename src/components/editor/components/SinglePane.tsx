@@ -82,6 +82,12 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
     })
   }
 
+  const handleFormat = () => {
+    if (editorInstanceRef.current) {
+      editorInstanceRef.current.getAction('editor.action.formatDocument')?.run()
+    }
+  }
+
   const editorValue = activeFile?.content ?? ''
 
   return (
@@ -102,7 +108,11 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
 
       {/* Editor Breadcrumbs */}
       {activeFile && (
-        <EditorBreadcrumbs path={activeFile.path} currentDir={currentDir} />
+        <EditorBreadcrumbs 
+          path={activeFile.path} 
+          currentDir={currentDir} 
+          onFormat={handleFormat}
+        />
       )}
 
       {/* Main Canvas Area: Settings, Welcome, or Monaco Editor */}

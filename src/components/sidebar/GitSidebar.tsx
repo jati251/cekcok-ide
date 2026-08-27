@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { ask } from '@tauri-apps/plugin-dialog'
+import { toast } from 'react-hot-toast'
 import {
   RefreshCw,
   Plus,
@@ -63,11 +65,18 @@ export const GitSidebar: React.FC = () => {
   }
 
   const handleDiscardFile = async (file: string) => {
-    if (!confirm(`Discard all changes to ${file}? This cannot be undone.`)) return
+    const confirmed = await ask(`Discard all changes to ${file}? This cannot be undone.`, {
+      title: 'Discard Changes',
+      kind: 'warning',
+    })
+    if (!confirmed) return
+    
     try {
       await invoke('git_discard', { cwd: currentDir, files: [file] })
       await refreshGitStatus()
+      toast.success(`Discarded changes in ${file}`)
     } catch (err) {
+      toast.error(`Discard error: ${err}`)
       console.error('Discard error:', err)
     }
   }
@@ -79,8 +88,9 @@ export const GitSidebar: React.FC = () => {
       await invoke('git_commit', { cwd: currentDir, message: commitMessage })
       setCommitMessage('')
       await refreshGitStatus()
+      toast.success('Committed successfully')
     } catch (err) {
-      alert(`Commit error: ${err}`)
+      toast.error(`Commit error: ${err}`)
     } finally {
       setIsCommitting(false)
     }
@@ -90,8 +100,9 @@ export const GitSidebar: React.FC = () => {
     try {
       await invoke('git_push', { cwd: currentDir })
       await refreshGitStatus()
+      toast.success('Pushed successfully')
     } catch (err) {
-      alert(`Push error: ${err}`)
+      toast.error(`Push error: ${err}`)
     }
   }
 
@@ -99,8 +110,9 @@ export const GitSidebar: React.FC = () => {
     try {
       await invoke('git_pull', { cwd: currentDir })
       await refreshGitStatus()
+      toast.success('Pulled successfully')
     } catch (err) {
-      alert(`Pull error: ${err}`)
+      toast.error(`Pull error: ${err}`)
     }
   }
 
@@ -146,13 +158,49 @@ export const GitSidebar: React.FC = () => {
       ) : (
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {/* Branch & Sync Bar */}
-          <div className="flex items-center justify-between text-xs bg-[#2b2b2b] px-2.5 py-1.5 rounded">
-            <span className="font-mono text-white/90 font-medium truncate">
-              ⎇ {gitStatus.branch}
-            </span>
-            <span className="text-[10px] text-ide-muted">
-              ↑{gitStatus.ahead} ↓{gitStatus.behind}
-            </span>
+          <div className="flex flex-col gap-1.5 bg-[#2b2b2b] p-2 rounded">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-mono text-white/90 font-medium truncate" title={`Current Branch: ${gitStatus.branch}`}>
+                ⎇ {gitStatus.branch}
+              </span>
+              <span className="text-[10px] text-ide-muted" title="Ahead/Behind Origin">
+                ↑{gitStatus.ahead} ↓{gitStatus.behind}
+              </span>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="flex items-center justify-between gap-1 mt-1">
+              <button
+                onClick={async () => {
+                  const branchName = prompt('Enter new branch name:')
+                  if (!branchName) return
+                  try {
+                    await invoke('git_checkout_branch', { cwd: currentDir, branch: branchName, create: true })
+                    await refreshGitStatus()
+                    toast.success(`Switched to new branch: ${branchName}`)
+                  } catch (err) {
+                    toast.error(`Checkout error: ${err}`)
+                  }
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium text-[#ccc] bg-[#3a3a3a] hover:bg-[#4a4a4a] hover:text-white rounded transition-colors text-center cursor-pointer"
+              >
+                + Branch
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const logs = await invoke<string[]>('git_log', { cwd: currentDir, limit: 10 })
+                    runTerminalCommand(`git log -n 10 --oneline\n`)
+                    toast.success(`Recent commit:\n${logs[0] || 'No commits yet'}`, { duration: 4000 })
+                  } catch (err) {
+                    toast.error(`Log error: ${err}`)
+                  }
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium text-[#ccc] bg-[#3a3a3a] hover:bg-[#4a4a4a] hover:text-white rounded transition-colors text-center cursor-pointer"
+              >
+                View Log
+              </button>
+            </div>
           </div>
 
           {/* Commit Box */}

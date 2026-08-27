@@ -45,8 +45,8 @@ export const usePaneDragDrop = (
         setSplitEditorOpen(true)
         openFileInPane(targetFile, 1)
       } else {
-        if (dropData?.type === 'tab' && dropData.fromPane !== paneId) {
-          moveTabBetweenPanes(dropData.file.path, dropData.fromPane, paneId)
+        if (dropData?.type === 'tab' && dropData.fromPane !== paneId && dropData.file) {
+          moveTabBetweenPanes(dropData.file.path, dropData.fromPane as 1 | 2, paneId as 1 | 2)
         } else {
           openFileInPane(targetFile, paneId)
         }

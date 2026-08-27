@@ -1,5 +1,6 @@
 import { FolderOpen, FilePlus, GitBranch, Settings, Command, Search, Columns2, Terminal, ZoomIn } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'react-hot-toast'
 import { useIDEStore } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
 
@@ -83,7 +84,7 @@ export const WelcomeView = () => {
               <button
                 onClick={() => {
                   if (!currentDir) {
-                    alert('Please open a folder first to create a file.')
+                    toast.error('Please open a folder first to create a file.')
                     return
                   }
                   const filename = prompt('Enter filename to create (e.g. index.ts):')
