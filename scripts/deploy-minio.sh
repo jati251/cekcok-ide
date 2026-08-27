@@ -54,12 +54,15 @@ echo "📤 Uploading build artifacts to MinIO..."
 TEMP_MANIFEST="$ROOT_DIR/src-tauri/target/latest.json"
 $MC_BIN cp homelab/cekcok-releases/latest.json "$TEMP_MANIFEST" 2>/dev/null || echo "{}" > "$TEMP_MANIFEST"
 
-# Determine Release Notes / Changelog
-if [ -z "$RELEASE_NOTES" ]; then
+# Determine Release Notes / Changelog (Priority: RELEASE_NOTES.md -> env var -> git commit)
+NOTES_FILE="$ROOT_DIR/RELEASE_NOTES.md"
+if [ -f "$NOTES_FILE" ]; then
+    export RELEASE_NOTES="$(cat "$NOTES_FILE")"
+elif [ -z "$RELEASE_NOTES" ]; then
     LATEST_COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null | head -n 3 | tr '\n' ' ' | sed 's/"/\\"/g')
-    RELEASE_NOTES="Cekcok Super App v${VERSION}: ${LATEST_COMMIT_MSG}"
+    export RELEASE_NOTES="Cekcok Super App v${VERSION}: ${LATEST_COMMIT_MSG}"
 fi
-echo "📝 Release Notes: $RELEASE_NOTES"
+echo "📝 Release Notes loaded from ${NOTES_FILE}"
 
 PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
