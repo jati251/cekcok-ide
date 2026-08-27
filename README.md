@@ -117,58 +117,82 @@ The compiled binaries will be output to:
 
 ---
 
+## 🚢 Deployment to MinIO
+
+Cekcok supports automated deployment of release artifacts (installers + auto-updater bundles) to a self-hosted MinIO object storage.
+
+### Prerequisites
+
+1. **MinIO Client (`mc`)** installed and configured:
+   ```bash
+   # macOS
+   brew install minio-mc
+   
+   # Configure your MinIO alias (replace with your endpoint/credentials)
+   mc alias set homelab https://your-minio-endpoint ACCESS_KEY SECRET_KEY
+   ```
+
+2. **Tauri signing key** at `src-tauri/cekcok.key` (generate with `npx tauri signer generate -w src-tauri/cekcok.key`)
+
+### Local Deploy (macOS)
+
+```bash
+# Build, sign, and upload to MinIO in one step
+./scripts/deploy-minio.sh
+```
+
+This script will:
+- Build the Tauri app with signing enabled
+- Upload the `.dmg` installer to MinIO
+- Generate and upload `latest.json` for the auto-updater endpoint
+
+### CI/CD Deploy (GitHub Actions)
+
+The release workflow (`.github/workflows/release.yml`) automatically builds for macOS & Windows and deploys to MinIO when you push a version tag:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+**Required GitHub Secrets:**
+| Secret | Description |
+|:--|:--|
+| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater signing private key contents |
+| `MINIO_ACCESS_KEY` | MinIO access key |
+| `MINIO_SECRET_KEY` | MinIO secret key |
+
 ## 🏗️ Architecture
 
 ```
 cekcok-ide/
 ├── public/                     # Static brand assets, favicon, mascot logo
+├── scripts/                    # Automation scripts (deploy, build)
+│   └── deploy-minio.sh                # Local macOS build + MinIO deploy
 ├── src/                        # Frontend UI (React 19 + TypeScript + Tailwind v4)
-│   ├── components/             # Modular IDE views
-│   │   ├── bottom-panel/       # Rich Bottom Panel
-│   │   │   ├── BottomPanel.tsx         # Panel container & tab switcher
-│   │   │   ├── ProblemsView.tsx        # Monaco diagnostics viewer
-│   │   │   ├── OutputView.tsx          # Filterable output channels
-│   │   │   ├── DebugConsoleView.tsx    # Interactive JS/Node REPL
-│   │   │   ├── PortsView.tsx           # Local port forwarder & status
-│   │   │   └── MultiTerminalView.tsx   # Multi-tab native PTY terminal
-│   │   ├── editor/             # Monaco Editor & Multi-Pane Grid
-│   │   │   ├── EditorPane.tsx          # Pane container & drop zone logic
-│   │   │   ├── components/             # Editor sub-components (tabs, gutter, etc.)
-│   │   │   ├── hooks/                  # Editor-scoped hooks
-│   │   │   └── types.ts                # Editor type definitions
-│   │   ├── sidebar/            # Explorer, Git, Search, and Node Sidebars
-│   │   │   ├── ExplorerSidebar.tsx     # File tree & folder explorer
-│   │   │   ├── GitSidebar.tsx          # Source control panel
-│   │   │   ├── SearchSidebar.tsx       # Workspace text search
-│   │   │   └── NodeSidebar.tsx         # NPM scripts & dependency viewer
-│   │   ├── ActivityBar.tsx     # Left icon rail for sidebar switching
-│   │   ├── CommandPalette.tsx  # Cmd/Ctrl+Shift+P command palette
-│   │   ├── TitleBar.tsx        # Native OS header & window drag handler
-│   │   ├── StatusBar.tsx       # Status bar with diagnostic & port badges
-│   │   ├── SettingsView.tsx    # IDE settings UI
-│   │   ├── WelcomeView.tsx     # Welcome/landing screen
-│   │   └── ...                 # Context menus, modals, layout customizer
-│   ├── hooks/                  # Global shortcuts & native menu event listeners
-│   │   ├── useKeyboardShortcuts.ts
-│   │   ├── useNativeMenu.ts
-│   │   └── useAutoSave.ts
+│   ├── apps/                   # Super App workspaces (lazy-loaded)
+│   │   ├── home/SuperHome.tsx         # Dashboard launcher
+│   │   ├── code/CodeWorkspace.tsx     # Monaco Code IDE
+│   │   ├── spreadsheet/               # Fortune Sheet workspace
+│   │   ├── document/                  # BlockNote document editor
+│   │   └── whiteboard/                # Tldraw drawing canvas
+│   ├── components/             # Shared IDE UI components
+│   │   ├── skeletons/          # Animated skeleton loaders
+│   │   ├── bottom-panel/       # Problems, Output, Debug, Terminal, Ports
+│   │   ├── editor/             # Monaco Editor & multi-pane grid
+│   │   └── sidebar/            # Explorer, Git, Search, Node sidebars
+│   ├── hooks/                  # Global shortcuts, native menu, auto-save
 │   ├── store/                  # Zustand state management
 │   │   ├── useIDEStore.ts              # Root store composition
 │   │   └── slices/                     # Modular state slices
-│   │       ├── fileSlice.ts            # Open files, tabs, dirty tracking
-│   │       ├── uiSlice.ts             # Panels, layout, theme state
-│   │       ├── gitSlice.ts            # Git status & operations state
-│   │       └── nodeSlice.ts           # NPM/Node.js project state
+│   │       ├── workspaceSlice.ts      # File tree & workspace filesystem
+│   │       ├── editorSlice.ts         # Panes, tabs, dirty tracking
+│   │       ├── uiSlice.ts            # Panels, layout, theme, app routing
+│   │       ├── gitSlice.ts           # Git status & operations
+│   │       └── nodeSlice.ts          # NPM/Node.js project state
 │   ├── types/                  # Shared TypeScript type definitions
 │   ├── constants/              # App-wide defaults & configuration
-│   └── utils/                  # Dynamic platform helpers, themes, languages
-│       ├── tauriBridge.ts              # Tauri IPC command wrappers
-│       ├── themes.ts                   # Editor color themes
-│       ├── languages.ts                # Language detection & mappings
-│       ├── fileIcons.tsx               # File/folder icon resolver
-│       ├── platform.ts                 # OS-aware keyboard shortcut labels
-│       ├── storage.ts                  # Persistent storage helpers
-│       └── localHistory.ts            # Local file revision history
+│   └── utils/                  # Platform helpers, themes, languages, updater
 └── src-tauri/                  # Backend (Rust + Tauri v2 Engine)
     ├── src/
     │   ├── lib.rs                  # Tauri setup, native menus & command registration

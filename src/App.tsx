@@ -1,13 +1,16 @@
-import React, { useEffect } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { useIDEStore } from './store/useIDEStore'
-import { CodeWorkspace } from './apps/code/CodeWorkspace'
-import { SpreadsheetWorkspace } from './apps/spreadsheet/SpreadsheetWorkspace'
-import { DocumentWorkspace } from './apps/document/DocumentWorkspace'
-import { WhiteboardWorkspace } from './apps/whiteboard/WhiteboardWorkspace'
-import { SuperHome } from './apps/home/SuperHome'
 import { UpdateModal } from './components/UpdateModal'
+import { AppSkeleton } from './components/skeletons/AppSkeleton'
 import { Toaster } from 'react-hot-toast'
 import './index.css'
+
+// Lazy-load all heavy workspace apps for faster initial render
+const SuperHome = React.lazy(() => import('./apps/home/SuperHome').then(m => ({ default: m.SuperHome })))
+const CodeWorkspace = React.lazy(() => import('./apps/code/CodeWorkspace').then(m => ({ default: m.CodeWorkspace })))
+const SpreadsheetWorkspace = React.lazy(() => import('./apps/spreadsheet/SpreadsheetWorkspace').then(m => ({ default: m.SpreadsheetWorkspace })))
+const DocumentWorkspace = React.lazy(() => import('./apps/document/DocumentWorkspace').then(m => ({ default: m.DocumentWorkspace })))
+const WhiteboardWorkspace = React.lazy(() => import('./apps/whiteboard/WhiteboardWorkspace').then(m => ({ default: m.WhiteboardWorkspace })))
 
 export const App: React.FC = () => {
   const { activeApp, settings } = useIDEStore()
@@ -26,11 +29,31 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ fontFamily: settings.ideFontFamily }} className="w-full h-full">
-      {activeApp === 'home' && <SuperHome />}
-      {activeApp === 'code' && <CodeWorkspace />}
-      {activeApp === 'spreadsheet' && <SpreadsheetWorkspace />}
-      {activeApp === 'document' && <DocumentWorkspace />}
-      {activeApp === 'whiteboard' && <WhiteboardWorkspace />}
+      {activeApp === 'home' && (
+        <Suspense fallback={<AppSkeleton type="home" />}>
+          <SuperHome />
+        </Suspense>
+      )}
+      {activeApp === 'code' && (
+        <Suspense fallback={<AppSkeleton type="code" />}>
+          <CodeWorkspace />
+        </Suspense>
+      )}
+      {activeApp === 'spreadsheet' && (
+        <Suspense fallback={<AppSkeleton type="spreadsheet" />}>
+          <SpreadsheetWorkspace />
+        </Suspense>
+      )}
+      {activeApp === 'document' && (
+        <Suspense fallback={<AppSkeleton type="document" />}>
+          <DocumentWorkspace />
+        </Suspense>
+      )}
+      {activeApp === 'whiteboard' && (
+        <Suspense fallback={<AppSkeleton type="whiteboard" />}>
+          <WhiteboardWorkspace />
+        </Suspense>
+      )}
       
       {/* In-app Auto Updater Modal */}
       <UpdateModal />

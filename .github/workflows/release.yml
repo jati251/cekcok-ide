@@ -64,8 +64,8 @@ jobs:
         uses: minio/setup-minio@v2
         with:
           minio-endpoint: https://releases.cekcok.my.id
-          minio-access-key: ${{ secrets.MINIO_ACCESS_KEY || 'minioadmin' }}
-          minio-secret-key: ${{ secrets.MINIO_SECRET_KEY || 'minioadmin' }}
+          minio-access-key: ${{ secrets.MINIO_ACCESS_KEY }}
+          minio-secret-key: ${{ secrets.MINIO_SECRET_KEY }}
 
       - name: Deploy Artifacts to MinIO
         shell: bash
