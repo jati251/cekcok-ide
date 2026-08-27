@@ -73,7 +73,6 @@ if [ -d "$BUNDLE_DIR/dmg" ] || [ -d "$BUNDLE_DIR/macos" ]; then
         DMG_NAME=$(basename "$DMG_FILE")
         echo "Uploading macOS DMG: $DMG_NAME"
         $MC_BIN cp "$DMG_FILE" "homelab/cekcok-releases/$DMG_NAME"
-        $MC_BIN cp "$DMG_FILE" "homelab/cekcok-releases/Cekcok-latest-macos.dmg"
     fi
 
     MACOS_TAR=$(find "$BUNDLE_DIR/macos" -name "*.tar.gz" 2>/dev/null | head -n 1)
@@ -118,7 +117,6 @@ if [ -d "$BUNDLE_DIR/nsis" ] || [ -d "$BUNDLE_DIR/msi" ]; then
         EXE_NAME=$(basename "$EXE_FILE")
         echo "Uploading Windows EXE: $EXE_NAME"
         $MC_BIN cp "$EXE_FILE" "homelab/cekcok-releases/$EXE_NAME"
-        $MC_BIN cp "$EXE_FILE" "homelab/cekcok-releases/Cekcok-latest-windows.exe"
     fi
 
     MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" 2>/dev/null | head -n 1)
@@ -126,7 +124,6 @@ if [ -d "$BUNDLE_DIR/nsis" ] || [ -d "$BUNDLE_DIR/msi" ]; then
         MSI_NAME=$(basename "$MSI_FILE")
         echo "Uploading Windows MSI: $MSI_NAME"
         $MC_BIN cp "$MSI_FILE" "homelab/cekcok-releases/$MSI_NAME"
-        $MC_BIN cp "$MSI_FILE" "homelab/cekcok-releases/Cekcok-latest-windows.msi"
     fi
 
     WIN_ZIP=$(find "$BUNDLE_DIR/nsis" -name "*.nsis.zip" 2>/dev/null | head -n 1)
@@ -166,8 +163,6 @@ fi
 echo "=============================================================================="
 echo "✅ Deployment to MinIO Complete!"
 echo "🌐 Public Download Base:   https://releases.cekcok.my.id/cekcok-releases/"
-echo "📥 Latest macOS DMG:       https://releases.cekcok.my.id/cekcok-releases/Cekcok-latest-macos.dmg"
-echo "📥 Latest Windows EXE/MSI: https://releases.cekcok.my.id/cekcok-releases/Cekcok-latest-windows.exe"
 echo "🔄 Updater Endpoint:       https://releases.cekcok.my.id/cekcok-releases/latest.json"
 echo "=============================================================================="
 
