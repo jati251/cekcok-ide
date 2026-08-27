@@ -22,6 +22,7 @@ export const StatusBar: React.FC = () => {
     diagnostics,
     ports,
     setActiveBottomTab,
+    setBranchSwitcherOpen,
   } = useIDEStore()
 
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
@@ -65,12 +66,12 @@ export const StatusBar: React.FC = () => {
         {/* Git Branch & Sync */}
         {gitStatus.is_repo && (
           <div
-            onClick={() => setActiveSidebarTab('git' as SidebarTab)}
+            onClick={() => setBranchSwitcherOpen(true)}
             className="flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-            title={`Git branch: ${gitStatus.branch} (${gitStatus.ahead} ahead, ${gitStatus.behind} behind)`}
+            title={`Git branch: ${gitStatus.branch} (Click to switch branch)`}
           >
             <GitBranch size={13} />
-            <span className="font-mono">{gitStatus.branch}</span>
+            <span className="font-mono font-medium">{gitStatus.branch}</span>
             {(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
               <span className="text-[9px] sm:text-[10px] opacity-90 hidden xs:inline">
                 ↑{gitStatus.ahead} ↓{gitStatus.behind}

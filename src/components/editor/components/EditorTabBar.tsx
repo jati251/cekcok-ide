@@ -25,10 +25,17 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
   } = useIDEStore()
 
   return (
-    <div className="flex bg-[#181818] h-[35px] border-b border-ide-border overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0">
+    <div
+      style={{
+        backgroundColor: 'var(--color-ide-tab-inactive, var(--color-ide-sidebar))',
+        borderColor: 'var(--color-ide-border)',
+        color: 'var(--color-ide-text)',
+      }}
+      className="flex h-[35px] border-b overflow-x-auto no-scrollbar select-none justify-between items-center pr-2 shrink-0"
+    >
       <div className="flex flex-1 overflow-x-auto no-scrollbar h-full">
         {files.length === 0 ? (
-          <div className="flex items-center px-4 text-xs text-ide-muted italic">
+          <div className="flex items-center px-4 text-xs opacity-60 italic">
             Pane {paneId} (Empty)
           </div>
         ) : (
@@ -52,16 +59,23 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
                 }}
                 onClick={() => setActiveFileInPane(file, paneId)}
                 onContextMenu={(e) => onContextMenu(e, file)}
-                className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${
+                style={{
+                  backgroundColor: isActive
+                    ? 'var(--color-ide-tab-active, var(--color-ide-bg))'
+                    : 'var(--color-ide-tab-inactive, var(--color-ide-sidebar))',
+                  borderColor: 'var(--color-ide-border)',
+                  color: isActive ? 'var(--color-ide-text)' : 'var(--color-ide-muted)',
+                }}
+                className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r text-[13px] cursor-pointer group transition-colors ${
                   isActive
-                    ? 'bg-ide-bg border-t-2 border-t-ide-accent text-white font-medium'
-                    : 'bg-[#181818] border-t-2 border-t-transparent text-ide-muted hover:bg-[#1f1f1f] hover:text-white'
+                    ? 'border-t-2 border-t-ide-accent font-medium'
+                    : 'border-t-2 border-t-transparent hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
                 {isSettingsTab ? (
-                  <Settings size={13} className="text-[#4fc1ff] shrink-0" />
+                  <Settings size={13} className="text-ide-accent shrink-0" />
                 ) : isWelcomeTab ? (
-                  <Compass size={13} className="text-purple-400 shrink-0" />
+                  <Compass size={13} className="text-purple-500 shrink-0" />
                 ) : (
                   renderFileOrFolderIcon(file.name, false, false)
                 )}
@@ -71,12 +85,10 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
                     e.stopPropagation()
                     requestCloseFile(file.path, paneId)
                   }}
-                  className={`p-0.5 rounded hover:bg-white/15 cursor-pointer ${
-                    isActive
-                      ? 'opacity-100 text-white'
-                      : file.isDirty
-                      ? 'opacity-100 text-white'
-                      : 'opacity-0 group-hover:opacity-100 text-ide-muted hover:text-white'
+                  className={`p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/15 cursor-pointer ${
+                    isActive || file.isDirty
+                      ? 'opacity-100'
+                      : 'opacity-0 group-hover:opacity-100'
                   }`}
                   title="Close (Cmd+W)"
                 >
@@ -95,8 +107,8 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
       {paneId === 1 && (
         <button
           onClick={toggleSplitEditor}
-          className={`p-1.5 rounded transition-colors cursor-pointer text-[#888] hover:text-white hover:bg-white/10 ${
-            splitEditorOpen ? 'text-ide-accent bg-ide-accent/20' : ''
+          className={`p-1.5 rounded transition-colors cursor-pointer opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 ${
+            splitEditorOpen ? 'text-ide-accent bg-ide-accent/20 opacity-100' : ''
           }`}
           title={splitEditorOpen ? 'Close Split Editor' : `Split Editor Right (${formatShortcut('Cmd+\\')})`}
         >

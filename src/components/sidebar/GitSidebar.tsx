@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { ask } from '@tauri-apps/plugin-dialog'
 import { toast } from 'react-hot-toast'
 import {
   RefreshCw,
@@ -23,6 +22,7 @@ export const GitSidebar: React.FC = () => {
     refreshGitStatus,
     runTerminalCommand,
     openFile,
+    setBranchSwitcherOpen,
   } = useIDEStore()
 
   const [commitMessage, setCommitMessage] = useState('')
@@ -48,7 +48,7 @@ export const GitSidebar: React.FC = () => {
 
   const handleStageAll = async () => {
     try {
-      await invoke('git_stage', { cwd: currentDir, files: ['.'] })
+      await invoke('git_stage', { cwd: currentDir, files: [] })
       await refreshGitStatus()
     } catch (err) {
       console.error('Stage all error:', err)
@@ -57,26 +57,27 @@ export const GitSidebar: React.FC = () => {
 
   const handleUnstageAll = async () => {
     try {
-      await invoke('git_unstage', { cwd: currentDir, files: ['.'] })
+      await invoke('git_unstage', { cwd: currentDir, files: [] })
       await refreshGitStatus()
     } catch (err) {
       console.error('Unstage all error:', err)
     }
   }
 
+  const handleDiscardAll = async () => {
+    try {
+      await invoke('git_discard', { cwd: currentDir, files: [] })
+      await refreshGitStatus()
+    } catch (err) {
+      console.error('Discard all error:', err)
+    }
+  }
+
   const handleDiscardFile = async (file: string) => {
-    const confirmed = await ask(`Discard all changes to ${file}? This cannot be undone.`, {
-      title: 'Discard Changes',
-      kind: 'warning',
-    })
-    if (!confirmed) return
-    
     try {
       await invoke('git_discard', { cwd: currentDir, files: [file] })
       await refreshGitStatus()
-      toast.success(`Discarded changes in ${file}`)
     } catch (err) {
-      toast.error(`Discard error: ${err}`)
       console.error('Discard error:', err)
     }
   }
@@ -88,9 +89,8 @@ export const GitSidebar: React.FC = () => {
       await invoke('git_commit', { cwd: currentDir, message: commitMessage })
       setCommitMessage('')
       await refreshGitStatus()
-      toast.success('Committed successfully')
     } catch (err) {
-      toast.error(`Commit error: ${err}`)
+      console.error('Commit error:', err)
     } finally {
       setIsCommitting(false)
     }
@@ -100,7 +100,7 @@ export const GitSidebar: React.FC = () => {
     try {
       await invoke('git_push', { cwd: currentDir })
       await refreshGitStatus()
-      toast.success('Pushed successfully')
+      toast.success('Pushed to origin successfully')
     } catch (err) {
       toast.error(`Push error: ${err}`)
     }
@@ -110,7 +110,7 @@ export const GitSidebar: React.FC = () => {
     try {
       await invoke('git_pull', { cwd: currentDir })
       await refreshGitStatus()
-      toast.success('Pulled successfully')
+      toast.success('Pulled from origin successfully')
     } catch (err) {
       toast.error(`Pull error: ${err}`)
     }
@@ -118,26 +118,33 @@ export const GitSidebar: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
+      <div
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+          color: 'var(--color-ide-muted)',
+        }}
+        className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b"
+      >
         <span>Source Control</span>
         <div className="flex items-center gap-1">
           <button
             onClick={refreshGitStatus}
-            className="hover:text-white text-[#999] p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+            className="opacity-70 hover:opacity-100 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Refresh Git Status"
           >
             <RefreshCw size={13} className={isGitLoading ? 'animate-spin' : ''} />
           </button>
           <button
             onClick={handlePull}
-            className="hover:text-white text-[#999] p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+            className="opacity-70 hover:opacity-100 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Pull Changes"
           >
             <ArrowDown size={13} />
           </button>
           <button
             onClick={handlePush}
-            className="hover:text-white text-[#999] p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+            className="opacity-70 hover:opacity-100 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Push Changes"
           >
             <ArrowUp size={13} />
@@ -146,7 +153,7 @@ export const GitSidebar: React.FC = () => {
       </div>
 
       {!gitStatus.is_repo ? (
-        <div className="p-4 text-center text-xs text-[#888] space-y-2">
+        <div className="p-4 text-center text-xs opacity-60 space-y-2">
           <p>Not a Git repository.</p>
           <button
             onClick={() => runTerminalCommand('git init')}
@@ -158,12 +165,22 @@ export const GitSidebar: React.FC = () => {
       ) : (
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {/* Branch & Sync Bar */}
-          <div className="flex flex-col gap-1.5 bg-[#2b2b2b] p-2 rounded">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-mono text-white/90 font-medium truncate" title={`Current Branch: ${gitStatus.branch}`}>
+          <div
+            style={{
+              backgroundColor: 'var(--color-ide-bg)',
+              borderColor: 'var(--color-ide-border)',
+            }}
+            className="flex flex-col gap-1.5 p-2 rounded border"
+          >
+            <div
+              onClick={() => setBranchSwitcherOpen(true)}
+              className="flex items-center justify-between text-xs cursor-pointer hover:text-ide-accent transition-colors"
+              title="Click to Switch Branch"
+            >
+              <span className="font-mono font-medium truncate">
                 ⎇ {gitStatus.branch}
               </span>
-              <span className="text-[10px] text-ide-muted" title="Ahead/Behind Origin">
+              <span className="text-[10px] opacity-60" title="Ahead/Behind Origin">
                 ↑{gitStatus.ahead} ↓{gitStatus.behind}
               </span>
             </div>
@@ -171,20 +188,15 @@ export const GitSidebar: React.FC = () => {
             {/* Quick Actions */}
             <div className="flex items-center justify-between gap-1 mt-1">
               <button
-                onClick={async () => {
-                  const branchName = prompt('Enter new branch name:')
-                  if (!branchName) return
-                  try {
-                    await invoke('git_checkout_branch', { cwd: currentDir, branch: branchName, create: true })
-                    await refreshGitStatus()
-                    toast.success(`Switched to new branch: ${branchName}`)
-                  } catch (err) {
-                    toast.error(`Checkout error: ${err}`)
-                  }
+                onClick={() => setBranchSwitcherOpen(true)}
+                style={{
+                  backgroundColor: 'var(--color-ide-sidebar)',
+                  borderColor: 'var(--color-ide-border)',
+                  color: 'var(--color-ide-text)',
                 }}
-                className="flex-1 px-2 py-1 text-[10px] font-medium text-[#ccc] bg-[#3a3a3a] hover:bg-[#4a4a4a] hover:text-white rounded transition-colors text-center cursor-pointer"
+                className="flex-1 px-2 py-1 text-[10px] font-medium border hover:border-ide-accent rounded transition-colors text-center cursor-pointer"
               >
-                + Branch
+                Switch Branch
               </button>
               <button
                 onClick={async () => {
@@ -196,7 +208,12 @@ export const GitSidebar: React.FC = () => {
                     toast.error(`Log error: ${err}`)
                   }
                 }}
-                className="flex-1 px-2 py-1 text-[10px] font-medium text-[#ccc] bg-[#3a3a3a] hover:bg-[#4a4a4a] hover:text-white rounded transition-colors text-center cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--color-ide-sidebar)',
+                  borderColor: 'var(--color-ide-border)',
+                  color: 'var(--color-ide-text)',
+                }}
+                className="flex-1 px-2 py-1 text-[10px] font-medium border hover:border-ide-accent rounded transition-colors text-center cursor-pointer"
               >
                 View Log
               </button>
@@ -210,7 +227,12 @@ export const GitSidebar: React.FC = () => {
               onChange={(e) => setCommitMessage(e.target.value)}
               placeholder={`Message (${formatShortcut('Cmd+Enter')} to commit)`}
               rows={2}
-              className="w-full bg-[#3c3c3c] text-white text-xs p-2 rounded border border-transparent focus:border-ide-accent focus:outline-none resize-none"
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-border)',
+                color: 'var(--color-ide-text)',
+              }}
+              className="w-full text-xs p-2 rounded border focus:border-ide-accent focus:outline-hidden resize-none"
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                   handleCommit()
@@ -281,6 +303,13 @@ export const GitSidebar: React.FC = () => {
               <span>Changes ({gitStatus.unstaged.length})</span>
               {gitStatus.unstaged.length > 0 && (
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleDiscardAll}
+                    className="hover:text-red-400 text-[#888] cursor-pointer p-0.5"
+                    title="Discard All Changes"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
                   <button
                     onClick={handleStageAll}
                     className="hover:text-white text-[#888] cursor-pointer p-0.5"

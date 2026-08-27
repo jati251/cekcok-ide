@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Tldraw, Editor, exportAs } from 'tldraw'
 import 'tldraw/tldraw.css'
 import {
@@ -20,22 +20,33 @@ import { motion } from 'framer-motion'
 import { toast } from 'react-hot-toast'
 import { useWindowDrag } from '../../hooks/useWindowDrag'
 import { addRecentItem } from '../../utils/recentItems'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const WB_TITLE_KEY = 'cekcok_whiteboard_title_v1'
 const WB_THEME_KEY = 'cekcok_whiteboard_theme_v1'
+const WB_STORE_KEY = 'cekcok_whiteboard_store_v1'
 
 export const WhiteboardWorkspace: React.FC = () => {
-  const { setActiveApp } = useIDEStore()
+  const { setActiveApp, settings } = useIDEStore()
   const { handleWindowDrag } = useWindowDrag()
   const [docTitle, setDocTitle] = useState<string>(() => {
     return localStorage.getItem(WB_TITLE_KEY) || 'System Architecture Diagram.tldr'
   })
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem(WB_THEME_KEY) === 'dark'
-  })
+  const isDarkMode = settings.theme !== 'vs-light'
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isSaved, setIsSaved] = useState<boolean>(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const unlistenRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (editor) {
+      try {
+        editor.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' })
+      } catch (err) {
+        console.warn('Failed to sync global theme to whiteboard:', err)
+      }
+    }
+  }, [isDarkMode, editor])
 
   useEffect(() => {
     localStorage.setItem(WB_TITLE_KEY, docTitle)
@@ -46,24 +57,46 @@ export const WhiteboardWorkspace: React.FC = () => {
     })
   }, [docTitle])
 
-  const toggleTheme = () => {
-    const next = !isDarkMode
-    setIsDarkMode(next)
-    localStorage.setItem(WB_THEME_KEY, next ? 'dark' : 'light')
-    if (editor) {
-      editor.user.updateUserPreferences({ colorScheme: next ? 'dark' : 'light' })
+  // Cleanup store listener on unmount
+  useEffect(() => {
+    return () => {
+      if (unlistenRef.current) {
+        unlistenRef.current()
+        unlistenRef.current = null
+      }
     }
+  }, [])
+
+  const toggleTheme = () => {
+    const nextTheme = isDarkMode ? 'vs-light' : 'vs-dark'
+    useIDEStore.getState().updateSettings({ theme: nextTheme })
   }
 
-  const handleMount = (ed: Editor) => {
+  const handleMount = useCallback((ed: Editor) => {
     setEditor(ed)
-    ed.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' })
-    ed.store.listen(() => {
-      setIsSaved(false)
-    })
-  }
+    try {
+      ed.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' })
+    } catch (err) {
+      console.warn('Failed to apply initial theme preference:', err)
+    }
 
-  const handleManualSave = React.useCallback(() => {
+    // Clean up previous listener if any
+    if (unlistenRef.current) {
+      unlistenRef.current()
+      unlistenRef.current = null
+    }
+
+    // Only mark modified if the change source is from the user
+    // This avoids high-frequency re-renders and re-render loops on pointer move / camera updates
+    const unlisten = ed.store.listen((entry) => {
+      if (entry.source === 'user') {
+        setIsSaved(false)
+      }
+    })
+    unlistenRef.current = unlisten
+  }, [isDarkMode])
+
+  const handleManualSave = useCallback(() => {
     if (!editor) return
     try {
       addRecentItem({
@@ -72,7 +105,7 @@ export const WhiteboardWorkspace: React.FC = () => {
         description: 'Vector Whiteboard Diagram',
       })
       setIsSaved(true)
-      toast.success('Sketch saved automatically!')
+      toast.success('Sketch saved!')
     } catch (e) {
       console.error(e)
       toast.error('Failed to save sketch.')
@@ -150,12 +183,31 @@ export const WhiteboardWorkspace: React.FC = () => {
   const handleClearCanvas = () => {
     if (!editor) return
     if (confirm('Clear all drawings and shapes on the canvas?')) {
+      try {
+        const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+        if (shapeIds.length > 0) {
+          editor.deleteShapes(shapeIds)
+          setIsSaved(true)
+          toast.success('Canvas cleared')
+        }
+      } catch (err) {
+        console.error('Clear canvas error:', err)
+        toast.error('Failed to clear canvas.')
+      }
+    }
+  }
+
+  const handleZoomFit = () => {
+    if (!editor) return
+    try {
       const shapeIds = Array.from(editor.getCurrentPageShapeIds())
       if (shapeIds.length > 0) {
-        editor.deleteShapes(shapeIds)
-        setIsSaved(true)
-        toast.success('Canvas cleared')
+        editor.zoomToFit()
+      } else {
+        editor.resetZoom()
       }
+    } catch (err) {
+      console.warn('Zoom to fit error:', err)
     }
   }
 
@@ -183,11 +235,27 @@ export const WhiteboardWorkspace: React.FC = () => {
     e.target.value = ''
   }
 
+  const handleResetStorage = () => {
+    try {
+      indexedDB.deleteDatabase(WB_STORE_KEY)
+      localStorage.removeItem(WB_TITLE_KEY)
+      localStorage.removeItem(WB_THEME_KEY)
+      toast.success('Whiteboard storage reset. Reloading...')
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
+    } catch (e) {
+      console.error(e)
+      window.location.reload()
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full h-full flex flex-col bg-[#18181a] text-white select-none relative overflow-hidden"
+      style={{ backgroundColor: 'var(--color-ide-bg)', color: 'var(--color-ide-text)' }}
+      className="w-full h-full flex flex-col select-none relative overflow-hidden"
     >
       {/* Hidden file input */}
       <input
@@ -198,11 +266,16 @@ export const WhiteboardWorkspace: React.FC = () => {
         className="hidden"
       />
 
-      {/* Top Header matching IDE TitleBar exactly */}
+      {/* Top Header matching IDE TitleBar */}
       <header
         data-tauri-drag-region
         onMouseDown={handleWindowDrag}
-        className="h-[38px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2 cursor-default z-30"
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+          color: 'var(--color-ide-text)',
+        }}
+        className="h-[38px] border-b text-xs font-sans shrink-0 flex items-center justify-between px-2 cursor-default relative z-[9999]"
       >
         <div data-tauri-drag-region className="flex items-center gap-1.5 min-w-0">
           {/* Mac OS Window Controls Offset */}
@@ -211,14 +284,14 @@ export const WhiteboardWorkspace: React.FC = () => {
           <button
             data-no-drag
             onClick={() => setActiveApp('home')}
-            className="p-1.5 hover:bg-white/10 text-gray-300 hover:text-white rounded-md transition-colors cursor-pointer shrink-0"
-            title="Back to SuperHome"
+            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-80 hover:opacity-100 rounded-md transition-colors cursor-pointer shrink-0"
+            title="Back to Dashboard"
           >
             <ArrowLeft size={15} />
           </button>
 
           <div data-no-drag className="flex items-center gap-1.5 min-w-0">
-            <div className="p-1 bg-amber-500/20 text-amber-400 rounded shrink-0">
+            <div className="p-1 bg-amber-500/20 text-amber-500 rounded shrink-0">
               <PenTool size={13} />
             </div>
             <input
@@ -228,18 +301,25 @@ export const WhiteboardWorkspace: React.FC = () => {
                 setDocTitle(e.target.value)
                 setIsSaved(false)
               }}
-              className="bg-transparent hover:bg-white/5 focus:bg-[#252526] px-2 py-0.5 rounded text-[11px] font-semibold text-white border border-transparent focus:border-ide-accent outline-hidden max-w-[130px] sm:max-w-[200px] truncate transition-colors"
+              style={{
+                color: 'var(--color-ide-text)',
+              }}
+              className="bg-transparent hover:bg-black/5 dark:hover:bg-white/5 focus:bg-black/5 dark:focus:bg-white/10 px-2 py-0.5 rounded text-[11px] font-semibold border border-transparent focus:border-ide-accent outline-hidden max-w-[130px] sm:max-w-[200px] truncate transition-colors"
               title="Click to rename sketch"
             />
           </div>
 
-          <div data-tauri-drag-region className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
+          <div
+            style={{ backgroundColor: 'var(--color-ide-border)' }}
+            data-tauri-drag-region
+            className="h-4 w-px mx-1 hidden sm:block"
+          />
 
           {/* Quick Actions */}
           <div data-no-drag className="hidden md:flex items-center gap-0.5 text-[11px]">
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 px-2 py-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
               title="Open .tldr JSON file"
             >
               <Upload size={12} />
@@ -247,7 +327,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             </button>
             <button
               onClick={handleExportPNG}
-              className="flex items-center gap-1 px-2 py-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
               title="Export as PNG image"
             >
               <ImageIcon size={12} />
@@ -255,7 +335,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             </button>
             <button
               onClick={handleExportSVG}
-              className="flex items-center gap-1 px-2 py-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
               title="Export as SVG"
             >
               <Download size={12} />
@@ -263,7 +343,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             </button>
             <button
               onClick={handleExportJSON}
-              className="flex items-center gap-1 px-2 py-1 text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
               title="Export as .tldr project file"
             >
               <Download size={12} />
@@ -271,7 +351,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             </button>
             <button
               onClick={handleClearCanvas}
-              className="flex items-center gap-1 px-2 py-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 text-red-500 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
               title="Clear all shapes from canvas"
             >
               <Trash2 size={12} />
@@ -285,7 +365,7 @@ export const WhiteboardWorkspace: React.FC = () => {
           <button
             data-no-drag
             onClick={toggleTheme}
-            className="p-1 hover:bg-white/10 text-yellow-400 rounded-md transition-colors cursor-pointer"
+            className="p-1 hover:bg-black/5 dark:hover:bg-white/10 text-amber-500 rounded-md transition-colors cursor-pointer"
             title={isDarkMode ? 'Switch to Light canvas' : 'Switch to Dark canvas'}
           >
             {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
@@ -295,8 +375,8 @@ export const WhiteboardWorkspace: React.FC = () => {
           {editor && (
             <button
               data-no-drag
-              onClick={() => editor.zoomToFit()}
-              className="p-1 hover:bg-white/10 text-gray-300 hover:text-white rounded-md transition-colors cursor-pointer hidden xs:flex items-center gap-1 text-[11px]"
+              onClick={handleZoomFit}
+              className="p-1 hover:bg-black/5 dark:hover:bg-white/10 opacity-80 hover:opacity-100 rounded-md transition-colors cursor-pointer hidden xs:flex items-center gap-1 text-[11px]"
               title="Zoom to fit all drawings"
             >
               <RotateCcw size={12} />
@@ -304,8 +384,8 @@ export const WhiteboardWorkspace: React.FC = () => {
             </button>
           )}
 
-          <div data-tauri-drag-region className="flex items-center gap-1 text-[10px] text-gray-400 mr-1 hidden xs:flex">
-            <CheckCircle2 size={11} className={isSaved ? 'text-green-400' : 'text-amber-400'} />
+          <div data-tauri-drag-region className="flex items-center gap-1 text-[10px] opacity-70 mr-1 hidden xs:flex">
+            <CheckCircle2 size={11} className={isSaved ? 'text-green-500' : 'text-amber-500'} />
             <span>{isSaved ? 'Saved' : 'Modified'}</span>
           </div>
 
@@ -318,19 +398,29 @@ export const WhiteboardWorkspace: React.FC = () => {
             <span>Save</span>
           </button>
 
-          <div data-tauri-drag-region className="h-4 w-px bg-white/10 mx-0.5" />
+          <div
+            style={{ backgroundColor: 'var(--color-ide-border)' }}
+            data-tauri-drag-region
+            className="h-4 w-px mx-0.5"
+          />
 
           {/* App Switcher Dropdown */}
           <AppSwitcher />
         </div>
       </header>
 
-      {/* Full absolute viewport for Tldraw */}
+      {/* Full absolute viewport for Tldraw with ErrorBoundary */}
       <div className="absolute inset-0 top-[38px] w-full h-[calc(100%-38px)]">
-        <Tldraw
-          persistenceKey="cekcok_whiteboard_store_v1"
-          onMount={handleMount}
-        />
+        <ErrorBoundary
+          fallbackTitle="Whiteboard Error"
+          fallbackMessage="Unable to initialize canvas. You can try reloading or resetting the whiteboard cache."
+          onReset={handleResetStorage}
+        >
+          <Tldraw
+            persistenceKey={WB_STORE_KEY}
+            onMount={handleMount}
+          />
+        </ErrorBoundary>
       </div>
     </motion.div>
   )

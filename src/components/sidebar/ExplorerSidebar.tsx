@@ -76,14 +76,21 @@ export const ExplorerSidebar: React.FC = () => {
   if (!currentDir) {
     return (
       <div className="flex flex-col h-full">
-        <div className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
+        <div
+          style={{
+            backgroundColor: 'var(--color-ide-sidebar)',
+            borderColor: 'var(--color-ide-border)',
+            color: 'var(--color-ide-muted)',
+          }}
+          className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b"
+        >
           NO FOLDER OPENED
         </div>
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
-          <div className="text-[#888] text-xs">You have not yet opened a folder.</div>
+          <div className="text-xs opacity-60">You have not yet opened a folder.</div>
           <button
             onClick={handleOpenFolder}
-            className="bg-ide-accent hover:bg-ide-accent-hover text-white text-[11px] font-semibold px-4 py-2 rounded transition-colors cursor-pointer w-full shadow-sm uppercase tracking-wide"
+            className="bg-ide-accent hover:bg-ide-accent-hover text-white text-[11px] font-semibold px-4 py-2 rounded transition-colors cursor-pointer w-full shadow-xs uppercase tracking-wide"
           >
             Open Folder
           </button>
@@ -94,9 +101,17 @@ export const ExplorerSidebar: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
+      <div
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+          color: 'var(--color-ide-muted)',
+        }}
+        className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b"
+      >
         <span
-          className="truncate max-w-[120px] text-white/90 font-mono text-[11px]"
+          style={{ color: 'var(--color-ide-text)' }}
+          className="truncate max-w-[120px] font-mono text-[11px] font-bold"
           title={currentDir}
         >
           {rootFolderName}
@@ -104,14 +119,14 @@ export const ExplorerSidebar: React.FC = () => {
         <div className="flex gap-1 items-center">
           <button
             onClick={() => handleCreateNode(false)}
-            className="hover:text-white text-[#999] transition-colors p-1 hover:bg-white/10 rounded cursor-pointer"
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
             title="New File"
           >
             <FilePlus size={14} />
           </button>
           <button
             onClick={() => handleCreateNode(true)}
-            className="hover:text-white text-[#999] transition-colors p-1 hover:bg-white/10 rounded cursor-pointer"
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
             title="New Folder"
           >
             <FolderPlus size={14} />
@@ -121,8 +136,8 @@ export const ExplorerSidebar: React.FC = () => {
               updateSettings({ showHiddenFiles: !settings.showHiddenFiles })
               setTimeout(() => loadDirectory(currentDir), 50)
             }}
-            className={`hover:text-white transition-colors p-1 hover:bg-white/10 rounded cursor-pointer ${
-              settings.showHiddenFiles ? 'text-ide-accent bg-ide-accent/15' : 'text-[#888]'
+            className={`transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer ${
+              settings.showHiddenFiles ? 'text-ide-accent bg-ide-accent/15' : 'opacity-70 hover:opacity-100'
             }`}
             title={settings.showHiddenFiles ? 'Hide Hidden Files (dotfiles)' : 'Show Hidden Files (.env, .gitignore)'}
           >
@@ -132,23 +147,23 @@ export const ExplorerSidebar: React.FC = () => {
             onClick={() => {
               updateSettings({ showIgnoredFiles: !settings.showIgnoredFiles })
             }}
-            className={`hover:text-white transition-colors p-1 hover:bg-white/10 rounded cursor-pointer ${
-              settings.showIgnoredFiles ? 'text-ide-accent bg-ide-accent/15' : 'text-[#888]'
+            className={`transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer ${
+              settings.showIgnoredFiles ? 'text-ide-accent bg-ide-accent/15' : 'opacity-70 hover:opacity-100'
             }`}
-            title={settings.showIgnoredFiles ? 'Hide Git Ignored Files (node_modules, dist)' : 'Show Git Ignored Files'}
+            title={settings.showIgnoredFiles ? 'Hide Ignored Files (.gitignore)' : 'Show Ignored Files (.gitignore)'}
           >
             <EyeOff size={13} />
           </button>
           <button
             onClick={collapseAllFolders}
-            className="hover:text-white text-[#999] transition-colors p-1 hover:bg-white/10 rounded cursor-pointer"
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
             title="Collapse All Folders"
           >
-            <ChevronsDownUp size={13} />
+            <ChevronsDownUp size={14} />
           </button>
           <button
             onClick={() => loadDirectory(currentDir)}
-            className="hover:text-white text-[#999] transition-colors p-1 hover:bg-white/10 rounded cursor-pointer"
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
             title="Refresh Explorer"
           >
             <RefreshCw size={13} />

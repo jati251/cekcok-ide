@@ -40,14 +40,14 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
       }))
       
       try {
-        const { showHiddenFiles, showIgnoredFiles } = get().settings
-        const children = await safeInvoke<FileNode[]>('list_directory', { 
+        const { showHiddenFiles } = get().settings
+        const children = await safeInvoke<FileNode[]>('read_dir', { 
           path, 
-          showHidden: showHiddenFiles, 
-          showIgnored: showIgnoredFiles 
+          showHidden: showHiddenFiles,
+          show_hidden: showHiddenFiles,
         })
         set((state) => ({
-          folderChildren: { ...state.folderChildren, [path]: children }
+          folderChildren: { ...state.folderChildren, [path]: children || [] }
         }))
       } catch (err) {
         console.error('Failed to load directory:', err)
@@ -64,18 +64,18 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
     if (!targetPath) return
 
     try {
-      const { showHiddenFiles, showIgnoredFiles } = get().settings
-      const files = await safeInvoke<FileNode[]>('list_directory', { 
+      const { showHiddenFiles } = get().settings
+      const files = await safeInvoke<FileNode[]>('read_dir', { 
         path: targetPath, 
-        showHidden: showHiddenFiles, 
-        showIgnored: showIgnoredFiles 
+        showHidden: showHiddenFiles,
+        show_hidden: showHiddenFiles,
       })
       if (path && path !== get().currentDir) {
         set((state) => ({
-          folderChildren: { ...state.folderChildren, [path]: files }
+          folderChildren: { ...state.folderChildren, [path]: files || [] }
         }))
       } else {
-        set({ fileTree: files })
+        set({ fileTree: files || [] })
       }
     } catch (err) {
       console.error('Failed to refresh directory:', err)

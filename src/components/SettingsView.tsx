@@ -5,6 +5,7 @@ import { useIDEStore, UserSettings } from '../store/useIDEStore'
 import { THEMES } from '../utils/themes'
 import { formatShortcut } from '../utils/platform'
 import { checkForAppUpdates, updaterEventEmitter, UpdateInfo } from '../utils/updater'
+import { APP_VERSION } from '../constants/app'
 
 export const SettingsView: React.FC = () => {
   const { settings, updateSettings } = useIDEStore()
@@ -111,7 +112,7 @@ export const SettingsView: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-semibold text-white">Current Version</h4>
-                    <p className="text-[11px] text-gray-400">Cekcok IDE v0.1.0 • Desktop Native Runtime</p>
+                    <p className="text-[11px] text-gray-400">Cekcok IDE v{APP_VERSION} • Desktop Native Runtime</p>
                   </div>
                   <button
                     onClick={handleCheckUpdate}

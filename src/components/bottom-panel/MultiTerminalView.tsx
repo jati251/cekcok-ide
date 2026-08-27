@@ -19,6 +19,7 @@ export const MultiTerminalView: React.FC = () => {
     addTerminalSession,
     removeTerminalSession,
     setActiveTerminalId,
+    settings,
   } = useIDEStore()
 
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -30,6 +31,8 @@ export const MultiTerminalView: React.FC = () => {
   useEffect(() => {
     currentDirRef.current = currentDir
   }, [currentDir])
+
+  const isLight = settings.theme === 'vs-light'
 
   const executeCommand = useCallback(
     async (cmd: string) => {
@@ -68,11 +71,13 @@ export const MultiTerminalView: React.FC = () => {
     if (!terminalRef.current) return
 
     if (!termInstance.current) {
+      const isInitialLight = settings.theme === 'vs-light'
       const term = new Terminal({
         theme: {
-          background: '#181818',
-          foreground: '#cccccc',
-          cursor: '#ffffff',
+          background: isInitialLight ? '#ffffff' : '#181818',
+          foreground: isInitialLight ? '#333333' : '#cccccc',
+          cursor: isInitialLight ? '#007acc' : '#ffffff',
+          selectionBackground: isInitialLight ? '#add6ff' : '#264f78',
           black: '#000000',
           red: '#cd3131',
           green: '#0dbc79',
@@ -99,124 +104,92 @@ export const MultiTerminalView: React.FC = () => {
 
       const prompt = () => term.write('\r\n\x1b[32mcekcok-ide\x1b[0m $ ')
 
-      term.writeln('\x1b[1;34mCekcok Native Node.js & Shell Terminal\x1b[0m')
-      term.writeln('Type standard bash/node commands or run npm scripts from the sidebar.')
+      term.writeln('\x1b[1;36mCekcok Native Node.js & Shell Terminal\x1b[0m')
+      term.writeln(
+        '\x1b[90mType standard bash/node commands or run npm scripts from the sidebar.\x1b[0m'
+      )
       prompt()
 
-      let currentCommand = ''
-      const history: string[] = []
-      let historyIndex = -1
+      let currentLine = ''
 
       term.onData(async (data) => {
-        // Arrow keys history navigation
-        if (data === '\x1b[A') {
-          if (history.length > 0) {
-            if (historyIndex === -1) {
-              historyIndex = history.length - 1
-            } else if (historyIndex > 0) {
-              historyIndex--
-            }
-            while (currentCommand.length > 0) {
-              term.write('\b \b')
-              currentCommand = currentCommand.slice(0, -1)
-            }
-            currentCommand = history[historyIndex] || ''
-            term.write(currentCommand)
+        if (data === '\r') {
+          // Enter key
+          const cmdToRun = currentLine.trim()
+          currentLine = ''
+
+          if (!cmdToRun) {
+            prompt()
+            return
           }
-          return
-        }
 
-        if (data === '\x1b[B') {
-          if (historyIndex !== -1) {
-            if (historyIndex < history.length - 1) {
-              historyIndex++
-              while (currentCommand.length > 0) {
-                term.write('\b \b')
-                currentCommand = currentCommand.slice(0, -1)
-              }
-              currentCommand = history[historyIndex] || ''
-              term.write(currentCommand)
-            } else {
-              historyIndex = -1
-              while (currentCommand.length > 0) {
-                term.write('\b \b')
-                currentCommand = currentCommand.slice(0, -1)
-              }
-            }
+          if (cmdToRun === 'clear') {
+            term.clear()
+            prompt()
+            return
           }
-          return
-        }
 
-        const code = data.charCodeAt(0)
-
-        // Ctrl+C
-        if (code === 3) {
-          term.write('^C\r\n')
-          invoke('kill_shell').catch(console.error)
-          currentCommand = ''
-          historyIndex = -1
-          prompt()
-          return
-        }
-
-        // Enter key
-        if (code === 13) {
-          term.write('\r\n')
-          const cmdToRun = currentCommand.trim()
-          if (cmdToRun) {
-            history.push(cmdToRun)
-            historyIndex = -1
+          if (cmdToRun.startsWith('cd ')) {
+            const targetDir = cmdToRun.slice(3).trim()
             try {
-              await invoke('spawn_shell', {
-                cmd: cmdToRun,
-                cwd: currentDirRef.current,
+              const newPath = await invoke<string>('change_dir', {
+                current: currentDirRef.current,
+                target: targetDir,
               })
+              currentDirRef.current = newPath
+              useIDEStore.getState().setCurrentDir(newPath)
+              term.writeln(`\r\n\x1b[90mChanged directory to ${newPath}\x1b[0m`)
             } catch (err: unknown) {
-              const errMsg = typeof err === 'string' ? err : String(err)
-              term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
-              prompt()
+              const msg = typeof err === 'string' ? err : String(err)
+              term.writeln(`\r\n\x1b[31mcd: ${msg}\x1b[0m`)
             }
-            refreshGitStatus()
-          } else {
+            prompt()
+            return
+          }
+
+          term.writeln('')
+          try {
+            await invoke('spawn_shell', {
+              cmd: cmdToRun,
+              cwd: currentDirRef.current,
+            })
+          } catch (err: unknown) {
+            const errMsg = typeof err === 'string' ? err : String(err)
+            term.write(`\x1b[31mError: ${errMsg.replace(/\n/g, '\r\n')}\x1b[0m\r\n`)
             prompt()
           }
-          currentCommand = ''
-        }
-        // Backspace
-        else if (code === 127) {
-          if (currentCommand.length > 0) {
-            currentCommand = currentCommand.slice(0, -1)
+          refreshGitStatus()
+        } else if (data === '\x7f' || data === '\b') {
+          // Backspace
+          if (currentLine.length > 0) {
+            currentLine = currentLine.slice(0, -1)
             term.write('\b \b')
           }
-        }
-        // Printable ASCII
-        else if (code >= 32 && code <= 126) {
-          currentCommand += data
+        } else if (data === '\x03') {
+          // Ctrl+C
+          currentLine = ''
+          term.write('^C')
+          prompt()
+        } else if (data >= ' ' || data === '\t') {
+          currentLine += data
           term.write(data)
         }
       })
 
-      // Listen to output events
-      const setupListeners = async () => {
-        const out = await listen<string>('terminal-output', (event) => {
-          if (termInstance.current) {
-            termInstance.current.write(event.payload)
-          }
-        })
-        const ex = await listen<number | null>('terminal-exit', (event) => {
-          if (termInstance.current) {
-            if (event.payload !== null && event.payload !== undefined && event.payload !== 0) {
-              termInstance.current.write(
-                `\r\n\x1b[33m[Process exited with code ${event.payload}]\x1b[0m\r\n\x1b[32mcekcok-ide\x1b[0m $ `
-              )
-            } else {
-              termInstance.current.write(`\r\n\x1b[32mcekcok-ide\x1b[0m $ `)
-            }
-          }
-        })
-        unlistenRef.current = { out, ex: ex as unknown as UnlistenFn }
-      }
-      setupListeners()
+      // Listen to streaming stdout/stderr from Rust backend
+      listen<string>('shell-stdout', (event) => {
+        const payload = event.payload.replace(/\r?\n/g, '\r\n')
+        term.write(payload)
+      }).then((unlisten) => {
+        unlistenRef.current.out = unlisten
+      })
+
+      listen<number>('shell-exit', () => {
+        prompt()
+        refreshGitStatus()
+      }).then((unlisten) => {
+        unlistenRef.current.ex = unlisten
+      })
     }
 
     const handleResize = () => {
@@ -229,7 +202,27 @@ export const MultiTerminalView: React.FC = () => {
     return () => {
       window.removeEventListener('resize', handleResize)
     }
-  }, [refreshGitStatus, terminalOpen])
+  }, [refreshGitStatus, terminalOpen, settings.theme])
+
+  // Sync theme dynamically
+  useEffect(() => {
+    if (termInstance.current) {
+      termInstance.current.options.theme = {
+        background: isLight ? '#ffffff' : '#181818',
+        foreground: isLight ? '#333333' : '#cccccc',
+        cursor: isLight ? '#007acc' : '#ffffff',
+        selectionBackground: isLight ? '#add6ff' : '#264f78',
+        black: '#000000',
+        red: '#cd3131',
+        green: '#0dbc79',
+        yellow: '#e5e510',
+        blue: '#2472c8',
+        magenta: '#bc3fbc',
+        cyan: '#11a8cd',
+        white: '#e5e5e5',
+      }
+    }
+  }, [isLight])
 
   useEffect(() => {
     if (terminalOpen) {
@@ -241,7 +234,13 @@ export const MultiTerminalView: React.FC = () => {
   }, [terminalOpen, activeTerminalId])
 
   return (
-    <div className="h-full flex bg-[#181818] overflow-hidden select-none">
+    <div
+      style={{
+        backgroundColor: 'var(--color-ide-bg)',
+        color: 'var(--color-ide-text)',
+      }}
+      className="h-full flex overflow-hidden select-none"
+    >
       {/* Terminal Main Canvas */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         <div className="flex-1 p-2 overflow-hidden relative">
@@ -250,20 +249,32 @@ export const MultiTerminalView: React.FC = () => {
       </div>
 
       {/* Terminal Side Tabs & Toolbar (VS Code Style) */}
-      <div className="w-48 bg-[#1f1f1f] border-l border-ide-border flex flex-col shrink-0">
+      <div
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+        }}
+        className="w-48 border-l flex flex-col shrink-0"
+      >
         {/* Terminal Sessions Toolbar */}
-        <div className="flex items-center justify-between px-2 py-1.5 border-b border-ide-border bg-[#1a1a1a] text-xs">
+        <div
+          style={{
+            backgroundColor: 'var(--color-ide-sidebar)',
+            borderColor: 'var(--color-ide-border)',
+          }}
+          className="flex items-center justify-between px-2 py-1.5 border-b text-xs"
+        >
           <div className="flex items-center gap-1">
             <button
               onClick={() => addTerminalSession()}
-              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="New Terminal"
             >
               <Plus size={13} />
             </button>
             <button
               onClick={() => executeCommand('npm test')}
-              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Run npm test"
             >
               <Play size={13} />
@@ -273,14 +284,14 @@ export const MultiTerminalView: React.FC = () => {
                 termInstance.current?.clear()
                 termInstance.current?.write('\x1b[32mcekcok-ide\x1b[0m $ ')
               }}
-              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Clear Terminal"
             >
               <Trash2 size={13} />
             </button>
             <button
               onClick={() => executeCommand('clear')}
-              className="p-1 rounded text-ide-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
               title="Reset Shell Session"
             >
               <RotateCcw size={13} />
@@ -296,14 +307,17 @@ export const MultiTerminalView: React.FC = () => {
               <div
                 key={term.id}
                 onClick={() => setActiveTerminalId(term.id)}
-                className={`flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group transition-colors ${
-                  isActive
-                    ? 'bg-ide-accent/20 text-white font-medium'
-                    : 'text-ide-muted hover:bg-white/5 hover:text-white'
+                style={{
+                  backgroundColor: isActive ? 'var(--color-ide-bg)' : 'transparent',
+                  color: isActive ? 'var(--color-ide-text)' : 'var(--color-ide-muted)',
+                  borderColor: isActive ? 'var(--color-ide-accent)' : 'transparent',
+                }}
+                className={`flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer group transition-colors border ${
+                  isActive ? 'font-semibold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100'
                 }`}
               >
                 <div className="flex items-center gap-1.5 truncate">
-                  <TerminalSquare size={12} className={isActive ? 'text-ide-accent' : 'text-[#777]'} />
+                  <TerminalSquare size={12} className={isActive ? 'text-ide-accent' : 'opacity-60'} />
                   <span className="truncate">
                     {index + 1}: {term.name}
                   </span>
@@ -314,7 +328,7 @@ export const MultiTerminalView: React.FC = () => {
                       e.stopPropagation()
                       removeTerminalSession(term.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 text-ide-muted hover:text-white"
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 text-red-500 cursor-pointer"
                     title="Kill Terminal Session"
                   >
                     <X size={11} />

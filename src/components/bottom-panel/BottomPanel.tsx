@@ -45,11 +45,21 @@ export const BottomPanel: React.FC = () => {
       style={{
         height: terminalHeight,
         display: terminalOpen ? 'flex' : 'none',
+        backgroundColor: 'var(--color-ide-bg)',
+        borderColor: 'var(--color-ide-border)',
+        color: 'var(--color-ide-text)',
       }}
-      className="bg-[#181818] border-t border-ide-border flex-col z-10 select-none shrink-0"
+      className="border-t flex-col z-10 select-none shrink-0"
     >
       {/* Bottom Panel Navigation Header Bar */}
-      <div className="flex justify-between items-center px-2 bg-[#1f1f1f] border-b border-ide-border shrink-0 select-none" data-drop-zone="bottom-tools">
+      <div
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+        }}
+        className="flex justify-between items-center px-2 border-b shrink-0 select-none"
+        data-drop-zone="bottom-tools"
+      >
         {/* Left Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar relative">
           <LayoutGroup>
@@ -75,13 +85,17 @@ export const BottomPanel: React.FC = () => {
                   })
                   useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
                 }}
+                style={{
+                  backgroundColor: isActive ? 'var(--color-ide-bg)' : 'transparent',
+                  color: isActive ? 'var(--color-ide-text)' : 'var(--color-ide-muted)',
+                }}
                 className={`relative flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase transition-colors cursor-pointer ${
                   isActive
-                    ? 'text-white bg-[#181818]'
-                    : 'text-ide-muted hover:text-white hover:bg-white/5'
+                    ? 'font-bold'
+                    : 'hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
-                <Icon size={13} className={isActive ? 'text-ide-accent' : 'text-ide-muted'} />
+                <Icon size={13} className={isActive ? 'text-ide-accent' : 'opacity-60'} />
                 <span>{tab.label}</span>
                 {badgeValue}
                 {isActive && (

@@ -61,6 +61,7 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
 
   // Graceful Web Browser Fallbacks
   switch (cmd) {
+    case 'list_directory':
     case 'read_dir': {
       const path = (args.path as string) || '/demo-project'
       if (path === '/demo-project') {
@@ -69,18 +70,16 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
             name: 'src',
             path: '/demo-project/src',
             is_dir: true,
-            children: [
-              { name: 'App.tsx', path: '/demo-project/src/App.tsx', is_dir: false },
-              { name: 'index.css', path: '/demo-project/src/index.css', is_dir: false }
-            ]
+            is_hidden: false,
+            is_ignored: false,
           },
-          { name: 'package.json', path: '/demo-project/package.json', is_dir: false },
-          { name: 'README.md', path: '/demo-project/README.md', is_dir: false }
+          { name: 'package.json', path: '/demo-project/package.json', is_dir: false, is_hidden: false, is_ignored: false },
+          { name: 'README.md', path: '/demo-project/README.md', is_dir: false, is_hidden: false, is_ignored: false }
         ] as unknown as T
       } else if (path === '/demo-project/src') {
         return [
-          { name: 'App.tsx', path: '/demo-project/src/App.tsx', is_dir: false },
-          { name: 'index.css', path: '/demo-project/src/index.css', is_dir: false }
+          { name: 'App.tsx', path: '/demo-project/src/App.tsx', is_dir: false, is_hidden: false, is_ignored: false },
+          { name: 'index.css', path: '/demo-project/src/index.css', is_dir: false, is_hidden: false, is_ignored: false }
         ] as unknown as T
       }
       return [] as unknown as T
@@ -115,6 +114,14 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
         ahead: 0,
         behind: 0
       } as unknown as T
+    }
+
+    case 'git_list_branches': {
+      return ['main', 'develop', 'feat/quick-actions'] as unknown as T
+    }
+
+    case 'git_checkout_branch': {
+      return `Switched to branch ${args.branch}` as unknown as T
     }
 
     case 'search_files': {

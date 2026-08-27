@@ -77,6 +77,10 @@ export interface UISlice {
   setZenMode: (open: boolean) => void
   toggleZenMode: () => void
   setSearchEverywhereOpen: (open: boolean) => void
+  setSettingsModalOpen: (open: boolean) => void
+  settingsModalOpen: boolean
+  setBranchSwitcherOpen: (open: boolean) => void
+  branchSwitcherOpen: boolean
   setToolLayout: (toolId: ToolId, position: ToolPanelPosition) => void
   setIsDraggingFile: (dragging: boolean) => void
 }
@@ -104,6 +108,8 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   isDraggingFile: false,
   zenMode: false,
   searchEverywhereOpen: false,
+  settingsModalOpen: false,
+  branchSwitcherOpen: false,
   toolLayout: {
     explorer: 'left',
     search: 'left',
@@ -244,6 +250,8 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setZenMode: (open) => set({ zenMode: open }),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
+  setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
+  setBranchSwitcherOpen: (open) => set({ branchSwitcherOpen: open }),
   setToolLayout: (toolId, position) =>
     set((state) => ({
       toolLayout: { ...state.toolLayout, [toolId]: position },

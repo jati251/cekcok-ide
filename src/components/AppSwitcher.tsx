@@ -8,6 +8,7 @@ import {
   Home,
   ChevronDown,
   Sparkles,
+  Settings,
 } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { AppType } from '../types/ide'
@@ -17,17 +18,17 @@ interface AppSwitcherProps {
 }
 
 export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
-  const { activeApp, setActiveApp } = useIDEStore()
+  const { activeApp, setActiveApp, setSettingsModalOpen } = useIDEStore()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const apps = [
     {
       id: 'home' as AppType,
-      label: 'Home Workspace',
-      shortLabel: 'Home',
+      label: 'Dashboard',
+      shortLabel: 'Dashboard',
       icon: Home,
-      color: 'text-cyan-400',
+      color: 'text-cyan-500 dark:text-cyan-400',
       bg: 'bg-cyan-500/10',
     },
     {
@@ -35,7 +36,7 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
       label: 'Code IDE',
       shortLabel: 'Code',
       icon: Code2,
-      color: 'text-blue-400',
+      color: 'text-blue-500 dark:text-blue-400',
       bg: 'bg-blue-500/10',
     },
     {
@@ -43,7 +44,7 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
       label: 'Spreadsheet (Excel)',
       shortLabel: 'Excel',
       icon: Table,
-      color: 'text-green-400',
+      color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-500/10',
     },
     {
@@ -51,7 +52,7 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
       label: 'Document (Word)',
       shortLabel: 'Word',
       icon: FileText,
-      color: 'text-purple-400',
+      color: 'text-purple-600 dark:text-purple-400',
       bg: 'bg-purple-500/10',
     },
     {
@@ -59,7 +60,7 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
       label: 'Sketch & Whiteboard',
       shortLabel: 'Sketch',
       icon: PenTool,
-      color: 'text-amber-400',
+      color: 'text-amber-600 dark:text-amber-400',
       bg: 'bg-amber-500/10',
     },
   ]
@@ -86,14 +87,19 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-white/20 text-white text-[11px] font-medium transition-all shadow-xs cursor-pointer select-none"
+        style={{
+          backgroundColor: 'var(--color-ide-bg)',
+          borderColor: 'var(--color-ide-border)',
+          color: 'var(--color-ide-text)',
+        }}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-all shadow-xs cursor-pointer select-none"
         title="Switch Workspace Apps"
       >
         <currentApp.icon size={13} className={currentApp.color} />
         <span className="truncate max-w-[80px] sm:max-w-[110px]">{currentApp.shortLabel}</span>
         <ChevronDown
           size={12}
-          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -105,11 +111,19 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 5, scale: 0.95 }}
             transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full mt-1.5 w-52 bg-[#202022] border border-[#38383c] rounded-xl shadow-2xl p-1.5 z-50 select-none overflow-hidden"
+            style={{
+              backgroundColor: 'var(--color-ide-sidebar)',
+              borderColor: 'var(--color-ide-border)',
+              color: 'var(--color-ide-text)',
+            }}
+            className="absolute right-0 top-full mt-1.5 w-52 border rounded-xl shadow-2xl p-1.5 z-[10000] select-none overflow-hidden"
           >
-            <div className="px-2 py-1 mb-1 border-b border-white/5 flex items-center justify-between text-[10px] uppercase font-semibold tracking-wider text-gray-400">
+            <div
+              style={{ borderColor: 'var(--color-ide-border)' }}
+              className="px-2 py-1 mb-1 border-b flex items-center justify-between text-[10px] uppercase font-semibold tracking-wider opacity-60"
+            >
               <span>Switch Workspace</span>
-              <Sparkles size={11} className="text-cyan-400" />
+              <Sparkles size={11} className="text-ide-accent" />
             </div>
 
             <div className="space-y-0.5">
@@ -125,18 +139,35 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
                     }}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs transition-colors cursor-pointer text-left ${
                       isCurrent
-                        ? 'bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30'
-                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                        ? 'bg-ide-accent/20 text-ide-accent font-semibold border border-ide-accent/30'
+                        : 'opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10'
                     }`}
                   >
                     <div className={`p-1 rounded-md ${app.bg}`}>
                       <Icon size={14} className={app.color} />
                     </div>
                     <span className="flex-1 truncate">{app.label}</span>
-                    {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+                    {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-ide-accent" />}
                   </button>
                 )
               })}
+            </div>
+
+            {/* Global Settings Trigger */}
+            <div
+              style={{ borderColor: 'var(--color-ide-border)' }}
+              className="mt-1 pt-1 border-t"
+            >
+              <button
+                onClick={() => {
+                  setIsOpen(false)
+                  setSettingsModalOpen(true)
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-left"
+              >
+                <Settings size={13} className="text-ide-accent" />
+                <span className="flex-1">Preferences &amp; Themes</span>
+              </button>
             </div>
           </motion.div>
         )}

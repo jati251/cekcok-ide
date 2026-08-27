@@ -1,3 +1,5 @@
+import { APP_VERSION } from '../../constants/app'
+
 export const DOC_STORAGE_KEY = 'cekcok_document_content_v1'
 export const DOC_TITLE_KEY = 'cekcok_document_title_v1'
 export const DOC_THEME_KEY = 'cekcok_document_theme_v1'
@@ -192,7 +194,7 @@ export function getDocTemplate(type: 'rfc' | 'minutes' | 'notes'): DocTemplate {
         type: 'heading',
         props: { level: 1 },
         content: [
-          { type: 'text', text: 'Cekcok IDE v0.2.0 Release Spec', styles: { bold: true } },
+          { type: 'text', text: `Cekcok IDE v${APP_VERSION} Release Spec`, styles: { bold: true } },
         ],
       },
       {

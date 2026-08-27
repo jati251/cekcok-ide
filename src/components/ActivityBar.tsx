@@ -17,7 +17,14 @@ export const ActivityBar = () => {
   const leftTools = Object.values(TOOLS).filter(t => toolLayout[t.id] === 'left')
 
   return (
-    <aside className="w-12 bg-[#181818] border-r border-ide-border flex flex-col justify-between items-center py-2 select-none z-20" data-drop-zone="left-tools">
+    <aside
+      style={{
+        backgroundColor: 'var(--color-ide-activity-bar)',
+        borderColor: 'var(--color-ide-border)',
+      }}
+      className="w-12 border-r flex flex-col justify-between items-center py-2 select-none z-20 shrink-0"
+      data-drop-zone="left-tools"
+    >
       {/* Top Icons */}
       <div className="flex flex-col items-center gap-1 w-full">
         {leftTools.map((tab) => {
@@ -40,8 +47,11 @@ export const ActivityBar = () => {
                 })
                 useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
               }}
+              style={{
+                color: isActive ? 'var(--color-ide-accent)' : 'var(--color-ide-text)',
+              }}
               className={`relative w-full h-11 flex items-center justify-center transition-colors cursor-pointer group ${
-                isActive ? 'text-white' : 'text-[#858585] hover:text-[#d7d7d7]'
+                isActive ? 'opacity-100' : 'opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
               title={tab.label}
             >
@@ -67,7 +77,8 @@ export const ActivityBar = () => {
       <div className="flex flex-col items-center gap-1 w-full">
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
+          style={{ color: 'var(--color-ide-text)' }}
+          className="w-full h-11 flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
           title={`Command Palette (${formatShortcut('Cmd+Shift+P')} / ${formatShortcut('Cmd+P')})`}
         >
           <Command size={18} strokeWidth={1.75} />
@@ -87,7 +98,8 @@ export const ActivityBar = () => {
                 useIDEStore.getState().setPendingDragPayload({ type: 'tool', toolId: settingsTool.id })
                 useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
               }}
-              className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
+              style={{ color: 'var(--color-ide-text)' }}
+              className="w-full h-11 flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
               title={`Settings (${formatShortcut('Cmd+,')})`}
             >
               <SettingsIcon size={19} strokeWidth={1.75} />

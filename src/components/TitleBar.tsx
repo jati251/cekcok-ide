@@ -24,7 +24,12 @@ export const TitleBar: React.FC = () => {
     <header 
       data-tauri-drag-region
       onMouseDown={handleWindowDrag}
-      className="h-[38px] bg-[#181818] border-b border-ide-border text-xs text-[#cccccc] font-sans shrink-0 flex items-center justify-between px-2 select-none cursor-default z-30"
+      style={{
+        backgroundColor: 'var(--color-ide-sidebar)',
+        borderColor: 'var(--color-ide-border)',
+        color: 'var(--color-ide-text)',
+      }}
+      className="h-[38px] border-b text-xs font-sans shrink-0 flex items-center justify-between px-2 select-none cursor-default relative z-[9999]"
     >
       {/* Left Section: OS Window Controls or Mobile Hamburger */}
       <div data-tauri-drag-region className="flex items-center gap-1.5">
@@ -35,7 +40,7 @@ export const TitleBar: React.FC = () => {
         <button
           data-no-drag
           onClick={toggleSidebar}
-          className="sm:hidden p-1.5 rounded hover:bg-white/10 text-ide-muted hover:text-white cursor-pointer transition-colors"
+          className="sm:hidden p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 cursor-pointer transition-colors"
           title="Toggle Sidebar"
         >
           <Menu size={16} />
@@ -47,13 +52,21 @@ export const TitleBar: React.FC = () => {
         <button
           data-no-drag
           onClick={() => setQuickOpenOpen(true)}
-          className="flex items-center gap-2 bg-[#252526] hover:bg-[#323233] border border-white/10 hover:border-ide-accent/50 px-2.5 sm:px-3 py-1 rounded-md text-[11px] text-[#999] hover:text-white transition-all w-full justify-between cursor-pointer"
+          style={{
+            backgroundColor: 'var(--color-ide-bg)',
+            borderColor: 'var(--color-ide-border)',
+            color: 'var(--color-ide-text)',
+          }}
+          className="flex items-center gap-2 border hover:border-ide-accent px-2.5 sm:px-3 py-1 rounded-md text-[11px] opacity-80 hover:opacity-100 transition-all w-full justify-between cursor-pointer"
         >
           <div className="flex items-center gap-1.5 truncate">
-            <Search size={12} className="text-[#777] shrink-0" />
+            <Search size={12} className="opacity-60 shrink-0" />
             <span className="truncate text-[10px] sm:text-[11px]">{displayTitle}</span>
           </div>
-          <kbd className="hidden sm:inline-block font-mono text-[9px] bg-white/10 px-1 py-0.2 rounded text-[#bbb] shrink-0">
+          <kbd
+            style={{ borderColor: 'var(--color-ide-border)' }}
+            className="hidden sm:inline-block font-mono text-[9px] border bg-black/5 dark:bg-white/10 px-1 py-0.2 rounded opacity-70 shrink-0"
+          >
             {formatShortcut('Cmd+P')}
           </kbd>
         </button>
@@ -68,9 +81,13 @@ export const TitleBar: React.FC = () => {
         {/* Workspace Switcher dropdown */}
         <AppSwitcher />
 
-        <div data-tauri-drag-region className="flex items-center gap-1 sm:gap-1.5 text-[10px] text-ide-muted font-mono opacity-90 pl-1.5 border-l border-white/10 hidden sm:flex">
-          <img src="/favicon.png" alt="Cekcok" className="w-4 h-4 rounded-sm shrink-0" />
-          <span className="font-bold text-white tracking-wider">CEKCOK</span>
+        <div
+          style={{ borderColor: 'var(--color-ide-border)' }}
+          data-tauri-drag-region
+          className="flex items-center gap-1 sm:gap-1.5 text-[10px] opacity-80 font-mono pl-1.5 border-l hidden sm:flex"
+        >
+          <img src="/favicon.png" alt="Cekcok" className="w-4 h-4 rounded-xs shrink-0" />
+          <span className="font-bold tracking-wider">CEKCOK</span>
         </div>
       </div>
     </header>

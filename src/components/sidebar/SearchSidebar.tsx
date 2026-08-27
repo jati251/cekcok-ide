@@ -46,13 +46,18 @@ export const SearchSidebar: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search in files..."
-            className="w-full bg-[#3c3c3c] text-white text-xs px-2.5 py-1.5 rounded border border-transparent focus:border-ide-accent focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-ide-bg)',
+              borderColor: 'var(--color-ide-border)',
+              color: 'var(--color-ide-text)',
+            }}
+            className="w-full text-xs px-2.5 py-1.5 rounded border focus:border-ide-accent focus:outline-hidden"
           />
           <button
             type="button"
             onClick={() => setCaseSensitive(!caseSensitive)}
             className={`absolute right-1 px-1.5 py-0.5 text-[10px] rounded cursor-pointer transition-colors ${
-              caseSensitive ? 'bg-ide-accent text-white' : 'text-[#888] hover:text-white'
+              caseSensitive ? 'bg-ide-accent text-white' : 'opacity-60 hover:opacity-100'
             }`}
             title="Match Case"
           >

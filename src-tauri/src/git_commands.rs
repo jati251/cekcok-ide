@@ -245,3 +245,24 @@ pub fn git_checkout_branch(cwd: &str, branch: &str, create: bool) -> Result<Stri
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[tauri::command]
+pub fn git_list_branches(cwd: &str) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .current_dir(cwd)
+        .args(["branch", "--format=%(refname:short)"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let branches: Vec<String> = stdout
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        Ok(branches)
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}

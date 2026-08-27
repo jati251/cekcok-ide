@@ -74,7 +74,6 @@ export const UpdateModal: React.FC = () => {
         setProgressState(state)
       })
 
-      // Update is downloaded and installed — now waiting for user to click Restart
       toast.success('Update installed! Click Restart to apply.', { duration: 5000 })
     } catch (err) {
       console.error('Installation error:', err)
@@ -90,7 +89,6 @@ export const UpdateModal: React.FC = () => {
   const handleRestart = async () => {
     try {
       toast.loading('Restarting Cekcok IDE...', { id: 'restarting' })
-      // Small delay so user sees the toast
       await new Promise((r) => setTimeout(r, 500))
       await restartApp()
     } catch (err) {
@@ -108,90 +106,127 @@ export const UpdateModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
+        {/* Simple Backdrop without blurry ghosting */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+          onClick={() => !isWorking && setIsOpen(false)}
+        />
+
+        {/* Modal Window matching IDE Design System */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="bg-[#202022] border border-[#38383c] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-white flex flex-col"
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          transition={{ duration: 0.15 }}
+          style={{
+            backgroundColor: 'var(--color-ide-sidebar)',
+            borderColor: 'var(--color-ide-border)',
+            color: 'var(--color-ide-text)',
+          }}
+          className="relative w-full max-w-lg border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         >
-          {/* Header Banner */}
-          <div className="bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-purple-600/30 border-b border-[#38383c] p-5 flex items-start justify-between">
+          {/* Header */}
+          <div
+            style={{ borderColor: 'var(--color-ide-border)' }}
+            className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+          >
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-cyan-500/20 text-cyan-400 rounded-xl">
-                <Sparkles size={22} />
+              <div className="p-2 bg-ide-accent/20 text-ide-accent rounded-xl">
+                <Sparkles size={20} />
               </div>
               <div>
-                <h3 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold tracking-tight">
                   Update Available
                 </h3>
-                <p className="text-xs text-cyan-300 font-medium">
-                  v{updateInfo.currentVersion} <ArrowRight size={12} className="inline mx-1 opacity-70" /> v
-                  {updateInfo.version}
+                <p className="text-[11px] text-ide-accent font-mono font-medium">
+                  v{updateInfo.currentVersion} <ArrowRight size={11} className="inline mx-1 opacity-70" /> v{updateInfo.version}
                 </p>
               </div>
             </div>
             {!isWorking && (
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-white/60 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 rounded-lg transition-colors cursor-pointer"
+                title="Close"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             )}
           </div>
 
           {/* Body / Release Notes & Progress */}
-          <div className="p-5 space-y-4">
-            <div className="bg-[#18181a] border border-[#2e2e32] rounded-xl p-3.5 max-h-48 overflow-y-auto">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block mb-1.5">
-                What's New in v{updateInfo.version}
+          <div className="p-5 space-y-4 text-xs">
+            {/* What's New Box */}
+            <div
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-border)',
+              }}
+              className="border rounded-xl p-3.5 max-h-48 overflow-y-auto"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 block mb-1.5">
+                Release Notes (v{updateInfo.version})
               </span>
-              <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">
-                {updateInfo.body}
+              <p className="opacity-80 leading-relaxed whitespace-pre-wrap text-[11px]">
+                {updateInfo.body || 'Performance improvements and bug fixes.'}
               </p>
             </div>
 
             {/* Progress Section */}
             {isWorking && (
-              <div className="space-y-2 bg-[#18181a] border border-[#2e2e32] p-3.5 rounded-xl">
-                <div className="flex justify-between text-xs text-gray-300 font-medium">
+              <div
+                style={{
+                  backgroundColor: 'var(--color-ide-bg)',
+                  borderColor: 'var(--color-ide-border)',
+                }}
+                className="space-y-2 border p-3.5 rounded-xl"
+              >
+                <div className="flex justify-between font-medium">
                   <span className="flex items-center gap-1.5">
                     {progressState.stage === 'downloading' && (
                       <>
-                        <RefreshCw size={13} className="animate-spin text-cyan-400" />
-                        Downloading update package...
+                        <RefreshCw size={13} className="animate-spin text-ide-accent" />
+                        <span>Downloading update package...</span>
                       </>
                     )}
                     {progressState.stage === 'installing' && (
                       <>
-                        <RefreshCw size={13} className="animate-spin text-blue-400" />
-                        Applying update & preparing files...
+                        <RefreshCw size={13} className="animate-spin text-ide-accent" />
+                        <span>Applying update files...</span>
                       </>
                     )}
                     {progressState.stage === 'ready_to_restart' && (
                       <>
-                        <CheckCircle2 size={13} className="text-green-400" />
-                        Update ready! Restart to apply.
+                        <CheckCircle2 size={13} className="text-emerald-500" />
+                        <span>Update installed! Restart to finish.</span>
                       </>
                     )}
                   </span>
-                  <span className="font-mono text-cyan-300 font-semibold">{progressState.percentage}%</span>
+                  <span className="font-mono text-ide-accent font-bold">{progressState.percentage}%</span>
                 </div>
 
-                {/* Progress bar */}
-                <div className="h-2.5 w-full bg-[#252528] rounded-full overflow-hidden border border-[#38383c]">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full"
-                    style={{ width: `${progressState.percentage}%` }}
-                    transition={{ ease: 'easeOut', duration: 0.2 }}
+                {/* Progress bar with clean CSS transition */}
+                <div
+                  style={{
+                    backgroundColor: 'var(--color-ide-sidebar)',
+                    borderColor: 'var(--color-ide-border)',
+                  }}
+                  className="h-2 w-full rounded-full overflow-hidden border"
+                >
+                  <div
+                    className="h-full bg-ide-accent rounded-full transition-all duration-150 ease-out"
+                    style={{ width: `${Math.max(0, Math.min(100, progressState.percentage))}%` }}
                   />
                 </div>
 
                 {/* Size stats */}
                 {progressState.totalBytes > 0 && (
-                  <div className="flex justify-between text-[10px] text-gray-400 font-mono">
-                    <span>{formatBytes(progressState.downloadedBytes)} transferred</span>
+                  <div className="flex justify-between text-[10px] opacity-60 font-mono">
+                    <span>{formatBytes(progressState.downloadedBytes)} downloaded</span>
                     <span>{formatBytes(progressState.totalBytes)} total</span>
                   </div>
                 )}
@@ -200,7 +235,7 @@ export const UpdateModal: React.FC = () => {
 
             {/* Error Message */}
             {progressState.stage === 'error' && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2 text-xs text-red-300">
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-xs text-red-500">
                 <AlertCircle size={15} className="shrink-0" />
                 <span>{progressState.error || 'Failed to download or apply update.'}</span>
               </div>
@@ -208,62 +243,66 @@ export const UpdateModal: React.FC = () => {
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 bg-[#1a1a1c] border-t border-[#38383c] flex items-center justify-between">
-            <span className="text-[11px] text-gray-400">
-              {updateInfo.date ? `Published: ${updateInfo.date}` : 'Signed official release'}
+          <div
+            style={{
+              backgroundColor: 'var(--color-ide-bg)',
+              borderColor: 'var(--color-ide-border)',
+            }}
+            className="p-4 border-t flex items-center justify-between shrink-0"
+          >
+            <span className="text-[11px] opacity-60">
+              {updateInfo.date ? `Release date: ${updateInfo.date}` : 'Official release'}
             </span>
 
-            <div className="flex items-center gap-2.5">
-              {/* Show Later button only when idle/not working and not ready to restart */}
+            <div className="flex items-center gap-2">
               {!isWorking && progressState.stage !== 'ready_to_restart' && (
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                 >
                   Later
                 </button>
               )}
 
               {progressState.stage === 'ready_to_restart' ? (
-                /* Restart Now button — the actual fix for stuck-after-download */
                 <>
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="px-3.5 py-2 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+                    className="px-3.5 py-1.5 text-xs font-medium opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                   >
-                    Restart Later
+                    Later
                   </button>
                   <button
                     onClick={handleRestart}
-                    className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white rounded-xl shadow-md transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-xs transition-all cursor-pointer"
                   >
-                    <RotateCcw size={14} />
-                    Restart Now
+                    <RotateCcw size={13} />
+                    <span>Restart Now</span>
                   </button>
                 </>
               ) : progressState.stage === 'error' ? (
                 <button
                   onClick={handleInstall}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-xl shadow-md transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-xs transition-all cursor-pointer"
                 >
                   <RefreshCw size={13} />
-                  Retry Install
+                  <span>Retry</span>
                 </button>
               ) : (
                 <button
                   onClick={handleInstall}
                   disabled={isWorking}
-                  className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl shadow-md disabled:opacity-60 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-ide-accent hover:opacity-90 text-white rounded-lg shadow-xs disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {isWorking ? (
                     <>
                       <RefreshCw size={13} className="animate-spin" />
-                      Updating...
+                      <span>Updating...</span>
                     </>
                   ) : (
                     <>
-                      <Download size={14} />
-                      Download & Install
+                      <Download size={13} />
+                      <span>Download &amp; Install</span>
                     </>
                   )}
                 </button>

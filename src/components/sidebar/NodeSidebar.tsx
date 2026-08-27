@@ -29,11 +29,18 @@ export const NodeSidebar: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-ide-sidebar text-ide-text">
       {/* Header */}
-      <div className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-ide-muted border-b border-ide-border bg-[#1f1f1f]">
-        <span>Project & Build Suite</span>
+      <div
+        style={{
+          backgroundColor: 'var(--color-ide-sidebar)',
+          borderColor: 'var(--color-ide-border)',
+          color: 'var(--color-ide-muted)',
+        }}
+        className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b"
+      >
+        <span>Project &amp; Build Suite</span>
         <button
           onClick={refreshPackageJson}
-          className="hover:text-white text-[#999] p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+          className="opacity-70 hover:opacity-100 p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
           title="Reload Project Manifests"
         >
           <RefreshCw size={13} />
@@ -41,25 +48,40 @@ export const NodeSidebar: React.FC = () => {
       </div>
 
       {!projectInfo || projectInfo.kind === 'generic' ? (
-        <div className="p-4 text-center text-xs text-[#888] space-y-3">
+        <div className="p-4 text-center text-xs opacity-60 space-y-3">
           <Layers size={28} className="mx-auto text-ide-muted opacity-50" />
           <p>No project manifest found (package.json, Cargo.toml, go.mod, pom.xml, build.gradle, or pyproject.toml).</p>
           <div className="flex flex-col gap-1.5 pt-2">
             <button
               onClick={() => runTerminalCommand('npm init -y')}
-              className="bg-white/5 hover:bg-white/10 text-white px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border border-white/10 transition-colors"
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-border)',
+                color: 'var(--color-ide-text)',
+              }}
+              className="px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border transition-colors hover:border-ide-accent"
             >
               + Initialize Node.js (`npm init -y`)
             </button>
             <button
               onClick={() => runTerminalCommand('cargo init')}
-              className="bg-white/5 hover:bg-white/10 text-white px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border border-white/10 transition-colors"
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-border)',
+                color: 'var(--color-ide-text)',
+              }}
+              className="px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border transition-colors hover:border-ide-accent"
             >
               + Initialize Rust (`cargo init`)
             </button>
             <button
               onClick={() => runTerminalCommand('go mod init myapp')}
-              className="bg-white/5 hover:bg-white/10 text-white px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border border-white/10 transition-colors"
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-border)',
+                color: 'var(--color-ide-text)',
+              }}
+              className="px-2.5 py-1.5 rounded text-[11px] cursor-pointer text-left border transition-colors hover:border-ide-accent"
             >
               + Initialize Go (`go mod init myapp`)
             </button>
@@ -68,9 +90,15 @@ export const NodeSidebar: React.FC = () => {
       ) : (
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {/* Project Info Header */}
-          <div className="bg-[#252526] p-3 rounded-lg border border-ide-border space-y-1.5">
+          <div
+            style={{
+              backgroundColor: 'var(--color-ide-bg)',
+              borderColor: 'var(--color-ide-border)',
+            }}
+            className="p-3 rounded-lg border space-y-1.5"
+          >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-white text-xs truncate">{projectInfo.title}</span>
+              <span className="font-bold text-xs truncate">{projectInfo.title}</span>
               <span
                 className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${getBadgeColor(
                   projectInfo.kind
@@ -80,38 +108,43 @@ export const NodeSidebar: React.FC = () => {
               </span>
             </div>
             {projectInfo.version && (
-              <div className="text-[11px] font-mono text-ide-muted">{projectInfo.version}</div>
+              <div className="text-[11px] font-mono opacity-60">{projectInfo.version}</div>
             )}
             {projectInfo.description && (
-              <p className="text-[11px] text-[#888] line-clamp-2">{projectInfo.description}</p>
+              <p className="text-[11px] opacity-60 line-clamp-2">{projectInfo.description}</p>
             )}
           </div>
 
           {/* Quick Execution & Build Tasks */}
           <div>
-            <div className="flex items-center justify-between text-[11px] font-bold text-ide-muted uppercase tracking-wider mb-2">
-              <span>Run & Build Tasks</span>
-              <Terminal size={12} className="text-ide-muted" />
+            <div className="flex items-center justify-between text-[11px] font-bold opacity-70 uppercase tracking-wider mb-2">
+              <span>Run &amp; Build Tasks</span>
+              <Terminal size={12} className="opacity-60" />
             </div>
 
             <div className="space-y-1.5">
               {projectInfo.scripts.length === 0 ? (
-                <div className="text-xs text-ide-muted italic py-2">No predefined scripts found.</div>
+                <div className="text-xs opacity-60 italic py-2">No predefined scripts found.</div>
               ) : (
                 projectInfo.scripts.map((script) => (
                   <div
                     key={script.name}
-                    className="flex items-center justify-between bg-[#252526] hover:bg-[#2d2d2d] border border-ide-border hover:border-ide-accent/50 px-2.5 py-2 rounded cursor-pointer group transition-colors"
                     onClick={() => handleRunScript(script.command)}
+                    style={{
+                      backgroundColor: 'var(--color-ide-bg)',
+                      borderColor: 'var(--color-ide-border)',
+                      color: 'var(--color-ide-text)',
+                    }}
+                    className="flex items-center justify-between border hover:border-ide-accent px-2.5 py-2 rounded cursor-pointer group transition-colors"
                   >
                     <div className="flex flex-col min-w-0 pr-2">
-                      <span className="font-mono text-xs text-white font-medium truncate">
+                      <span className="font-mono text-xs font-medium truncate">
                         {script.name}
                       </span>
-                      <span className="text-[10px] text-[#888] font-mono truncate">{script.command}</span>
+                      <span className="text-[10px] opacity-60 font-mono truncate">{script.command}</span>
                     </div>
                     <button
-                      className="bg-emerald-600/20 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white p-1.5 rounded transition-colors cursor-pointer shrink-0"
+                      className="bg-emerald-600/20 text-emerald-500 group-hover:bg-emerald-600 group-hover:text-white p-1.5 rounded transition-colors cursor-pointer shrink-0"
                       title={`Run: ${script.command}`}
                     >
                       <Play size={11} fill="currentColor" />

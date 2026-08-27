@@ -25,6 +25,21 @@
   #root {
     @apply h-full w-full flex flex-col overflow-hidden;
   }
+
+  /* Global Cursor Pointer for All Interactive Elements */
+  button,
+  [role="button"],
+  a,
+  select,
+  summary,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  label[for] {
+    cursor: pointer !important;
+  }
 }
 
 /* TitleBar Drag Region Defaults */

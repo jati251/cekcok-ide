@@ -127,7 +127,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
     colors: {
       bg: '#ffffff',
       sidebar: '#f3f3f3',
-      activityBar: '#2c2c2c',
+      activityBar: '#f3f3f3',
       tabActive: '#ffffff',
       tabInactive: '#ececec',
       border: '#e5e5e5',
@@ -137,7 +137,7 @@ export const THEMES: Record<string, ThemeDefinition> = {
       accentHover: '#005f9e',
       statusBar: '#007acc',
       statusBarText: '#ffffff',
-      terminalBg: '#f8f8f8',
+      terminalBg: '#ffffff',
     }
   }
 }
@@ -231,4 +231,36 @@ export const registerMonacoThemes = (monaco: any) => {
       'editorCursor.foreground': '#fe4450',
     }
   })
+}
+
+/**
+ * Applies the given theme CSS variables across the entire application root
+ */
+export const applyGlobalTheme = (themeId: string) => {
+  const theme = THEMES[themeId] || THEMES['vs-dark']
+  const root = document.documentElement
+
+  root.style.setProperty('--color-ide-bg', theme.colors.bg)
+  root.style.setProperty('--color-ide-sidebar', theme.colors.sidebar)
+  root.style.setProperty('--color-ide-panel', theme.colors.bg)
+  root.style.setProperty('--color-ide-border', theme.colors.border)
+  root.style.setProperty('--color-ide-text', theme.colors.text)
+  root.style.setProperty('--color-ide-muted', theme.colors.muted)
+  root.style.setProperty('--color-ide-accent', theme.colors.accent)
+  root.style.setProperty('--color-ide-accent-hover', theme.colors.accentHover)
+  root.style.setProperty('--color-ide-activity-bar', theme.colors.activityBar)
+  root.style.setProperty('--color-ide-status-bar', theme.colors.statusBar)
+  root.style.setProperty('--color-ide-status-bar-text', theme.colors.statusBarText)
+  root.style.setProperty('--color-ide-tab-active', theme.colors.tabActive)
+  root.style.setProperty('--color-ide-tab-inactive', theme.colors.tabInactive)
+  root.style.setProperty('--color-ide-terminal-bg', theme.colors.terminalBg)
+
+  root.style.backgroundColor = theme.colors.bg
+  root.style.color = theme.colors.text
+  document.body.style.backgroundColor = theme.colors.bg
+  document.body.style.color = theme.colors.text
+
+  const isLight = theme.monacoBase === 'vs'
+  root.classList.toggle('light', isLight)
+  root.classList.toggle('dark', !isLight)
 }
