@@ -32,6 +32,12 @@ export interface PackageJson {
 }
 
 export type SidebarTab = 'explorer' | 'search' | 'git' | 'node' | 'settings'
+export type BottomPanelTab = 'problems' | 'output' | 'debug' | 'ports' | 'terminal'
+
+export type ToolId = SidebarTab | BottomPanelTab
+
+export type ToolPanelPosition = 'left' | 'right' | 'bottom' | 'hidden'
+export type ToolLayout = Record<ToolId, ToolPanelPosition>
 
 export type SidebarPosition = 'left' | 'right'
 export type PanelPosition = 'bottom' | 'right'
@@ -68,13 +74,13 @@ export interface SearchResultItem {
 }
 
 export interface DragPayload {
-  type: 'file' | 'tab'
-  file: FileNode
+  type: 'file' | 'tab' | 'tool'
+  file?: FileNode
   fromPane?: 1 | 2
   fromIndex?: number
+  toolId?: ToolId
 }
 
-export type BottomPanelTab = 'problems' | 'output' | 'debug' | 'terminal' | 'ports'
 
 export interface DiagnosticItem {
   id: string

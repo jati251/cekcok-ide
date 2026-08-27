@@ -1,0 +1,121 @@
+/**
+ * Mapping of specific filenames to Monaco language IDs.
+ * (For files without an extension, or where the full name matters)
+ */
+export const FILENAME_TO_LANGUAGE: Record<string, string> = {
+  dockerfile: 'dockerfile',
+  'docker-compose.yml': 'yaml',
+  'docker-compose.yaml': 'yaml',
+  makefile: 'makefile',
+  'cargo.toml': 'toml',
+  'cargo.lock': 'toml',
+  'go.mod': 'go',
+  'go.sum': 'go',
+  'package.json': 'json',
+  'tsconfig.json': 'json',
+  '.eslintrc.json': 'json',
+  '.prettierrc': 'json',
+  '.gitignore': 'plaintext',
+  '.env': 'ini',
+}
+
+/**
+ * Mapping of file extensions to Monaco language IDs.
+ * Supports 60+ programming languages natively supported by Monaco Editor.
+ */
+export const EXTENSION_TO_LANGUAGE: Record<string, string> = {
+  // Web & JS/TS
+  ts: 'typescript',
+  tsx: 'typescript',
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  json: 'json',
+  html: 'html',
+  htm: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'scss', // Monaco uses scss engine for sass
+  less: 'less',
+  vue: 'html', // fallback to HTML for basic highlighting
+  svelte: 'html',
+
+  // Backend & Systems
+  rs: 'rust',
+  go: 'go',
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  hpp: 'cpp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  cs: 'csharp',
+  java: 'java',
+  class: 'java',
+  jar: 'java',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  scala: 'scala',
+  swift: 'swift',
+  m: 'objective-c',
+  mm: 'objective-c',
+  php: 'php',
+  py: 'python',
+  pyw: 'python',
+  rb: 'ruby',
+  erb: 'ruby',
+
+  // Scripting & Data Science
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
+  bat: 'bat',
+  cmd: 'bat',
+  ps1: 'powershell',
+  lua: 'lua',
+  pl: 'perl',
+  pm: 'perl',
+  r: 'r',
+  jl: 'julia',
+  dart: 'dart',
+  ex: 'elixir',
+  exs: 'elixir',
+  clj: 'clojure',
+  cljs: 'clojure',
+  fs: 'fsharp',
+  fsi: 'fsharp',
+
+  // Database
+  sql: 'sql',
+  pgsql: 'pgsql',
+  mysql: 'mysql',
+  redis: 'redis',
+  graphql: 'graphql',
+  gql: 'graphql',
+  prisma: 'graphql', // Fallback for Prisma if no external grammar
+
+  // Config, Markup, Misc
+  md: 'markdown',
+  markdown: 'markdown',
+  mdx: 'markdown',
+  yaml: 'yaml',
+  yml: 'yaml',
+  toml: 'toml',
+  xml: 'xml',
+  svg: 'xml',
+  ini: 'ini',
+  conf: 'ini',
+  csv: 'plaintext',
+  txt: 'plaintext',
+  log: 'plaintext',
+  abap: 'abap',
+  apex: 'apex',
+  bicep: 'bicep',
+  dockerfile: 'dockerfile',
+  sol: 'sol',
+  pas: 'pascal',
+  vb: 'vb',
+  vbs: 'vb',
+  tcl: 'tcl',
+}

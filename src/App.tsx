@@ -45,7 +45,7 @@ export const App: React.FC = () => {
     handleResize()
     window.addEventListener('resize', handleResize)
 
-    // Global drag reset handlers
+    // Global drag reset handlers for OS files
     const handleWindowDragEnd = () => {
       useIDEStore.getState().setIsDraggingFile(false)
     }
@@ -55,16 +55,96 @@ export const App: React.FC = () => {
     const handleWindowDragOver = (e: DragEvent) => {
       e.preventDefault()
     }
+    const handleWindowDragEnter = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        useIDEStore.getState().setIsDraggingFile(true)
+      }
+    }
+    const handleWindowDragLeave = (e: DragEvent) => {
+      if (useIDEStore.getState().dragPayload) return
+      if (!e.relatedTarget || e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        useIDEStore.getState().setIsDraggingFile(false)
+      }
+    }
+
+    // Global Pointer Drag and Drop handler (Bypasses all HTML5 DND bugs)
+    const handlePointerMove = (e: PointerEvent) => {
+      const state = useIDEStore.getState()
+      if (state.pendingDragPayload && state.dragStartCoords && !state.isDraggingFile) {
+        const dx = e.clientX - state.dragStartCoords.x
+        const dy = e.clientY - state.dragStartCoords.y
+        if (Math.sqrt(dx * dx + dy * dy) > 3) {
+          state.setDragPayload(state.pendingDragPayload)
+          state.setIsDraggingFile(true)
+        }
+      }
+    }
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const state = useIDEStore.getState()
+      if (state.isDraggingFile && state.dragPayload) {
+        // We look for any drop zone in the element or its closest parent
+        const targetEl: HTMLElement | null = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement
+        // Find closest element with data-drop-zone to support nested elements like text inside rows
+        const dropZoneEl = targetEl?.closest('[data-drop-zone]') as HTMLElement | null
+        
+        const dropZone = dropZoneEl?.getAttribute('data-drop-zone')
+        
+        if (dropZone === 'sidebar') {
+          const dropPath = dropZoneEl?.getAttribute('data-path')
+          if (dropPath && state.dragPayload.type === 'file' && state.dragPayload.file) {
+            // Find the node in the fileTree or folderChildren to check if it's a dir
+            let targetNode = state.fileTree.find(n => n.path === dropPath)
+            if (!targetNode) {
+              // Search in folder children
+              for (const children of Object.values(state.folderChildren)) {
+                const found = children.find(n => n.path === dropPath)
+                if (found) { targetNode = found; break; }
+              }
+            }
+            if (targetNode) {
+              state.movePathItem(state.dragPayload.file.path, targetNode)
+            }
+          }
+        } else if (dropZone === 'left-tools' || dropZone === 'bottom-tools') {
+          if (state.dragPayload.type === 'tool' && state.dragPayload.toolId) {
+            const position = dropZone === 'left-tools' ? 'left' : 'bottom'
+            state.setToolLayout(state.dragPayload.toolId, position)
+          }
+        } else if (dropZone) {
+          const paneId = dropZoneEl?.getAttribute('data-pane-id')
+          if (paneId) {
+            window.dispatchEvent(new CustomEvent('cekcok-drop', { 
+              detail: { dropZone, paneId: parseInt(paneId, 10) } 
+            }))
+          }
+        }
+      }
+      
+      // Cleanup drag state always
+      state.setDragPayload(null)
+      state.setPendingDragPayload(null)
+      state.setDragStartCoords(null)
+      state.setIsDraggingFile(false)
+    }
 
     window.addEventListener('dragend', handleWindowDragEnd)
     window.addEventListener('drop', handleWindowDrop)
     window.addEventListener('dragover', handleWindowDragOver)
+    window.addEventListener('dragenter', handleWindowDragEnter)
+    window.addEventListener('dragleave', handleWindowDragLeave)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
 
     return () => {
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('dragend', handleWindowDragEnd)
       window.removeEventListener('drop', handleWindowDrop)
       window.removeEventListener('dragover', handleWindowDragOver)
+      window.removeEventListener('dragenter', handleWindowDragEnter)
+      window.removeEventListener('dragleave', handleWindowDragLeave)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
     }
   }, [])
 

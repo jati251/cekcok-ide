@@ -12,6 +12,9 @@ import {
   OutputChannel,
   PortItem,
   TerminalSession,
+  ToolLayout,
+  ToolId,
+  ToolPanelPosition,
 } from '../../types/ide'
 import { LAYOUT_CONSTRAINTS } from '../../constants/defaults'
 import {
@@ -39,9 +42,12 @@ export interface UISlice {
   zoomLevel: number
   pendingTerminalCommand: string | null
   dragPayload: DragPayload | null
+  pendingDragPayload: DragPayload | null
+  dragStartCoords: { x: number; y: number } | null
   zenMode: boolean
   searchEverywhereOpen: boolean
   isDraggingFile: boolean
+  toolLayout: ToolLayout
   
   // Rich Bottom Panel States
   diagnostics: DiagnosticItem[]
@@ -62,7 +68,11 @@ export interface UISlice {
   setPanelPosition: (pos: PanelPosition) => void
   setSplitDirection: (dir: SplitDirection) => void
   setDragPayload: (payload: DragPayload | null) => void
+  setPendingDragPayload: (payload: DragPayload | null) => void
+  setDragStartCoords: (coords: { x: number; y: number } | null) => void
   addRecentProject: (path: string) => void
+  removeRecentProject: (path: string) => void
+  setPendingTerminalCommand: (cmd: string | null) => void
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   toggleTerminal: () => void
@@ -77,6 +87,7 @@ export interface UISlice {
   setZenMode: (open: boolean) => void
   toggleZenMode: () => void
   setSearchEverywhereOpen: (open: boolean) => void
+  setToolLayout: (toolId: ToolId, position: ToolPanelPosition) => void
   setIsDraggingFile: (dragging: boolean) => void
 
   // Bottom Panel Actions
@@ -110,9 +121,23 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   zoomLevel: LAYOUT_CONSTRAINTS.ZOOM_DEFAULT,
   pendingTerminalCommand: null,
   dragPayload: null,
+  pendingDragPayload: null,
+  dragStartCoords: null,
   isDraggingFile: false,
   zenMode: false,
   searchEverywhereOpen: false,
+  toolLayout: {
+    explorer: 'left',
+    search: 'left',
+    git: 'left',
+    node: 'left',
+    settings: 'hidden',
+    problems: 'bottom',
+    output: 'bottom',
+    debug: 'bottom',
+    terminal: 'bottom',
+    ports: 'bottom',
+  },
 
   // Rich Bottom Panel States Default
   diagnostics: [],
@@ -138,11 +163,20 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   terminals: [{ id: 'term-1', name: 'bash' }],
   activeTerminalId: 'term-1',
 
-  setCurrentDir: (dir) => {
+  setCurrentDir: async (dir) => {
     set({ currentDir: dir, expandedFolders: {}, folderChildren: {} })
     get().addRecentProject(dir)
     get().refreshGitStatus()
     get().refreshPackageJson()
+    
+    // Advanced Architecture: Load Workspace Settings
+    const { loadWorkspaceSettings } = await import('../../utils/workspaceSettings')
+    const workspaceSettings = await loadWorkspaceSettings(dir)
+    if (workspaceSettings) {
+      set((state) => ({ settings: { ...state.settings, ...workspaceSettings } }))
+    } else {
+      set({ settings: getSavedSettings() })
+    }
   },
 
   setSidebarWidth: (w) =>
@@ -191,6 +225,8 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setPanelPosition: (pos) => get().updateSettings({ panelPosition: pos }),
   setSplitDirection: (dir) => get().updateSettings({ splitDirection: dir }),
   setDragPayload: (payload) => set({ dragPayload: payload }),
+  setPendingDragPayload: (payload) => set({ pendingDragPayload: payload }),
+  setDragStartCoords: (coords) => set({ dragStartCoords: coords }),
 
   addRecentProject: (path) => {
     if (path === '.' || !path) return
@@ -198,6 +234,14 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
     set({ recentProjects: recents })
     saveRecentProjectsToStorage(recents, path)
   },
+  
+  removeRecentProject: (path) => {
+    const recents = get().recentProjects.filter((p) => p !== path)
+    set({ recentProjects: recents })
+    saveRecentProjectsToStorage(recents, get().currentDir === path ? '' : get().currentDir)
+  },
+
+  setPendingTerminalCommand: (cmd) => set({ pendingTerminalCommand: cmd }),
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -232,6 +276,9 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setZenMode: (open) => set({ zenMode: open }),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
+  setToolLayout: (toolId, position) => set((state) => ({
+    toolLayout: { ...state.toolLayout, [toolId]: position }
+  })),
   setIsDraggingFile: (dragging) => set({ isDraggingFile: dragging }),
 
   // Bottom Panel Actions

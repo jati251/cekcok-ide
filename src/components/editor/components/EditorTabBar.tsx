@@ -8,8 +8,6 @@ interface EditorTabBarProps {
   paneId: 1 | 2
   files: FileNode[]
   activeFile: FileNode | null
-  onTabDragStart: (e: React.DragEvent, file: FileNode, index: number) => void
-  onTabDragEnd: () => void
   onContextMenu: (e: React.MouseEvent, file: FileNode) => void
 }
 
@@ -17,8 +15,6 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
   paneId,
   files,
   activeFile,
-  onTabDragStart,
-  onTabDragEnd,
   onContextMenu,
 }) => {
   const {
@@ -44,9 +40,16 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
             return (
               <div
                 key={file.path}
-                draggable={true}
-                onDragStart={(e) => onTabDragStart(e, file, idx)}
-                onDragEnd={onTabDragEnd}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return
+                  useIDEStore.getState().setPendingDragPayload({
+                    type: 'tab',
+                    file,
+                    fromPane: paneId,
+                    fromIndex: idx,
+                  })
+                  useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
+                }}
                 onClick={() => setActiveFileInPane(file, paneId)}
                 onContextMenu={(e) => onContextMenu(e, file)}
                 className={`flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] border-r border-ide-border text-[13px] cursor-pointer group transition-colors ${

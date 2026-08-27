@@ -1,38 +1,45 @@
-import { Files, Search, GitBranch, Layers, Settings, Command } from 'lucide-react'
-import { useIDEStore, SidebarTab } from '../store/useIDEStore'
+import { Command } from 'lucide-react'
+import { useIDEStore } from '../store/useIDEStore'
+import { SidebarTab } from '../types/ide'
 import { formatShortcut } from '../utils/platform'
+import { TOOLS } from './ToolRegistry'
 
 export const ActivityBar = () => {
   const { 
     activeSidebarTab, 
     sidebarOpen, 
     setActiveSidebarTab, 
-    gitStatus, 
     setCommandPaletteOpen,
-    openSettingsTab
+    toolLayout
   } = useIDEStore()
 
-  const totalChanges = gitStatus.staged.length + gitStatus.unstaged.length
-
-  const tabs: Array<{ id: SidebarTab; label: string; icon: typeof Files; badge?: number }> = [
-    { id: 'explorer', label: 'Explorer', icon: Files },
-    { id: 'search', label: 'Search', icon: Search },
-    { id: 'git', label: 'Source Control', icon: GitBranch, badge: totalChanges },
-    { id: 'node', label: 'Project & Build Suite', icon: Layers },
-  ]
+  // Filter tools that are configured to be on the left panel
+  const leftTools = Object.values(TOOLS).filter(t => toolLayout[t.id] === 'left')
 
   return (
-    <aside className="w-12 bg-[#181818] border-r border-ide-border flex flex-col justify-between items-center py-2 select-none z-20">
+    <aside className="w-12 bg-[#181818] border-r border-ide-border flex flex-col justify-between items-center py-2 select-none z-20" data-drop-zone="left-tools">
       {/* Top Icons */}
       <div className="flex flex-col items-center gap-1 w-full">
-        {tabs.map((tab) => {
+        {leftTools.map((tab) => {
           const Icon = tab.icon
           const isActive = sidebarOpen && activeSidebarTab === tab.id
+          
+          // Use full IDE state for badge evaluation
+          const state = useIDEStore.getState()
+          const badgeValue = tab.getBadge ? tab.getBadge(state) : undefined
 
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSidebarTab(tab.id)}
+              onClick={() => setActiveSidebarTab(tab.id as SidebarTab)}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                useIDEStore.getState().setPendingDragPayload({
+                  type: 'tool',
+                  toolId: tab.id,
+                })
+                useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
+              }}
               className={`relative w-full h-11 flex items-center justify-center transition-colors cursor-pointer group ${
                 isActive ? 'text-white' : 'text-[#858585] hover:text-[#d7d7d7]'
               }`}
@@ -45,10 +52,10 @@ export const ActivityBar = () => {
               
               <Icon size={20} strokeWidth={1.75} />
 
-              {/* Git Changes Badge */}
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="absolute top-1.5 right-1.5 bg-ide-accent text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-1">
-                  {tab.badge > 99 ? '99+' : tab.badge}
+              {/* Dynamic Badge */}
+              {badgeValue !== undefined && (
+                <span className="absolute top-1.5 right-1 bg-ide-accent text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-1">
+                  {badgeValue}
                 </span>
               )}
             </button>
@@ -56,7 +63,7 @@ export const ActivityBar = () => {
         })}
       </div>
 
-      {/* Bottom Icons */}
+      {/* Bottom Icons (Fixed System Icons) */}
       <div className="flex flex-col items-center gap-1 w-full">
         <button
           onClick={() => setCommandPaletteOpen(true)}
@@ -65,13 +72,28 @@ export const ActivityBar = () => {
         >
           <Command size={18} strokeWidth={1.75} />
         </button>
-        <button
-          onClick={openSettingsTab}
-          className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
-          title={`Settings (${formatShortcut('Cmd+,')})`}
-        >
-          <Settings size={19} strokeWidth={1.75} />
-        </button>
+        
+        {/* Render Settings dynamically if it's placed on the left */}
+        {(() => {
+          const settingsTool = TOOLS.settings
+          if (toolLayout.settings !== 'left') return null
+          const SettingsIcon = settingsTool.icon
+          return (
+            <button
+              key={settingsTool.id}
+              onClick={() => setActiveSidebarTab('settings')}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                useIDEStore.getState().setPendingDragPayload({ type: 'tool', toolId: settingsTool.id })
+                useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
+              }}
+              className="w-full h-11 flex items-center justify-center text-[#858585] hover:text-[#d7d7d7] transition-colors cursor-pointer"
+              title={`Settings (${formatShortcut('Cmd+,')})`}
+            >
+              <SettingsIcon size={19} strokeWidth={1.75} />
+            </button>
+          )
+        })()}
       </div>
     </aside>
   )

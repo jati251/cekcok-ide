@@ -1,22 +1,12 @@
 import React, { useState, useRef } from 'react'
 import {
-  TerminalSquare,
-  AlertCircle,
-  FileText,
-  Terminal as BugIcon,
-  Globe,
   Maximize2,
   Minimize2,
   X,
 } from 'lucide-react'
-import { useIDEStore, BottomPanelTab } from '../../store/useIDEStore'
-import { MultiTerminalView } from './MultiTerminalView'
-import { ProblemsView } from './ProblemsView'
-import { OutputView } from './OutputView'
-import { DebugConsoleView } from './DebugConsoleView'
-import { PortsView } from './PortsView'
-
+import { useIDEStore } from '../../store/useIDEStore'
 import { formatShortcut } from '../../utils/platform'
+import { TOOLS } from '../ToolRegistry'
 
 export const BottomPanel: React.FC = () => {
   const {
@@ -26,8 +16,7 @@ export const BottomPanel: React.FC = () => {
     toggleTerminal,
     activeBottomTab,
     setActiveBottomTab,
-    diagnostics,
-    ports,
+    toolLayout
   } = useIDEStore()
 
   const [isMaximized, setIsMaximized] = useState(false)
@@ -44,52 +33,11 @@ export const BottomPanel: React.FC = () => {
     }
   }
 
-  const errorsCount = diagnostics.filter((d) => d.severity === 'error').length
-  const warningsCount = diagnostics.filter((d) => d.severity === 'warning').length
-  const totalProblems = errorsCount + warningsCount
-
-  const tabs: Array<{ id: BottomPanelTab; label: string; icon: React.ReactNode; badge?: React.ReactNode }> = [
-    {
-      id: 'problems',
-      label: 'Problems',
-      icon: <AlertCircle size={13} className={errorsCount > 0 ? 'text-red-400' : 'text-ide-muted'} />,
-      badge:
-        totalProblems > 0 ? (
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-              errorsCount > 0 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-            }`}
-          >
-            {totalProblems}
-          </span>
-        ) : null,
-    },
-    {
-      id: 'output',
-      label: 'Output',
-      icon: <FileText size={13} className="text-ide-muted" />,
-    },
-    {
-      id: 'debug',
-      label: 'Debug Console',
-      icon: <BugIcon size={13} className="text-orange-400" />,
-    },
-    {
-      id: 'terminal',
-      label: 'Terminal',
-      icon: <TerminalSquare size={13} className="text-green-400" />,
-    },
-    {
-      id: 'ports',
-      label: 'Ports',
-      icon: <Globe size={13} className="text-cyan-400" />,
-      badge: (
-        <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/10 text-white/80 font-mono">
-          {ports.length}
-        </span>
-      ),
-    },
-  ]
+  const bottomTools = Object.values(TOOLS).filter(t => toolLayout[t.id] === 'bottom')
+  
+  // Find the active tool if it's currently on the bottom panel
+  const activeTool = TOOLS[activeBottomTab]
+  const isToolOnBottom = activeTool && toolLayout[activeTool.id] === 'bottom'
 
   return (
     <div
@@ -100,24 +48,38 @@ export const BottomPanel: React.FC = () => {
       className="bg-[#181818] border-t border-ide-border flex-col z-10 select-none shrink-0"
     >
       {/* Bottom Panel Navigation Header Bar */}
-      <div className="flex justify-between items-center px-2 bg-[#1f1f1f] border-b border-ide-border shrink-0 select-none">
+      <div className="flex justify-between items-center px-2 bg-[#1f1f1f] border-b border-ide-border shrink-0 select-none" data-drop-zone="bottom-tools">
         {/* Left Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => {
+          {bottomTools.map((tab) => {
             const isActive = activeBottomTab === tab.id
+            const Icon = tab.icon
+            
+            // Use full IDE state for badge evaluation
+            const state = useIDEStore.getState()
+            const badgeValue = tab.getBadge ? tab.getBadge(state) : undefined
+
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveBottomTab(tab.id)}
+                onClick={() => setActiveBottomTab(tab.id as BottomPanelTab)}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return
+                  useIDEStore.getState().setPendingDragPayload({
+                    type: 'tool',
+                    toolId: tab.id,
+                  })
+                  useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase transition-colors cursor-pointer border-b-2 ${
                   isActive
                     ? 'text-white border-ide-accent bg-[#181818]'
                     : 'text-ide-muted border-transparent hover:text-white hover:bg-white/5'
                 }`}
               >
-                {tab.icon}
+                <Icon size={13} className={isActive ? 'text-ide-accent' : 'text-ide-muted'} />
                 <span>{tab.label}</span>
-                {tab.badge}
+                {badgeValue}
               </button>
             )
           })}
@@ -142,13 +104,9 @@ export const BottomPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Tab Canvas Area */}
-      <div className="flex-1 min-h-0 overflow-hidden relative">
-        {activeBottomTab === 'problems' && <ProblemsView />}
-        {activeBottomTab === 'output' && <OutputView />}
-        {activeBottomTab === 'debug' && <DebugConsoleView />}
-        {activeBottomTab === 'terminal' && <MultiTerminalView />}
-        {activeBottomTab === 'ports' && <PortsView />}
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden relative">
+        {isToolOnBottom && <activeTool.component />}
       </div>
     </div>
   )

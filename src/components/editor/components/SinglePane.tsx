@@ -43,13 +43,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
   useMonacoViewState(activeFile, editorInstanceRef)
   const {
     isDraggingFile,
-    activeDropZone,
-    handlePaneDragOver,
-    handlePaneDragLeave,
-    handlePaneDrop,
-    handleTabDragStart,
-    handleTabDragEnd,
-  } = usePaneDragDrop(paneId, paneContainerRef)
+  } = usePaneDragDrop(paneId)
 
   // Fetch file content when active file changes if not already loaded in store
   useEffect(() => {
@@ -93,9 +87,6 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
   return (
     <div
       ref={paneContainerRef}
-      onDragOver={handlePaneDragOver}
-      onDragLeave={handlePaneDragLeave}
-      onDrop={handlePaneDrop}
       className={`flex-1 flex flex-col min-w-0 min-h-0 h-full border-r border-ide-border last:border-r-0 relative overflow-hidden ${
         isActivePane ? 'ring-1 ring-ide-accent/40' : ''
       }`}
@@ -106,8 +97,6 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
         paneId={paneId}
         files={files}
         activeFile={activeFile}
-        onTabDragStart={handleTabDragStart}
-        onTabDragEnd={handleTabDragEnd}
         onContextMenu={handleTabContextMenu}
       />
 
@@ -124,7 +113,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
           ) : activeFile.path === 'welcome://get-started' ? (
             <WelcomeView />
           ) : (
-            <div className="absolute inset-0 w-full h-full overflow-hidden">
+            <div className={`absolute inset-0 w-full h-full overflow-hidden ${isDraggingFile ? 'pointer-events-none' : ''}`}>
               <Editor
                 height="100%"
                 width="100%"
@@ -192,11 +181,8 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
 
       {/* Drop Zone Previews & Monaco Drag Interception Overlay */}
       <DropZoneOverlay
-        activeDropZone={activeDropZone}
         isDraggingFile={isDraggingFile}
         paneId={paneId}
-        onDragOver={handlePaneDragOver}
-        onDrop={handlePaneDrop}
       />
     </div>
   )

@@ -31,6 +31,7 @@ export interface FileSlice {
   createFolderInDir: (dirPath: string, name: string) => Promise<void>
   deletePathItem: (path: string) => Promise<void>
   renamePathItem: (oldPath: string, newPath: string) => Promise<void>
+  movePathItem: (sourcePath: string, targetNode: FileNode) => Promise<void>
 
   setActivePane: (pane: 1 | 2) => void
   toggleSplitEditor: () => void
@@ -136,6 +137,25 @@ export const createFileSlice: StateCreator<FullIDEStore, [], [], FileSlice> = (s
     if (parent !== get().currentDir) {
       await get().refreshDirectory(get().currentDir)
     }
+  },
+
+  movePathItem: async (sourcePath, targetNode) => {
+    const sep = sourcePath.includes('/') ? '/' : '\\'
+    const sourceName = sourcePath.split(/[/\\]/).pop()
+    if (!sourceName) return
+
+    let targetDir = targetNode.path
+    if (!targetNode.is_dir) {
+      targetDir = targetNode.path.substring(0, Math.max(targetNode.path.lastIndexOf('/'), targetNode.path.lastIndexOf('\\'))) || get().currentDir
+    }
+
+    const newPath = `${targetDir}${sep}${sourceName}`
+    
+    // Don't move if it's the exact same directory
+    const sourceDir = sourcePath.substring(0, Math.max(sourcePath.lastIndexOf('/'), sourcePath.lastIndexOf('\\'))) || get().currentDir
+    if (sourceDir === targetDir) return
+
+    await get().renamePathItem(sourcePath, newPath)
   },
 
   toggleFolder: async (path) => {

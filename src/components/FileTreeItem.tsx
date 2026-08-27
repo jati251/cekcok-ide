@@ -9,7 +9,7 @@ interface FileTreeItemProps {
   depth?: number
 }
 
-export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) => {
+export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) => {
   const {
     openFile,
     activeFile,
@@ -20,7 +20,6 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     createFileInDir,
     createFolderInDir,
     settings,
-    setIsDraggingFile,
   } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
@@ -72,22 +71,16 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
     setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
-  const handleDragStart = (e: React.DragEvent) => {
-    if (node.is_dir) return
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (node.is_dir || isRenaming) return
+    if (e.button !== 0) return // Only left click
+
     const payload = {
       type: 'file' as const,
       file: node,
     }
-    e.dataTransfer.setData('application/json', JSON.stringify(payload))
-    e.dataTransfer.setData('text/plain', node.path)
-    e.dataTransfer.effectAllowed = 'copyMove'
-    useIDEStore.getState().setDragPayload(payload)
-    setIsDraggingFile(true)
-  }
-
-  const handleDragEnd = () => {
-    useIDEStore.getState().setDragPayload(null)
-    setIsDraggingFile(false)
+    useIDEStore.getState().setPendingDragPayload(payload)
+    useIDEStore.getState().setDragStartCoords({ x: e.clientX, y: e.clientY })
   }
 
   const handleRenameSubmit = async () => {
@@ -115,13 +108,11 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
   }
 
   return (
-    <div>
+    <div data-drop-zone="sidebar" data-path={node.path}>
       <div
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        draggable={!node.is_dir && !isRenaming}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        onPointerDown={handlePointerDown}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative ${
           isActive
@@ -243,4 +234,4 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, depth = 0 }) =
       )}
     </div>
   )
-}
+})

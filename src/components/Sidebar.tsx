@@ -1,17 +1,18 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useIDEStore } from '../store/useIDEStore'
-import { ExplorerSidebar } from './sidebar/ExplorerSidebar'
-import { SearchSidebar } from './sidebar/SearchSidebar'
-import { GitSidebar } from './sidebar/GitSidebar'
-import { NodeSidebar } from './sidebar/NodeSidebar'
+import { TOOLS } from './ToolRegistry'
 
 export const Sidebar: React.FC = () => {
-  const { sidebarOpen, sidebarWidth, activeSidebarTab } = useIDEStore()
+  const { sidebarOpen, sidebarWidth, activeSidebarTab, toolLayout } = useIDEStore()
+
+  // Find the active tool if it's currently on the left panel
+  const activeTool = TOOLS[activeSidebarTab]
+  const isToolOnLeft = activeTool && toolLayout[activeTool.id] === 'left'
 
   return (
     <AnimatePresence initial={false}>
-      {sidebarOpen && (
+      {sidebarOpen && isToolOnLeft && (
         <motion.aside
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: sidebarWidth, opacity: 1 }}
@@ -20,10 +21,7 @@ export const Sidebar: React.FC = () => {
           className="bg-ide-sidebar border-r border-ide-border flex flex-col h-full overflow-hidden select-none z-10 shrink-0"
           style={{ width: sidebarWidth }}
         >
-          {activeSidebarTab === 'explorer' && <ExplorerSidebar />}
-          {activeSidebarTab === 'search' && <SearchSidebar />}
-          {activeSidebarTab === 'git' && <GitSidebar />}
-          {activeSidebarTab === 'node' && <NodeSidebar />}
+          <activeTool.component />
         </motion.aside>
       )}
     </AnimatePresence>
