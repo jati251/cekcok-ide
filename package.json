@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint .",
+    "deploy": "bash ./scripts/deploy-minio.sh",
     "prepare": "husky"
   },
   "dependencies": {

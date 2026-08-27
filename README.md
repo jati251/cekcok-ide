@@ -140,7 +140,7 @@ Run the deployment script on macOS or Windows:
 
 ```bash
 # Build, sign, and upload to MinIO in one step
-./scripts/deploy-minio.sh
+npm run deploy
 ```
 
 This script will:
