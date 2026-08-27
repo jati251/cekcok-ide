@@ -21,6 +21,13 @@ jobs:
             platform: windows-x86_64
             target: x86_64-pc-windows-msvc
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,18 +55,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: npx tauri build
 
-      - name: Setup MinIO / AWS CLI Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.MINIO_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.MINIO_SECRET_KEY }}
-          aws-region: us-east-1
-
       - name: Upload Artifacts (macOS)
         if: matrix.os == 'macos-latest'
         shell: bash
         env:
-          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
           RELEASE_NOTES: ${{ github.event.head_commit.message }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -112,7 +111,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: bash
         env:
-          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
           RELEASE_NOTES: ${{ github.event.head_commit.message }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
