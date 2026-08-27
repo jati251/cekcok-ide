@@ -18,6 +18,7 @@
     "fs:default",
     "shell:default",
     "os:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "updater:default"
   ]
 }

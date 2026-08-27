@@ -5,6 +5,7 @@ import { SpreadsheetWorkspace } from './apps/spreadsheet/SpreadsheetWorkspace'
 import { DocumentWorkspace } from './apps/document/DocumentWorkspace'
 import { WhiteboardWorkspace } from './apps/whiteboard/WhiteboardWorkspace'
 import { SuperHome } from './apps/home/SuperHome'
+import { UpdateModal } from './components/UpdateModal'
 import { Toaster } from 'react-hot-toast'
 import './index.css'
 
@@ -31,6 +32,9 @@ export const App: React.FC = () => {
       {activeApp === 'document' && <DocumentWorkspace />}
       {activeApp === 'whiteboard' && <WhiteboardWorkspace />}
       
+      {/* In-app Auto Updater Modal */}
+      <UpdateModal />
+
       {/* Global Toast for notifications across all apps */}
       <Toaster 
         position="bottom-right"

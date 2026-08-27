@@ -1,4 +1,4 @@
-name: Release Cekcok IDE
+name: Release & Deploy to MinIO
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  build-and-deploy:
     permissions:
       contents: write
     strategy:
@@ -15,18 +15,19 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            target: 'universal-apple-darwin'
+            arch: 'macos'
           - platform: 'windows-latest'
-            args: ''
-          - platform: 'ubuntu-22.04'
-            args: ''
+            target: 'x86_64-pc-windows-msvc'
+            arch: 'windows'
 
     runs-on: ${{ matrix.platform }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -35,25 +36,51 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.target }}
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install system dependencies (Windows)
+        if: matrix.platform == 'windows-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          # WiX or NSIS if needed
 
-      - name: Install frontend dependencies
+      - name: Install npm dependencies
         run: npm ci
 
-      - name: Build Tauri Desktop Application
+      - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: v__VERSION__
-          releaseName: 'Cekcok IDE v__VERSION__'
-          releaseBody: 'See the release notes for details on this version of Cekcok IDE.'
-          releaseDraft: true
+          releaseName: 'Cekcok Super App v__VERSION__'
+          releaseBody: 'See release notes.'
+          releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          args: --target ${{ matrix.target }}
+
+      - name: Setup MinIO Client (mc)
+        uses: minio/setup-minio@v2
+        with:
+          minio-endpoint: https://releases.cekcok.my.id
+          minio-access-key: ${{ secrets.MINIO_ACCESS_KEY || 'minioadmin' }}
+          minio-secret-key: ${{ secrets.MINIO_SECRET_KEY || 'minioadmin' }}
+
+      - name: Deploy Artifacts to MinIO
+        shell: bash
+        run: |
+          echo "Deploying ${{ matrix.platform }} build artifacts to MinIO..."
+          
+          # Upload bundle artifacts to MinIO
+          mc mb --ignore-existing minio/cekcok-releases
+          mc anonymous set download minio/cekcok-releases
+
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            find src-tauri/target/${{ matrix.target }}/release/bundle/dmg -name "*.dmg" -exec mc cp {} minio/cekcok-releases/Cekcok-latest-macos.dmg \;
+            find src-tauri/target/${{ matrix.target }}/release/bundle/macos -name "*.tar.gz*" -exec mc cp {} minio/cekcok-releases/ \;
+          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            find src-tauri/target/${{ matrix.target }}/release/bundle/msi -name "*.msi" -exec mc cp {} minio/cekcok-releases/Cekcok-latest-windows.msi \;
+            find src-tauri/target/${{ matrix.target }}/release/bundle/nsis -name "*.exe" -exec mc cp {} minio/cekcok-releases/Cekcok-latest-windows.exe \;
+            find src-tauri/target/${{ matrix.target }}/release/bundle/nsis -name "*.nsis.zip*" -exec mc cp {} minio/cekcok-releases/ \;
+          fi

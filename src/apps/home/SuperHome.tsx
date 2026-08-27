@@ -19,10 +19,17 @@ export const SuperHome: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="text-center mb-10 flex flex-col items-center"
         >
-          <h1 className="text-4xl font-bold mb-4 tracking-tight">Cekcok Super App</h1>
-          <p className="text-[#a0a0a0]">Choose your workspace to get started</p>
+          <img
+            src="/icon.png"
+            alt="Cekcok Logo"
+            className="w-20 h-20 rounded-2xl shadow-xl border border-white/10 mb-4 hover:scale-105 transition-transform"
+          />
+          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-cyan-200 to-blue-400 bg-clip-text text-transparent mb-2">
+            Cekcok Super App
+          </h1>
+          <p className="text-[#a0a0a0] text-sm">Professional all-in-one developer workspace suite</p>
         </motion.div>
 
         <motion.div
@@ -53,6 +60,17 @@ export const SuperHome: React.FC = () => {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Footer info & Updater Trigger */}
+        <div className="mt-12 flex items-center justify-between border-t border-[#333] pt-4 text-xs text-ide-muted">
+          <span>v0.1.0 • Tauri v2 Native Core</span>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('check-for-updates'))}
+            className="hover:text-cyan-400 text-[#a0a0a0] flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <span>Check for Updates</span>
+          </button>
+        </div>
       </div>
     </div>
   )
