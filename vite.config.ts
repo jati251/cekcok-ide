@@ -36,44 +36,6 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1200,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('tldraw') || id.includes('@tldraw')) {
-              return 'vendor-tldraw'
-            }
-            if (id.includes('@blocknote') || id.includes('@mantine') || id.includes('@prosemirror') || id.includes('@tabler')) {
-              return 'vendor-blocknote'
-            }
-            if (id.includes('@fortune-sheet')) {
-              return 'vendor-fortune'
-            }
-            if (id.includes('@monaco-editor') || id.includes('/monaco-editor/')) {
-              return 'vendor-monaco'
-            }
-            if (id.includes('@xterm')) {
-              return 'vendor-xterm'
-            }
-            if (id.includes('/xlsx/')) {
-              return 'vendor-xlsx'
-            }
-            if (id.includes('@tauri-apps')) {
-              return 'vendor-tauri'
-            }
-            // Core React runtime
-            if (
-              id.includes('/react/') ||
-              id.includes('/react-dom/') ||
-              id.includes('/zustand/') ||
-              id.includes('/framer-motion/')
-            ) {
-              return 'vendor-react-core'
-            }
-          }
-        },
-      },
-    },
+    chunkSizeWarningLimit: 2000,
   },
 }));
