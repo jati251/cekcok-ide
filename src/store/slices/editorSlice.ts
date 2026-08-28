@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand'
+import { toast } from 'react-hot-toast'
 import { safeInvoke } from '../../utils/tauriBridge'
 import { FileNode } from '../../types/ide'
 import { FullIDEStore } from '../useIDEStore'
@@ -401,7 +402,7 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       get().openFile(diffNode)
     } catch (err) {
       console.error('Failed to open diff view:', err)
-      import('react-hot-toast').then(({ toast }) => toast.error(`Diff error: ${err}`))
+      toast.error(`Diff error: ${err}`)
     }
   },
 
@@ -419,7 +420,7 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
     for (const file of dirtyFiles) {
       await get().saveFile(file.path)
     }
-    import('react-hot-toast').then(({ toast }) => toast.success('All files saved'))
+    toast.success('All files saved')
   },
 
   saveAsActiveFile: async () => {
@@ -437,7 +438,6 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       
       if (filePath && typeof filePath === 'string') {
         await safeInvoke('write_file', { path: filePath, content: file.content })
-        const { toast } = await import('react-hot-toast')
         toast.success('File saved successfully')
         
         // Open the newly saved file
@@ -463,7 +463,6 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       }
     } catch (err) {
       console.error('Failed to save file as:', err)
-      const { toast } = await import('react-hot-toast')
       toast.error('Failed to save file')
     }
   }

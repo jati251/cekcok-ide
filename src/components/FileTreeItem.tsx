@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { renderFileOrFolderIcon } from '../utils/fileIcons'
 import { FileTreeContextMenu } from './FileTreeContextMenu'
@@ -162,7 +163,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
               }).then(confirmed => {
                 if (confirmed) {
                   useIDEStore.getState().deletePathItem(node.path)
-                  import('react-hot-toast').then(({ toast }) => toast.success(`Deleted ${node.name}`))
+                  toast.success(`Deleted ${node.name}`)
                 }
               })
             })
@@ -170,12 +171,12 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
             e.preventDefault()
             e.stopPropagation()
             useIDEStore.getState().setFileClipboard('copy', node)
-            import('react-hot-toast').then(({ toast }) => toast.success(`Copied path to clipboard`))
+            toast.success(`Copied path to clipboard`)
           } else if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
             e.preventDefault()
             e.stopPropagation()
             useIDEStore.getState().setFileClipboard('cut', node)
-            import('react-hot-toast').then(({ toast }) => toast.success(`Cut path to clipboard`))
+            toast.success(`Cut path to clipboard`)
           } else if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
             e.preventDefault()
             e.stopPropagation()

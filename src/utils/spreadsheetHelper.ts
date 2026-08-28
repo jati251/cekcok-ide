@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx'
+import { toast } from 'react-hot-toast'
+import { safeInvoke } from './tauriBridge'
 
 export interface FortuneCell {
   r: number
@@ -448,10 +450,8 @@ export async function downloadWorkbookAsXLSX(sheets: FortuneSheetData[], filenam
     })
 
     if (filePath && typeof filePath === 'string') {
-      const { safeInvoke } = await import('./tauriBridge')
       const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
       await safeInvoke('write_file_bytes', { path: filePath, bytes: Array.from(new Uint8Array(buffer)) })
-      const { toast } = await import('react-hot-toast')
       toast.success(`Saved Excel workbook to ${filePath.split(/[/\\]/).pop()}`)
       return filePath
     }
@@ -480,9 +480,7 @@ export async function downloadActiveSheetAsCSV(sheets: FortuneSheetData[], filen
     })
 
     if (filePath && typeof filePath === 'string') {
-      const { safeInvoke } = await import('./tauriBridge')
       await safeInvoke('write_file', { path: filePath, content: csv })
-      const { toast } = await import('react-hot-toast')
       toast.success(`Saved CSV to ${filePath.split(/[/\\]/).pop()}`)
       return filePath
     }

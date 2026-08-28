@@ -2,11 +2,12 @@ import React, { Suspense, useEffect } from 'react'
 import { useIDEStore } from './store/useIDEStore'
 import { UpdateModal } from './components/UpdateModal'
 import { AppSkeleton } from './components/skeletons/AppSkeleton'
-import { Toaster } from 'react-hot-toast'
+import { Toaster, toast } from 'react-hot-toast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { GlobalSettingsModal } from './components/GlobalSettingsModal'
 import { BranchSwitcherModal } from './components/BranchSwitcherModal'
 import { applyGlobalTheme } from './utils/themes'
+import { safeInvoke } from './utils/tauriBridge'
 import './index.css'
 
 // Lazy-load all heavy workspace apps for faster initial render
@@ -41,9 +42,6 @@ export const App: React.FC = () => {
         if (!paths || paths.length === 0) return
 
         try {
-          const { safeInvoke } = await import('./utils/tauriBridge')
-          const { toast } = await import('react-hot-toast')
-          
           for (const sourcePath of paths) {
             const fileName = sourcePath.split(/[/\\]/).pop() || ''
             const targetPath = `${currentDir}/${fileName}`
@@ -55,7 +53,7 @@ export const App: React.FC = () => {
           toast.success(`Dropped ${paths.length} file(s)`)
         } catch (err) {
           console.error('Drop error:', err)
-          import('react-hot-toast').then(({ toast }) => toast.error(`Failed to process dropped files: ${err}`))
+          toast.error(`Failed to process dropped files: ${err}`)
         }
       }).then(unlisten => {
         unlistenDrop = unlisten

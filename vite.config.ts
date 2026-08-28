@@ -36,6 +36,18 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'zustand', 'react-hot-toast', 'framer-motion', 'lucide-react'],
+          'vendor-sheet': ['@fortune-sheet/react', 'xlsx'],
+          'vendor-tldraw': ['tldraw'],
+          'vendor-blocknote': ['@blocknote/core', '@blocknote/react', '@blocknote/mantine'],
+          'vendor-monaco': ['@monaco-editor/react'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit'],
+        },
+      },
+    },
   },
 }));
