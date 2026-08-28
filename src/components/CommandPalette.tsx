@@ -227,10 +227,10 @@ export const CommandPalette = () => {
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <FileCode size={16} className={isSelected ? 'text-white' : 'text-[#80a4c2]'} />
+                        <FileCode size={16} className={`shrink-0 ${isSelected ? 'text-white' : 'text-[#80a4c2]'}`} />
                         <span className="font-medium truncate">{file.name}</span>
                       </div>
-                      <span className={`text-[11px] truncate ml-2 font-mono ${isSelected ? 'text-white/80' : 'text-[#888]'}`}>
+                      <span className={`text-[11px] truncate ml-2 font-mono shrink-0 max-w-[240px] text-right ${isSelected ? 'text-white/80' : 'text-[#888]'}`}>
                         {file.path}
                       </span>
                     </div>
@@ -253,10 +253,10 @@ export const CommandPalette = () => {
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon size={16} className={isSelected ? 'text-white' : 'text-[#4fc1ff]'} />
+                        <Icon size={16} className={`shrink-0 ${isSelected ? 'text-white' : 'text-[#4fc1ff]'}`} />
                         <span className="font-medium truncate">{action.title}</span>
                       </div>
-                      <span className={`text-[11px] uppercase tracking-wider font-semibold ${isSelected ? 'text-white/80' : 'text-[#888]'}`}>
+                      <span className={`text-[11px] uppercase tracking-wider font-semibold shrink-0 ml-2 ${isSelected ? 'text-white/80' : 'text-[#888]'}`}>
                         {action.category}
                       </span>
                     </div>

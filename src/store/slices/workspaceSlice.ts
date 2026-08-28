@@ -1,12 +1,14 @@
 import { StateCreator } from 'zustand'
 import { safeInvoke } from '../../utils/tauriBridge'
-import { FileNode } from '../../types/ide'
+import { FileNode, FileClipboardState, ClipboardAction } from '../../types/ide'
 import { FullIDEStore } from '../useIDEStore'
+import { toast } from 'react-hot-toast'
 
 export interface WorkspaceSlice {
   fileTree: FileNode[]
   expandedFolders: Record<string, boolean>
   folderChildren: Record<string, FileNode[]>
+  fileClipboard: FileClipboardState | null
 
   setFileTree: (files: FileNode[]) => void
   toggleFolder: (path: string) => Promise<void>
@@ -18,12 +20,17 @@ export interface WorkspaceSlice {
   deletePathItem: (path: string) => Promise<void>
   renamePathItem: (oldPath: string, newPath: string) => Promise<void>
   movePathItem: (sourcePath: string, targetNode: FileNode) => Promise<void>
+  
+  setFileClipboard: (action: ClipboardAction, file: FileNode) => void
+  pasteFileToDir: (targetDirPath: string) => Promise<void>
+  duplicateFile: (path: string) => Promise<void>
 }
 
 export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceSlice> = (set, get) => ({
   fileTree: [],
   expandedFolders: {},
   folderChildren: {},
+  fileClipboard: null,
 
   setFileTree: (files) => set({ fileTree: files }),
 
@@ -145,6 +152,53 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
     } catch (err) {
       console.error(err)
       throw err
+    }
+  },
+
+  setFileClipboard: (action, file) => set({ fileClipboard: { action, file } }),
+
+  pasteFileToDir: async (targetDirPath) => {
+    const { fileClipboard } = get()
+    if (!fileClipboard) return
+
+    const { action, file } = fileClipboard
+    const fileName = file.name
+    const targetPath = `${targetDirPath}/${fileName}`
+
+    if (file.path === targetPath) {
+      toast.error('Source and destination are the same.')
+      return
+    }
+
+    try {
+      if (action === 'copy') {
+        await safeInvoke('copy_path', { sourcePath: file.path, targetPath })
+        toast.success(`Copied ${fileName}`)
+      } else if (action === 'cut') {
+        await safeInvoke('rename_path', { oldPath: file.path, newPath: targetPath })
+        set({ fileClipboard: null }) // Clear clipboard after cut/move
+        toast.success(`Moved ${fileName}`)
+        
+        const oldParentDir = file.path.substring(0, file.path.lastIndexOf('/')) || file.path.substring(0, file.path.lastIndexOf('\\'))
+        await get().refreshDirectory(oldParentDir)
+      }
+      
+      await get().refreshDirectory(targetDirPath)
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to ${action} file: ${err}`)
+    }
+  },
+
+  duplicateFile: async (path) => {
+    try {
+      await safeInvoke('duplicate_path', { path })
+      const parentDir = path.substring(0, path.lastIndexOf('/')) || path.substring(0, path.lastIndexOf('\\'))
+      await get().refreshDirectory(parentDir)
+      toast.success('File duplicated')
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to duplicate file: ${err}`)
     }
   }
 })

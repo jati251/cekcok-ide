@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast'
 import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
+import { EmptySpaceContextMenu } from '../EmptySpaceContextMenu'
 
 export const ExplorerSidebar: React.FC = () => {
   const {
@@ -18,6 +19,13 @@ export const ExplorerSidebar: React.FC = () => {
     settings,
     updateSettings,
   } = useIDEStore()
+
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null)
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
 
   const loadDirectory = useCallback(
     async (dirPath: string) => {
@@ -178,9 +186,12 @@ export const ExplorerSidebar: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+      <div 
+        className="flex-1 overflow-y-auto p-1.5 space-y-0.5"
+        onContextMenu={handleContextMenu}
+      >
         {fileTree.length === 0 ? (
-          <div className="p-4 text-center text-xs text-[#888] italic">No files in directory</div>
+          <div className="p-4 text-center text-xs text-[#888] italic pointer-events-none">No files in directory</div>
         ) : (
           <motion.div
             initial="hidden"
@@ -204,6 +215,16 @@ export const ExplorerSidebar: React.FC = () => {
           </motion.div>
         )}
       </div>
+
+      {contextMenu && (
+        <EmptySpaceContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onNewFile={() => handleCreateNode(false)}
+          onNewFolder={() => handleCreateNode(true)}
+        />
+      )}
     </div>
   )
 }

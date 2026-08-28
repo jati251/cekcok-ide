@@ -16,3 +16,10 @@ export interface SearchResultItem {
   line_number: number
   line_text: string
 }
+
+export type ClipboardAction = 'copy' | 'cut'
+
+export interface FileClipboardState {
+  action: ClipboardAction
+  file: FileNode
+}

@@ -3,8 +3,8 @@ pub mod git_commands;
 pub mod search_commands;
 
 use fs_commands::{
-    create_dir, create_file, delete_path, execute_shell, read_dir, read_file, rename_path,
-    reveal_in_file_manager, write_file, spawn_shell, kill_shell, TerminalState,
+    create_dir, create_file, delete_path, execute_shell, read_dir, read_file, read_file_bytes, rename_path,
+    copy_path, duplicate_path, reveal_in_file_manager, write_file, write_file_bytes, spawn_shell, kill_shell, TerminalState,
 };
 use git_commands::{
     git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage, git_log, git_checkout_branch, git_list_branches
@@ -29,14 +29,18 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_dir,
             read_file,
+            read_file_bytes,
             execute_shell,
             spawn_shell,
             kill_shell,
             write_file,
+            write_file_bytes,
             create_file,
             create_dir,
             delete_path,
             rename_path,
+            copy_path,
+            duplicate_path,
             reveal_in_file_manager,
             git_get_status,
             git_stage,

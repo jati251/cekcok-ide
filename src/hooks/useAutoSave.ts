@@ -3,23 +3,30 @@ import { useIDEStore } from '../store/useIDEStore'
 
 export const useAutoSave = () => {
   const { settings, saveFile } = useIDEStore()
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   const triggerAutoSave = useCallback(
     (path: string) => {
       if (settings.autoSave === 'afterDelay') {
-        if (timerRef.current) clearTimeout(timerRef.current)
-        timerRef.current = setTimeout(() => {
+        const existing = timersRef.current.get(path)
+        if (existing) clearTimeout(existing)
+
+        const timer = setTimeout(() => {
           saveFile(path)
+          timersRef.current.delete(path)
         }, 1000)
+
+        timersRef.current.set(path, timer)
       }
     },
     [settings.autoSave, saveFile]
   )
 
   useEffect(() => {
+    const currentTimers = timersRef.current
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      currentTimers.forEach((timer) => clearTimeout(timer))
+      currentTimers.clear()
     }
   }, [])
 

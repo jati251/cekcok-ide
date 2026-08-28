@@ -17,22 +17,55 @@ const DocumentWorkspace = React.lazy(() => import('./apps/document/DocumentWorks
 const WhiteboardWorkspace = React.lazy(() => import('./apps/whiteboard/WhiteboardWorkspace').then(m => ({ default: m.WhiteboardWorkspace })))
 
 export const App: React.FC = () => {
-  const { activeApp, settings, branchSwitcherOpen, setBranchSwitcherOpen } = useIDEStore()
+  const { activeApp, settings, branchSwitcherOpen, setBranchSwitcherOpen, zoomLevel } = useIDEStore()
 
   // Apply theme variables globally to root document
   useEffect(() => {
     applyGlobalTheme(settings.theme)
   }, [settings.theme])
 
-  // Prevent default drag and drop behavior globally
+  // Prevent default drag and drop behavior globally & setup Tauri drop listener
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => e.preventDefault()
     const handleDrop = (e: DragEvent) => e.preventDefault()
     window.addEventListener('dragover', handleDragOver)
     window.addEventListener('drop', handleDrop)
+
+    let unlistenDrop: (() => void) | undefined
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<{ paths: string[] }>('tauri://drop', async (event) => {
+        const { currentDir, refreshDirectory } = useIDEStore.getState()
+        if (!currentDir) return
+
+        const paths = event.payload.paths
+        if (!paths || paths.length === 0) return
+
+        try {
+          const { safeInvoke } = await import('./utils/tauriBridge')
+          const { toast } = await import('react-hot-toast')
+          
+          for (const sourcePath of paths) {
+            const fileName = sourcePath.split(/[/\\]/).pop() || ''
+            const targetPath = `${currentDir}/${fileName}`
+            
+            // We use copy_path for drops to avoid moving original files by accident
+            await safeInvoke('copy_path', { sourcePath, targetPath })
+          }
+          await refreshDirectory(currentDir)
+          toast.success(`Dropped ${paths.length} file(s)`)
+        } catch (err) {
+          console.error('Drop error:', err)
+          import('react-hot-toast').then(({ toast }) => toast.error(`Failed to process dropped files: ${err}`))
+        }
+      }).then(unlisten => {
+        unlistenDrop = unlisten
+      })
+    })
+
     return () => {
       window.removeEventListener('dragover', handleDragOver)
       window.removeEventListener('drop', handleDrop)
+      if (unlistenDrop) unlistenDrop()
     }
   }, [])
 
@@ -42,6 +75,7 @@ export const App: React.FC = () => {
         fontFamily: settings.ideFontFamily,
         backgroundColor: 'var(--color-ide-bg)',
         color: 'var(--color-ide-text)',
+        zoom: zoomLevel,
       }}
       className="w-full h-full"
     >

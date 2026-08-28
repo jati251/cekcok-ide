@@ -110,11 +110,57 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   return (
     <div data-drop-zone="sidebar" data-path={node.path}>
       <div
+        tabIndex={0}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onPointerDown={handlePointerDown}
+        onKeyDown={(e) => {
+          if (isRenaming || creatingChild) return
+          const isCmdOrCtrl = e.metaKey || e.ctrlKey
+
+          if (e.key === 'Enter' || e.key === 'F2') {
+            e.preventDefault()
+            e.stopPropagation()
+            setRenameValue(node.name)
+            setIsRenaming(true)
+          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault()
+            e.stopPropagation()
+            import('@tauri-apps/plugin-dialog').then(({ ask }) => {
+              ask(`Are you sure you want to delete '${node.name}'?`, {
+                title: 'Delete Confirmation',
+                kind: 'warning',
+              }).then(confirmed => {
+                if (confirmed) {
+                  useIDEStore.getState().deletePathItem(node.path)
+                  import('react-hot-toast').then(({ toast }) => toast.success(`Deleted ${node.name}`))
+                }
+              })
+            })
+          } else if (isCmdOrCtrl && (e.key === 'c' || e.key === 'C')) {
+            e.preventDefault()
+            e.stopPropagation()
+            useIDEStore.getState().setFileClipboard('copy', node)
+            import('react-hot-toast').then(({ toast }) => toast.success(`Copied path to clipboard`))
+          } else if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
+            e.preventDefault()
+            e.stopPropagation()
+            useIDEStore.getState().setFileClipboard('cut', node)
+            import('react-hot-toast').then(({ toast }) => toast.success(`Cut path to clipboard`))
+          } else if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
+            e.preventDefault()
+            e.stopPropagation()
+            if (node.is_dir) {
+              useIDEStore.getState().pasteFileToDir(node.path)
+            } else {
+              // Paste to parent folder if not a dir
+              const parentPath = node.path.substring(0, Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')))
+              useIDEStore.getState().pasteFileToDir(parentPath)
+            }
+          }
+        }}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
-        className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative ${
+        className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative outline-none focus-visible:ring-1 focus-visible:ring-ide-accent/50 ${
           isActive
             ? 'bg-ide-accent/25 text-white font-medium'
             : node.is_ignored

@@ -41,17 +41,14 @@ export default defineConfig(async () => ({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Core React runtime
-            if (
-              id.includes('/react/') ||
-              id.includes('/react-dom/') ||
-              id.includes('/zustand/') ||
-              id.includes('/framer-motion/')
-            ) {
-              return 'vendor-react-core'
+            if (id.includes('tldraw') || id.includes('@tldraw')) {
+              return 'vendor-tldraw'
             }
-            if (id.includes('@tauri-apps')) {
-              return 'vendor-tauri'
+            if (id.includes('@blocknote') || id.includes('@mantine') || id.includes('@prosemirror') || id.includes('@tabler')) {
+              return 'vendor-blocknote'
+            }
+            if (id.includes('@fortune-sheet')) {
+              return 'vendor-fortune'
             }
             if (id.includes('@monaco-editor') || id.includes('/monaco-editor/')) {
               return 'vendor-monaco'
@@ -61,6 +58,18 @@ export default defineConfig(async () => ({
             }
             if (id.includes('/xlsx/')) {
               return 'vendor-xlsx'
+            }
+            if (id.includes('@tauri-apps')) {
+              return 'vendor-tauri'
+            }
+            // Core React runtime
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/zustand/') ||
+              id.includes('/framer-motion/')
+            ) {
+              return 'vendor-react-core'
             }
           }
         },

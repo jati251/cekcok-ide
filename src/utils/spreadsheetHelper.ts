@@ -172,27 +172,67 @@ export function xlsxToFortune(buffer: ArrayBuffer | Uint8Array): FortuneSheetDat
 }
 
 /**
- * Downloads data as XLSX file in browser / webview
+ * Downloads data as XLSX file in browser / webview or saves natively
  */
-export function downloadWorkbookAsXLSX(sheets: FortuneSheetData[], filename = 'Spreadsheet.xlsx') {
+export async function downloadWorkbookAsXLSX(sheets: FortuneSheetData[], filename = 'Spreadsheet.xlsx') {
   const wb = fortuneToXLSX(sheets)
-  XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
+  const defaultName = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`
+
+  try {
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const filePath = await save({
+      defaultPath: defaultName,
+      filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
+      title: 'Save Spreadsheet As',
+    })
+
+    if (filePath && typeof filePath === 'string') {
+      const { safeInvoke } = await import('./tauriBridge')
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      await safeInvoke('write_file_bytes', { path: filePath, bytes: Array.from(new Uint8Array(buffer)) })
+      const { toast } = await import('react-hot-toast')
+      toast.success(`Saved Excel workbook to ${filePath.split(/[/\\]/).pop()}`)
+      return filePath
+    }
+  } catch (err) {
+    console.warn('Native XLSX save dialog failed or cancelled, falling back to browser download:', err)
+    XLSX.writeFile(wb, defaultName)
+  }
 }
 
 /**
- * Downloads active sheet as CSV file
+ * Downloads active sheet as CSV file or saves natively
  */
-export function downloadActiveSheetAsCSV(sheets: FortuneSheetData[], filename = 'Spreadsheet.csv') {
+export async function downloadActiveSheetAsCSV(sheets: FortuneSheetData[], filename = 'Spreadsheet.csv') {
   const activeSheet = sheets.find((s) => s.status === 1) || sheets[0]
   const wb = fortuneToXLSX([activeSheet])
   const ws = wb.Sheets[wb.SheetNames[0]]
   const csv = XLSX.utils.sheet_to_csv(ws)
-  
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  const defaultName = filename.endsWith('.csv') ? filename : `${filename}.csv`
+
+  try {
+    const { save } = await import('@tauri-apps/plugin-dialog')
+    const filePath = await save({
+      defaultPath: defaultName,
+      filters: [{ name: 'CSV (Comma delimited)', extensions: ['csv'] }],
+      title: 'Export Active Sheet As CSV',
+    })
+
+    if (filePath && typeof filePath === 'string') {
+      const { safeInvoke } = await import('./tauriBridge')
+      await safeInvoke('write_file', { path: filePath, content: csv })
+      const { toast } = await import('react-hot-toast')
+      toast.success(`Saved CSV to ${filePath.split(/[/\\]/).pop()}`)
+      return filePath
+    }
+  } catch (err) {
+    console.warn('Native CSV save dialog failed or cancelled, falling back to browser download:', err)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = defaultName
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 }

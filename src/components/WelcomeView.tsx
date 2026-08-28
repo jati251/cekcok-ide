@@ -178,7 +178,7 @@ export const WelcomeView = () => {
                 No recent projects yet. Open a folder to start coding!
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
+              <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
                 {recentProjects.map((path) => {
                   const folderName = path.split(/[/\\]/).pop() || path
                   const isCurrent = currentDir === path
@@ -190,13 +190,13 @@ export const WelcomeView = () => {
                         backgroundColor: isCurrent ? 'var(--color-ide-bg)' : 'var(--color-ide-sidebar)',
                         borderColor: isCurrent ? 'var(--color-ide-accent)' : 'var(--color-ide-border)',
                       }}
-                      className="flex items-center justify-between p-2.5 rounded-lg border cursor-pointer hover:border-ide-accent/50 transition-all"
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-lg border cursor-pointer hover:border-ide-accent/50 transition-all min-w-0"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FolderOpen size={15} className={isCurrent ? 'text-ide-accent' : 'text-amber-500'} />
+                      <div className="flex items-center gap-2.5 min-w-0 shrink">
+                        <FolderOpen className={`w-4 h-4 shrink-0 ${isCurrent ? 'text-ide-accent' : 'text-amber-500'}`} />
                         <span className="text-xs font-semibold truncate">{folderName}</span>
                       </div>
-                      <span className="text-[10px] opacity-60 truncate font-mono ml-2">{path}</span>
+                      <span className="text-[10px] opacity-50 truncate font-mono text-right max-w-[200px] shrink-0">{path}</span>
                     </div>
                   )
                 })}

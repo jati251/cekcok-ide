@@ -28,6 +28,7 @@ export interface EditorSlice {
 
   closeOtherTabsInPane: (path: string, pane: 1 | 2) => void
   closeTabsToRightInPane: (path: string, pane: 1 | 2) => void
+  closeSavedTabsInPane: (pane: 1 | 2) => void
   closeAllTabsInPane: (pane: 1 | 2) => void
   reorderTabsInPane: (pane: 1 | 2, fromIndex: number, toIndex: number) => void
   moveTabBetweenPanes: (filePath: string, fromPane: 1 | 2, toPane: 1 | 2, targetIndex?: number) => void
@@ -41,6 +42,11 @@ export interface EditorSlice {
   
   openSettingsTab: () => void
   openWelcomeTab: () => void
+  
+  closedTabsHistory: Array<{ pane: 1 | 2, file: FileNode }>
+  reopenLastClosedTab: () => void
+  saveAllFiles: () => Promise<void>
+  saveAsActiveFile: () => Promise<void>
 }
 
 export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> = (set, get) => ({
@@ -54,6 +60,7 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
 
   openFiles: [],
   activeFile: null,
+  closedTabsHistory: [],
 
   setSplitRatio: (ratio) => set({ splitRatio: ratio }),
   setActivePane: (pane) => set({ activePane: pane }),
@@ -117,7 +124,9 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
   },
 
   closeFileInPane: (path, pane) => set((state) => {
+    let closedFile: FileNode | undefined;
     if (pane === 1) {
+      closedFile = state.pane1Files.find(f => f.path === path)
       const newOpenFiles = state.pane1Files.filter(f => f.path !== path)
       let newActiveFile = state.pane1ActiveFile
       if (state.pane1ActiveFile?.path === path) {
@@ -127,9 +136,13 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
         pane1Files: newOpenFiles,
         pane1ActiveFile: newActiveFile,
         openFiles: newOpenFiles,
-        activeFile: newActiveFile
+        activeFile: newActiveFile,
+        closedTabsHistory: closedFile && !closedFile.path.startsWith('settings://') && !closedFile.path.startsWith('welcome://') 
+          ? [...state.closedTabsHistory, { pane, file: closedFile }] 
+          : state.closedTabsHistory
       }
     } else {
+      closedFile = state.pane2Files.find(f => f.path === path)
       const newOpenFiles = state.pane2Files.filter(f => f.path !== path)
       let newActiveFile = state.pane2ActiveFile
       if (state.pane2ActiveFile?.path === path) {
@@ -137,7 +150,10 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       }
       return {
         pane2Files: newOpenFiles,
-        pane2ActiveFile: newActiveFile
+        pane2ActiveFile: newActiveFile,
+        closedTabsHistory: closedFile && !closedFile.path.startsWith('settings://') && !closedFile.path.startsWith('welcome://') 
+          ? [...state.closedTabsHistory, { pane, file: closedFile }] 
+          : state.closedTabsHistory
       }
     }
   }),
@@ -178,6 +194,30 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       const idx = state.pane2Files.findIndex(f => f.path === path)
       if (idx === -1) return {}
       const remaining = state.pane2Files.slice(0, idx + 1)
+      const newActive = remaining.some(f => f.path === state.pane2ActiveFile?.path)
+        ? state.pane2ActiveFile
+        : remaining[remaining.length - 1] || null
+      return {
+        pane2Files: remaining,
+        pane2ActiveFile: newActive
+      }
+    }
+  }),
+
+  closeSavedTabsInPane: (pane) => set((state) => {
+    if (pane === 1) {
+      const remaining = state.pane1Files.filter(f => f.isDirty)
+      const newActive = remaining.some(f => f.path === state.pane1ActiveFile?.path)
+        ? state.pane1ActiveFile
+        : remaining[remaining.length - 1] || null
+      return {
+        pane1Files: remaining,
+        pane1ActiveFile: newActive,
+        openFiles: remaining,
+        activeFile: newActive
+      }
+    } else {
+      const remaining = state.pane2Files.filter(f => f.isDirty)
       const newActive = remaining.some(f => f.path === state.pane2ActiveFile?.path)
         ? state.pane2ActiveFile
         : remaining[remaining.length - 1] || null
@@ -331,5 +371,68 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       is_dir: false,
     }
     get().openFile(welcomeFile)
+  },
+
+  reopenLastClosedTab: () => {
+    const history = get().closedTabsHistory
+    if (history.length === 0) return
+    const last = history[history.length - 1]
+    set({ closedTabsHistory: history.slice(0, -1) })
+    get().openFileInPane(last.file, last.pane)
+  },
+
+  saveAllFiles: async () => {
+    const allFiles = [...get().pane1Files, ...get().pane2Files]
+    const dirtyFiles = allFiles.filter(f => f.isDirty)
+    for (const file of dirtyFiles) {
+      await get().saveFile(file.path)
+    }
+    import('react-hot-toast').then(({ toast }) => toast.success('All files saved'))
+  },
+
+  saveAsActiveFile: async () => {
+    const pane = get().activePane
+    const file = pane === 1 ? get().pane1ActiveFile : get().pane2ActiveFile
+    if (!file || file.content === undefined) return
+    
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog')
+      const defaultName = file.name || 'Untitled'
+      const filePath = await save({
+        defaultPath: defaultName,
+        title: 'Save As'
+      })
+      
+      if (filePath && typeof filePath === 'string') {
+        await safeInvoke('write_file', { path: filePath, content: file.content })
+        const { toast } = await import('react-hot-toast')
+        toast.success('File saved successfully')
+        
+        // Open the newly saved file
+        const newFileName = filePath.split(/[/\\]/).pop() || defaultName
+        const newFileNode: FileNode = {
+          name: newFileName,
+          path: filePath,
+          is_dir: false,
+          content: file.content
+        }
+        
+        get().openFileInPane(newFileNode, pane)
+        get().setFileDirty(filePath, false)
+        
+        // Optionally close the old one if it was unsaved/untitled
+        if (file.path.startsWith('untitled://')) {
+          get().closeFileInPane(file.path, pane)
+        }
+        
+        // Refresh explorer
+        const parentDir = filePath.substring(0, filePath.lastIndexOf('/')) || filePath.substring(0, filePath.lastIndexOf('\\'))
+        get().refreshDirectory(parentDir)
+      }
+    } catch (err) {
+      console.error('Failed to save file as:', err)
+      const { toast } = await import('react-hot-toast')
+      toast.error('Failed to save file')
+    }
   }
 })

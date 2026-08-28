@@ -95,8 +95,24 @@ pub fn read_file(path: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn read_file_bytes(path: &str) -> Result<Vec<u8>, String> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(bytes),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
 pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     match fs::write(path, content) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn write_file_bytes(path: &str, bytes: Vec<u8>) -> Result<(), String> {
+    match fs::write(path, bytes) {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
@@ -135,6 +151,72 @@ pub fn delete_path(path: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn rename_path(old_path: &str, new_path: &str) -> Result<(), String> {
     fs::rename(old_path, new_path).map_err(|e| e.to_string())
+}
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), std::io::Error> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn copy_path(source_path: &str, target_path: &str) -> Result<(), String> {
+    let src = Path::new(source_path);
+    let dst = Path::new(target_path);
+
+    if !src.exists() {
+        return Err(format!("Source path {} does not exist", source_path));
+    }
+
+    if src.is_dir() {
+        copy_dir_all(src, dst).map_err(|e| e.to_string())
+    } else {
+        fs::copy(src, dst).map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn duplicate_path(path: &str) -> Result<String, String> {
+    let src = Path::new(path);
+    if !src.exists() {
+        return Err(format!("Path {} does not exist", path));
+    }
+
+    let parent = src.parent().unwrap_or(Path::new(""));
+    let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("untitled");
+    let ext = src.extension().and_then(|s| s.to_str());
+
+    let mut counter = 1;
+    let mut new_path_buf;
+    loop {
+        let new_name = if let Some(e) = ext {
+            format!("{} copy {}.{}", stem, counter, e)
+        } else {
+            format!("{} copy {}", stem, counter)
+        };
+        new_path_buf = parent.join(new_name);
+        if !new_path_buf.exists() {
+            break;
+        }
+        counter += 1;
+    }
+
+    let new_path = new_path_buf.to_string_lossy().to_string();
+    if src.is_dir() {
+        copy_dir_all(src, &new_path_buf).map_err(|e| e.to_string())?;
+    } else {
+        fs::copy(src, &new_path_buf).map_err(|e| e.to_string())?;
+    }
+
+    Ok(new_path)
 }
 
 #[tauri::command]

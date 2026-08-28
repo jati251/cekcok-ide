@@ -9,7 +9,11 @@ import {
   Trash2, 
   Copy, 
   FolderSearch,
-  History
+  History,
+  Scissors,
+  ClipboardCopy,
+  ClipboardPaste,
+  CopyPlus
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 
@@ -32,7 +36,7 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
   onNewFolder,
   onRename,
 }) => {
-  const { currentDir, deletePathItem } = useIDEStore()
+  const { currentDir, deletePathItem, setFileClipboard, pasteFileToDir, fileClipboard, duplicateFile } = useIDEStore()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -140,6 +144,64 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
           <div className="h-[1px] bg-ide-border my-1" />
         </>
       )}
+      
+      <button
+        onClick={() => {
+          setFileClipboard('cut', node)
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+      >
+        <Scissors size={14} />
+        <span className="flex-1">Cut</span>
+        <span className="text-[10px] opacity-70">⌘X</span>
+      </button>
+
+      <button
+        onClick={() => {
+          setFileClipboard('copy', node)
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+      >
+        <ClipboardCopy size={14} />
+        <span className="flex-1">Copy</span>
+        <span className="text-[10px] opacity-70">⌘C</span>
+      </button>
+
+      {node.is_dir && (
+        <button
+          onClick={() => {
+            pasteFileToDir(node.path)
+            onClose()
+          }}
+          disabled={!fileClipboard}
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 transition-colors text-left ${
+            fileClipboard 
+              ? 'hover:bg-ide-accent hover:text-white cursor-pointer' 
+              : 'opacity-50 cursor-not-allowed'
+          }`}
+        >
+          <ClipboardPaste size={14} />
+          <span className="flex-1">Paste</span>
+          <span className="text-[10px] opacity-70">⌘V</span>
+        </button>
+      )}
+      
+      {!node.is_dir && (
+        <button
+          onClick={() => {
+            duplicateFile(node.path)
+            onClose()
+          }}
+          className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+        >
+          <CopyPlus size={14} />
+          <span className="flex-1">Duplicate</span>
+        </button>
+      )}
+
+      <div className="h-[1px] bg-ide-border my-1" />
 
       <button
         onClick={() => {

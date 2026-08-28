@@ -120,20 +120,38 @@ export const WhiteboardWorkspace: React.FC = () => {
     return () => window.removeEventListener('workspace-save', handleSaveEvent)
   }, [handleManualSave])
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
     if (!editor) return
     try {
       const snapshot = editor.getSnapshot()
       const json = JSON.stringify(snapshot, null, 2)
-      const blob = new Blob([json], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const name = docTitle.replace(/\.(tldr|json|png|svg)$/i, '') + '.tldr'
-      a.href = url
-      a.download = name
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success(`Exported ${name}`)
+      const defaultName = docTitle.replace(/\.(tldr|json|png|svg)$/i, '') + '.tldr'
+
+      try {
+        const { save } = await import('@tauri-apps/plugin-dialog')
+        const filePath = await save({
+          defaultPath: defaultName,
+          filters: [{ name: 'TLDraw Diagram', extensions: ['tldr', 'json'] }],
+          title: 'Save Whiteboard Drawing As',
+        })
+
+        if (filePath && typeof filePath === 'string') {
+          const { safeInvoke } = await import('../../utils/tauriBridge')
+          await safeInvoke('write_file', { path: filePath, content: json })
+          toast.success(`Saved drawing to ${filePath.split(/[/\\]/).pop()}`)
+          return
+        }
+      } catch (err) {
+        console.warn('Native drawing save failed or cancelled, falling back to download:', err)
+        const blob = new Blob([json], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = defaultName
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success(`Exported ${defaultName}`)
+      }
     } catch (e) {
       console.error(e)
       toast.error('Failed to export drawing file.')

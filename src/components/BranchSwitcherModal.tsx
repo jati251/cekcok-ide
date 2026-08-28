@@ -178,7 +178,7 @@ export const BranchSwitcherModal: React.FC<BranchSwitcherModalProps> = ({ isOpen
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <GitBranch size={13} className={isCurrent ? 'text-ide-accent' : 'opacity-60'} />
+                      <GitBranch size={13} className={`shrink-0 ${isCurrent ? 'text-ide-accent' : 'opacity-60'}`} />
                       <span className="truncate font-mono">{branch}</span>
                     </div>
                     {isCurrent && (
