@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, FileCode, Play, GitBranch, Layout, Terminal, Sparkles } from 'lucide-react'
+import { Search, FileCode, Play, GitBranch, Layout, Terminal, Sparkles, FilePlus, FolderPlus } from 'lucide-react'
 import { useIDEStore, FileNode, SidebarTab } from '../store/useIDEStore'
 
 interface PaletteAction {
@@ -47,6 +47,28 @@ export const CommandPalette = () => {
 
   // Build command palette actions
   const actions: PaletteAction[] = [
+    {
+      id: 'file-new-file',
+      title: 'File: New File',
+      category: 'File',
+      icon: FilePlus,
+      run: () => {
+        setActiveSidebarTab('explorer' as SidebarTab)
+        useIDEStore.getState().setSidebarOpen(true)
+        window.dispatchEvent(new CustomEvent('trigger-new-file'))
+      },
+    },
+    {
+      id: 'file-new-folder',
+      title: 'File: New Folder',
+      category: 'File',
+      icon: FolderPlus,
+      run: () => {
+        setActiveSidebarTab('explorer' as SidebarTab)
+        useIDEStore.getState().setSidebarOpen(true)
+        window.dispatchEvent(new CustomEvent('trigger-new-folder'))
+      },
+    },
     {
       id: 'app-check-updates',
       title: 'Application: Check for Updates',

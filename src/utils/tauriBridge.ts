@@ -95,6 +95,17 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
       return `// Web Mock File: ${path}\n// Running in browser mode.` as unknown as T
     }
 
+    case 'create_file': {
+      const path = args.path as string
+      MOCK_WEB_FILES[path] = ''
+      localStorage.setItem(`cekcok_file_${path}`, '')
+      return null as unknown as T
+    }
+
+    case 'create_dir': {
+      return null as unknown as T
+    }
+
     case 'write_file': {
       const path = args.path as string
       const content = (args.content as string) || ''

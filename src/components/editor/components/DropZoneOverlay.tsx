@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { ArrowRight, ArrowLeft, ArrowDown, ArrowUp, Plus } from 'lucide-react'
+import { useIDEStore } from '@/store/useIDEStore'
 import { DropZonePosition } from '../types'
 
 interface DropZoneOverlayProps {
@@ -11,9 +12,11 @@ export const DropZoneOverlay: React.FC<DropZoneOverlayProps> = ({
   isDraggingFile,
   paneId,
 }) => {
+  const { dragPayload } = useIDEStore()
   const [activeZone, setActiveZone] = useState<DropZonePosition>(null)
 
-  if (!isDraggingFile) return null
+  // Only show editor split drop zones when dragging an editor file or tab
+  if (!isDraggingFile || !dragPayload || dragPayload.type === 'tool') return null
 
   const createZoneProps = (zone: DropZonePosition) => ({
     'data-drop-zone': zone,

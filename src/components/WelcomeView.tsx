@@ -1,6 +1,5 @@
 import { FolderOpen, FilePlus, GitBranch, Settings, Command, Search, Columns2, Terminal, ZoomIn } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
-import { toast } from 'react-hot-toast'
 import { useIDEStore } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
 import { APP_VERSION } from '../constants/app'
@@ -98,15 +97,12 @@ export const WelcomeView = () => {
 
               <button
                 onClick={() => {
-                  if (!currentDir) {
-                    toast.error('Please open a folder first to create a file.')
-                    return
-                  }
-                  const filename = prompt('Enter filename to create (e.g. index.ts):')
-                  if (filename) {
-                    const sep = currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/'
-                    const path = `${currentDir}${sep}${filename}`
-                    openFile({ name: filename, path, is_dir: false, content: '' })
+                  if (currentDir) {
+                    useIDEStore.getState().setActiveSidebarTab('explorer')
+                    useIDEStore.getState().setSidebarOpen(true)
+                    window.dispatchEvent(new CustomEvent('trigger-new-file'))
+                  } else {
+                    openFile({ name: 'Untitled-1', path: 'untitled://Untitled-1', is_dir: false, content: '' })
                   }
                 }}
                 style={{
@@ -114,14 +110,14 @@ export const WelcomeView = () => {
                   borderColor: 'var(--color-ide-border)',
                   color: 'var(--color-ide-text)',
                 }}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg border hover:border-ide-accent/50 transition-all text-left group ${!currentDir ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border hover:border-ide-accent/50 transition-all text-left group cursor-pointer"
               >
                 <div className="p-2 rounded bg-blue-500/15 text-blue-500 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <FilePlus size={18} />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold">New File...</div>
-                  <div className="text-[11px] opacity-60">Create a new empty document</div>
+                  <div className="text-xs font-semibold">New File</div>
+                  <div className="text-[11px] opacity-60">Create a new document or scratchpad</div>
                 </div>
               </button>
 

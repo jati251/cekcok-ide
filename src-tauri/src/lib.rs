@@ -3,7 +3,7 @@ pub mod git_commands;
 pub mod search_commands;
 
 use fs_commands::{
-    create_dir, create_file, delete_path, execute_shell, read_dir, read_file, read_file_bytes, rename_path,
+    change_dir, create_dir, create_file, delete_path, execute_shell, read_dir, read_file, read_file_bytes, rename_path,
     copy_path, duplicate_path, reveal_in_file_manager, write_file, write_file_bytes, spawn_shell, kill_shell, TerminalState,
 };
 use git_commands::{
@@ -33,6 +33,7 @@ pub fn run() {
             execute_shell,
             spawn_shell,
             kill_shell,
+            change_dir,
             write_file,
             write_file_bytes,
             create_file,
@@ -56,11 +57,12 @@ pub fn run() {
             restart_app
         ])
         .setup(|app| {
+            use std::collections::HashMap;
             use std::sync::{Arc, Mutex};
             use tauri::Manager;
             
             app.manage(TerminalState {
-                process: Arc::new(Mutex::new(None)),
+                processes: Arc::new(Mutex::new(HashMap::new())),
             });
 
             if let Some(window) = app.get_webview_window("main") {

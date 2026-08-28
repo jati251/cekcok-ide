@@ -20,6 +20,7 @@ export const Sidebar: React.FC = () => {
           transition={{ duration: 0.15, ease: 'easeInOut' }}
           className="bg-ide-sidebar border-r border-ide-border flex flex-col h-full overflow-hidden select-none z-10 shrink-0"
           style={{ width: sidebarWidth }}
+          data-drop-zone="left-tools"
         >
           <activeTool.component />
         </motion.aside>

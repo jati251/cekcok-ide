@@ -25,19 +25,18 @@ export const EditorTabBar: React.FC<EditorTabBarProps> = ({
     saveAllFiles,
     closeAllTabsInPane,
     currentDir,
-    createFileInDir,
     openFileInPane,
   } = useIDEStore()
 
   const hasDirtyFiles = files.some(f => f.isDirty)
 
-  const handleDoubleClickEmpty = async () => {
-    if (!currentDir) return
-    const name = prompt('Create new file:')
-    if (name) {
-      await createFileInDir(currentDir, name)
-      const sep = currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/'
-      openFileInPane({ name, path: `${currentDir}${sep}${name}`, is_dir: false, content: '' }, paneId)
+  const handleDoubleClickEmpty = () => {
+    if (currentDir) {
+      useIDEStore.getState().setActiveSidebarTab('explorer')
+      useIDEStore.getState().setSidebarOpen(true)
+      window.dispatchEvent(new CustomEvent('trigger-new-file'))
+    } else {
+      openFileInPane({ name: 'Untitled-1', path: 'untitled://Untitled-1', is_dir: false, content: '' }, paneId)
     }
   }
 

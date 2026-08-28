@@ -20,20 +20,27 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
     createFileInDir,
     createFolderInDir,
     settings,
+    selectedNode,
+    setSelectedNode,
+    creatingItemState,
+    setCreatingItemState,
+    startCreateItem,
   } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
   const children = folderChildren[node.path] || []
   const isActive = activeFile?.path === node.path
+  const isSelected = selectedNode?.path === node.path
+  const isCreatingInsideThisFolder = node.is_dir && creatingItemState?.parentPath === node.path
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(node.name)
-  const [creatingChild, setCreatingChild] = useState<{ isDir: boolean } | null>(null)
   const [newChildName, setNewChildName] = useState('')
 
   const renameInputRef = useRef<HTMLInputElement>(null)
   const newChildInputRef = useRef<HTMLInputElement>(null)
+  const isSubmittingChildRef = useRef(false)
 
   useEffect(() => {
     if (isRenaming) {
@@ -43,10 +50,10 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   }, [isRenaming])
 
   useEffect(() => {
-    if (creatingChild) {
+    if (isCreatingInsideThisFolder) {
       newChildInputRef.current?.focus()
     }
-  }, [creatingChild])
+  }, [isCreatingInsideThisFolder])
 
   // Filter hidden and ignored items based on settings
   if (node.is_hidden && !settings.showHiddenFiles) {
@@ -58,6 +65,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    setSelectedNode(node)
     if (node.is_dir) {
       toggleFolder(node.path)
     } else {
@@ -68,6 +76,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    setSelectedNode(node)
     setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
@@ -95,16 +104,28 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   }
 
   const handleNewChildSubmit = async () => {
+    if (isSubmittingChildRef.current) return
     const trimmed = newChildName.trim()
-    if (trimmed && creatingChild) {
-      if (creatingChild.isDir) {
+    if (!trimmed || !creatingItemState) {
+      setCreatingItemState(null)
+      setNewChildName('')
+      return
+    }
+
+    isSubmittingChildRef.current = true
+    try {
+      if (creatingItemState.isDir) {
         await createFolderInDir(node.path, trimmed)
       } else {
         await createFileInDir(node.path, trimmed)
       }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCreatingItemState(null)
+      setNewChildName('')
+      isSubmittingChildRef.current = false
     }
-    setCreatingChild(null)
-    setNewChildName('')
   }
 
   return (
@@ -115,8 +136,16 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         onContextMenu={handleContextMenu}
         onPointerDown={handlePointerDown}
         onKeyDown={(e) => {
-          if (isRenaming || creatingChild) return
+          if (isRenaming || isCreatingInsideThisFolder) return
           const isCmdOrCtrl = e.metaKey || e.ctrlKey
+
+          // Keyboard shortcut 'a' (New File) or 'A' (New Folder) when tree item is focused
+          if (!isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
+            e.preventDefault()
+            e.stopPropagation()
+            startCreateItem(e.shiftKey, node.path)
+            return
+          }
 
           if (e.key === 'Enter' || e.key === 'F2') {
             e.preventDefault()
@@ -153,7 +182,6 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
             if (node.is_dir) {
               useIDEStore.getState().pasteFileToDir(node.path)
             } else {
-              // Paste to parent folder if not a dir
               const parentPath = node.path.substring(0, Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')))
               useIDEStore.getState().pasteFileToDir(parentPath)
             }
@@ -163,6 +191,8 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative outline-none focus-visible:ring-1 focus-visible:ring-ide-accent/50 ${
           isActive
             ? 'bg-ide-accent/25 text-white font-medium'
+            : isSelected
+            ? 'bg-white/10 text-white font-normal'
             : node.is_ignored
             ? 'hover:bg-white/5 text-[#777777] opacity-60'
             : 'hover:bg-white/5 text-[#cccccc]'
@@ -214,35 +244,43 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         )}
       </div>
 
-      {/* Inline New Child Creation Input */}
-      {creatingChild && (
-        <div
-          style={{ paddingLeft: `${(depth + 1) * 14 + 8}px` }}
-          className="flex items-center gap-1.5 py-1 pr-2"
-        >
-          <span className="w-4 shrink-0" />
-          {renderFileOrFolderIcon(newChildName || 'new', creatingChild.isDir, false)}
-          <input
-            ref={newChildInputRef}
-            type="text"
-            placeholder={creatingChild.isDir ? 'Folder name...' : 'File name...'}
-            value={newChildName}
-            onChange={(e) => setNewChildName(e.target.value)}
-            onBlur={handleNewChildSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleNewChildSubmit()
-              if (e.key === 'Escape') setCreatingChild(null)
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#3c3c3c] text-white text-xs px-1 py-0.5 rounded border border-ide-accent outline-none w-full"
-          />
-        </div>
-      )}
-
-      {/* Recursive Children */}
-      {node.is_dir && isExpanded && (
+      {/* Recursive Children and/or Inline Child Creation Input directly inside this folder */}
+      {node.is_dir && (isExpanded || isCreatingInsideThisFolder) && (
         <div>
-          {children.length === 0 && !creatingChild ? (
+          {/* Inline Input for New File/Folder inside this specific folder */}
+          {isCreatingInsideThisFolder && (
+            <div
+              style={{ paddingLeft: `${(depth + 1) * 14 + 8}px` }}
+              className="flex items-center gap-1.5 py-1 px-2 my-0.5 bg-white/5 rounded border border-ide-accent/40"
+            >
+              <span className="w-4 shrink-0 flex items-center justify-center">
+                {renderFileOrFolderIcon(
+                  newChildName || (creatingItemState?.isDir ? 'folder' : 'file'),
+                  !!creatingItemState?.isDir,
+                  false
+                )}
+              </span>
+              <input
+                ref={newChildInputRef}
+                type="text"
+                placeholder={creatingItemState?.isDir ? 'Folder name...' : 'File name (e.g. index.ts)...'}
+                value={newChildName}
+                onChange={(e) => setNewChildName(e.target.value)}
+                onBlur={handleNewChildSubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNewChildSubmit()
+                  if (e.key === 'Escape') {
+                    setCreatingItemState(null)
+                    setNewChildName('')
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#3c3c3c] text-white text-xs px-1.5 py-0.5 rounded border border-ide-accent outline-none w-full shadow-inner"
+              />
+            </div>
+          )}
+
+          {children.length === 0 && !isCreatingInsideThisFolder ? (
             <div
               style={{ paddingLeft: `${(depth + 1) * 14 + 22}px` }}
               className="py-0.5 text-[11px] text-[#777] italic"
@@ -265,12 +303,10 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           node={node}
           onClose={() => setContextMenu(null)}
           onNewFile={() => {
-            if (!isExpanded) toggleFolder(node.path)
-            setCreatingChild({ isDir: false })
+            startCreateItem(false, node.path)
           }}
           onNewFolder={() => {
-            if (!isExpanded) toggleFolder(node.path)
-            setCreatingChild({ isDir: true })
+            startCreateItem(true, node.path)
           }}
           onRename={() => {
             setRenameValue(node.name)

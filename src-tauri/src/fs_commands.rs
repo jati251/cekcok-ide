@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio, Child};
@@ -7,7 +8,19 @@ use std::io::{BufRead, BufReader};
 use tauri::{AppHandle, Emitter, State};
 
 pub struct TerminalState {
-    pub process: Arc<Mutex<Option<Child>>>,
+    pub processes: Arc<Mutex<HashMap<String, Child>>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TerminalOutputPayload {
+    pub session_id: String,
+    pub data: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TerminalExitPayload {
+    pub session_id: String,
+    pub code: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -120,7 +133,13 @@ pub fn write_file_bytes(path: &str, bytes: Vec<u8>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn create_file(path: &str) -> Result<(), String> {
-    match fs::File::create(path) {
+    let p = Path::new(path);
+    if let Some(parent) = p.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+    match fs::File::create(p) {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
@@ -276,14 +295,49 @@ pub fn execute_shell(cmd: &str, cwd: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn spawn_shell(app: AppHandle, state: State<'_, TerminalState>, cmd: &str, cwd: &str) -> Result<(), String> {
-    // If a process is already running, kill it before spawning a new one
-    kill_shell(state.clone())?;
+pub fn change_dir(current: &str, target: &str) -> Result<String, String> {
+    let curr_path = Path::new(current);
+    let target_path = Path::new(target);
 
-    let mut child = Command::new("sh")
+    let resolved = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else {
+        curr_path.join(target_path)
+    };
+
+    let canonical = resolved.canonicalize().map_err(|e| e.to_string())?;
+    if !canonical.is_dir() {
+        return Err(format!("{} is not a directory", target));
+    }
+
+    Ok(canonical.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn spawn_shell(
+    app: AppHandle,
+    state: State<'_, TerminalState>,
+    cmd: &str,
+    cwd: &str,
+    session_id: Option<String>,
+) -> Result<(), String> {
+    let sid = session_id.unwrap_or_else(|| "term-1".to_string());
+
+    // If a process is already running for this session, kill it before spawning a new one
+    let _ = kill_shell(state.clone(), Some(sid.clone()));
+
+    #[cfg(target_os = "windows")]
+    let mut command = Command::new("powershell.exe");
+    #[cfg(target_os = "windows")]
+    command.arg("-Command").arg(cmd);
+
+    #[cfg(not(target_os = "windows"))]
+    let mut command = Command::new("sh");
+    #[cfg(not(target_os = "windows"))]
+    command.arg("-c").arg(cmd);
+
+    let mut child = command
         .current_dir(cwd)
-        .arg("-c")
-        .arg(cmd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -292,57 +346,85 @@ pub fn spawn_shell(app: AppHandle, state: State<'_, TerminalState>, cmd: &str, c
     let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
     let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
 
-    // Save the child process in state so it can be killed later
     {
-        let mut process_guard = state.process.lock().unwrap();
-        *process_guard = Some(child);
+        let mut processes_guard = state.processes.lock().unwrap();
+        processes_guard.insert(sid.clone(), child);
     }
 
     let app_clone1 = app.clone();
-    let app_clone2 = app.clone();
-
+    let sid_clone1 = sid.clone();
     // Stream Stdout
     std::thread::spawn(move || {
         let reader = BufReader::new(stdout);
         for l in reader.lines().map_while(Result::ok) {
-            let _ = app_clone1.emit("terminal-output", format!("{}\r\n", l));
+            let _ = app_clone1.emit("terminal-output", TerminalOutputPayload {
+                session_id: sid_clone1.clone(),
+                data: format!("{}\r\n", l),
+            });
         }
     });
 
+    let app_clone2 = app.clone();
+    let sid_clone2 = sid.clone();
     // Stream Stderr
     std::thread::spawn(move || {
         let reader = BufReader::new(stderr);
         for l in reader.lines().map_while(Result::ok) {
-            let _ = app_clone2.emit("terminal-output", format!("\x1b[31m{}\x1b[0m\r\n", l));
+            let _ = app_clone2.emit("terminal-output", TerminalOutputPayload {
+                session_id: sid_clone2.clone(),
+                data: format!("\x1b[31m{}\x1b[0m\r\n", l),
+            });
         }
     });
 
     // Wait for process to exit
     let app_clone3 = app.clone();
-    let state_clone = state.process.clone();
+    let state_clone = state.processes.clone();
+    let sid_clone3 = sid.clone();
     std::thread::spawn(move || {
-        // Wait for the process to actually finish by acquiring the lock
         let mut exit_status = None;
-        {
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(50));
             let mut guard = state_clone.lock().unwrap();
-            if let Some(child) = guard.as_mut() {
-                exit_status = child.wait().ok();
+            if let Some(child) = guard.get_mut(&sid_clone3) {
+                match child.try_wait() {
+                    Ok(Some(status)) => {
+                        exit_status = Some(status);
+                        guard.remove(&sid_clone3);
+                        break;
+                    }
+                    Ok(None) => {}
+                    Err(_) => {
+                        guard.remove(&sid_clone3);
+                        break;
+                    }
+                }
+            } else {
+                break;
             }
-            // Once finished, remove it from state
-            *guard = None;
         }
-        let _ = app_clone3.emit("terminal-exit", exit_status.map(|s| s.code()).unwrap_or(Some(0)));
+        let _ = app_clone3.emit("terminal-exit", TerminalExitPayload {
+            session_id: sid_clone3,
+            code: exit_status.and_then(|s| s.code()),
+        });
     });
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn kill_shell(state: State<'_, TerminalState>) -> Result<(), String> {
-    let mut process_guard = state.process.lock().unwrap();
-    if let Some(mut child) = process_guard.take() {
-        let _ = child.kill();
-        let _ = child.wait(); // ensure zombie process is reaped
+pub fn kill_shell(state: State<'_, TerminalState>, session_id: Option<String>) -> Result<(), String> {
+    let mut processes_guard = state.processes.lock().unwrap();
+    if let Some(sid) = session_id {
+        if let Some(mut child) = processes_guard.remove(&sid) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    } else {
+        for (_, mut child) in processes_guard.drain() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
     }
     Ok(())
 }

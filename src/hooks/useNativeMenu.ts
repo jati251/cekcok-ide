@@ -58,34 +58,15 @@ export const useNativeMenu = () => {
         // For new_file, new_folder, format, we could emit a custom window event or dispatch a specific store payload
         // Since we don't have direct access to the DOM here for formatting, we can just log or show a toast
         case 'new_file': {
-          const name = prompt('Enter new file name:')
-          if (name) {
-            const dir = useIDEStore.getState().currentDir
-            if (!dir) {
-              alert('Please open a folder first.')
-              return
-            }
-            useIDEStore.getState().createFileInDir(dir, name).then(() => {
-              const sep = dir.endsWith('/') || dir.endsWith('\\') ? '' : '/'
-              useIDEStore.getState().openFile({ name, path: `${dir}${sep}${name}`, is_dir: false })
-            }).catch(e => {
-              import('react-hot-toast').then(({ toast }) => toast.error(`Error creating file: ${e}`))
-            })
-          }
+          useIDEStore.getState().setActiveSidebarTab('explorer')
+          useIDEStore.getState().setSidebarOpen(true)
+          window.dispatchEvent(new CustomEvent('trigger-new-file'))
           break
         }
         case 'new_folder': {
-          const name = prompt('Enter new folder name:')
-          if (name) {
-            const dir = useIDEStore.getState().currentDir
-            if (!dir) {
-              alert('Please open a folder first.')
-              return
-            }
-            useIDEStore.getState().createFolderInDir(dir, name).catch(e => {
-              import('react-hot-toast').then(({ toast }) => toast.error(`Error creating folder: ${e}`))
-            })
-          }
+          useIDEStore.getState().setActiveSidebarTab('explorer')
+          useIDEStore.getState().setSidebarOpen(true)
+          window.dispatchEvent(new CustomEvent('trigger-new-folder'))
           break
         }
         case 'format_document':

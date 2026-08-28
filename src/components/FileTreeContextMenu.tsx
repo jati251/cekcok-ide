@@ -117,33 +117,29 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
       className="fixed z-50 w-56 bg-[#252526] border border-ide-border rounded-md shadow-2xl py-1 text-xs text-[#cccccc] select-none"
       onClick={(e) => e.stopPropagation()}
     >
-      {node.is_dir && (
-        <>
-          <button
-            onClick={() => {
-              onNewFile()
-              onClose()
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
-          >
-            <FilePlus size={14} className="text-[#80a4c2]" />
-            <span className="flex-1">New File...</span>
-          </button>
+      <button
+        onClick={() => {
+          onNewFile()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+      >
+        <FilePlus size={14} className="text-[#80a4c2]" />
+        <span className="flex-1">New File...</span>
+      </button>
 
-          <button
-            onClick={() => {
-              onNewFolder()
-              onClose()
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
-          >
-            <FolderPlus size={14} className="text-yellow-400" />
-            <span className="flex-1">New Folder...</span>
-          </button>
+      <button
+        onClick={() => {
+          onNewFolder()
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-ide-accent hover:text-white cursor-pointer transition-colors text-left"
+      >
+        <FolderPlus size={14} className="text-yellow-400" />
+        <span className="flex-1">New Folder...</span>
+      </button>
 
-          <div className="h-[1px] bg-ide-border my-1" />
-        </>
-      )}
+      <div className="h-[1px] bg-ide-border my-1" />
       
       <button
         onClick={() => {

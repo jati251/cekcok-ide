@@ -9,8 +9,13 @@ export interface WorkspaceSlice {
   expandedFolders: Record<string, boolean>
   folderChildren: Record<string, FileNode[]>
   fileClipboard: FileClipboardState | null
+  selectedNode: FileNode | null
+  creatingItemState: { parentPath: string; isDir: boolean } | null
 
   setFileTree: (files: FileNode[]) => void
+  setSelectedNode: (node: FileNode | null) => void
+  setCreatingItemState: (state: { parentPath: string; isDir: boolean } | null) => void
+  startCreateItem: (isDir: boolean, targetPath?: string) => Promise<void>
   toggleFolder: (path: string) => Promise<void>
   collapseAllFolders: () => void
   refreshDirectory: (path?: string) => Promise<void>
@@ -31,8 +36,48 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
   expandedFolders: {},
   folderChildren: {},
   fileClipboard: null,
+  selectedNode: null,
+  creatingItemState: null,
 
   setFileTree: (files) => set({ fileTree: files }),
+  setSelectedNode: (node) => set({ selectedNode: node }),
+  setCreatingItemState: (state) => set({ creatingItemState: state }),
+
+  startCreateItem: async (isDir, targetPath) => {
+    const { currentDir, selectedNode, expandedFolders, folderChildren } = get()
+    if (!currentDir) {
+      toast.error('Please open a folder first.')
+      return
+    }
+
+    let parent = currentDir
+    if (targetPath) {
+      // Find if targetPath is a folder or file
+      const isTargetDir = !!folderChildren[targetPath] || (selectedNode?.path === targetPath && selectedNode?.is_dir)
+      if (isTargetDir) {
+        parent = targetPath
+      } else {
+        const lastSlash = Math.max(targetPath.lastIndexOf('/'), targetPath.lastIndexOf('\\'))
+        parent = lastSlash > 0 ? targetPath.substring(0, lastSlash) : currentDir
+      }
+    } else if (selectedNode) {
+      if (selectedNode.is_dir) {
+        parent = selectedNode.path
+      } else {
+        const lastSlash = Math.max(selectedNode.path.lastIndexOf('/'), selectedNode.path.lastIndexOf('\\'))
+        parent = lastSlash > 0 ? selectedNode.path.substring(0, lastSlash) : currentDir
+      }
+    }
+
+    // Auto expand parent directory if it's not root
+    if (parent !== currentDir) {
+      if (!expandedFolders[parent]) {
+        await get().toggleFolder(parent)
+      }
+    }
+
+    set({ creatingItemState: { parentPath: parent, isDir } })
+  },
 
   toggleFolder: async (path) => {
     const isExpanded = get().expandedFolders[path]
@@ -91,20 +136,32 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
 
   createFileInDir: async (dirPath, name) => {
     try {
-      await safeInvoke('create_file', { path: `${dirPath}/${name}` })
+      const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
+      const fullPath = `${dirPath}${sep}${name}`
+      await safeInvoke('create_file', { path: fullPath })
       await get().refreshDirectory(dirPath)
+      get().openFile({ name, path: fullPath, is_dir: false, content: '' })
+      toast.success(`Created file ${name}`)
     } catch (err) {
       console.error(err)
+      toast.error(`Failed to create file: ${err}`)
       throw err
     }
   },
 
   createFolderInDir: async (dirPath, name) => {
     try {
-      await safeInvoke('create_dir', { path: `${dirPath}/${name}` })
+      const sep = dirPath.endsWith('/') || dirPath.endsWith('\\') ? '' : '/'
+      const fullPath = `${dirPath}${sep}${name}`
+      await safeInvoke('create_dir', { path: fullPath })
       await get().refreshDirectory(dirPath)
+      set((state) => ({
+        expandedFolders: { ...state.expandedFolders, [fullPath]: true }
+      }))
+      toast.success(`Created folder ${name}`)
     } catch (err) {
       console.error(err)
+      toast.error(`Failed to create folder: ${err}`)
       throw err
     }
   },

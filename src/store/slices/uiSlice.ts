@@ -82,6 +82,7 @@ export interface UISlice {
   setBranchSwitcherOpen: (open: boolean) => void
   branchSwitcherOpen: boolean
   setToolLayout: (toolId: ToolId, position: ToolPanelPosition) => void
+  resetToolLayout: () => void
   setIsDraggingFile: (dragging: boolean) => void
 }
 
@@ -252,9 +253,64 @@ export const createUISlice: StateCreator<FullIDEStore, [], [], UISlice> = (set, 
   setSearchEverywhereOpen: (open) => set({ searchEverywhereOpen: open }),
   setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
   setBranchSwitcherOpen: (open) => set({ branchSwitcherOpen: open }),
-  setToolLayout: (toolId, position) =>
-    set((state) => ({
-      toolLayout: { ...state.toolLayout, [toolId]: position },
-    })),
+  setToolLayout: (toolId, position) => {
+    const { toolLayout, activeSidebarTab, activeBottomTab } = get()
+    if (toolLayout[toolId] === position) return
+
+    const newLayout = { ...toolLayout, [toolId]: position }
+
+    if (position === 'left') {
+      const updates: Partial<FullIDEStore> = {
+        toolLayout: newLayout,
+        activeSidebarTab: toolId as SidebarTab,
+        sidebarOpen: true,
+      }
+      if (activeBottomTab === (toolId as unknown as BottomPanelTab)) {
+        const remainingBottom = (Object.keys(newLayout) as ToolId[]).filter(
+          (k) => newLayout[k] === 'bottom'
+        ) as unknown as BottomPanelTab[]
+        if (remainingBottom.length > 0) {
+          updates.activeBottomTab = remainingBottom[0]
+        }
+      }
+      set(updates)
+    } else if (position === 'bottom') {
+      const updates: Partial<FullIDEStore> = {
+        toolLayout: newLayout,
+        activeBottomTab: toolId as unknown as BottomPanelTab,
+        terminalOpen: true,
+      }
+      if (activeSidebarTab === (toolId as unknown as SidebarTab)) {
+        const remainingLeft = (Object.keys(newLayout) as ToolId[]).filter(
+          (k) => newLayout[k] === 'left'
+        ) as unknown as SidebarTab[]
+        if (remainingLeft.length > 0) {
+          updates.activeSidebarTab = remainingLeft[0]
+        }
+      }
+      set(updates)
+    } else {
+      set({ toolLayout: newLayout })
+    }
+  },
+
+  resetToolLayout: () =>
+    set({
+      toolLayout: {
+        explorer: 'left',
+        search: 'left',
+        git: 'left',
+        node: 'left',
+        settings: 'hidden',
+        problems: 'bottom',
+        output: 'bottom',
+        debug: 'bottom',
+        terminal: 'bottom',
+        ports: 'bottom',
+      },
+      activeSidebarTab: 'explorer',
+      activeBottomTab: 'terminal',
+    }),
+
   setIsDraggingFile: (dragging) => set({ isDraggingFile: dragging }),
 })

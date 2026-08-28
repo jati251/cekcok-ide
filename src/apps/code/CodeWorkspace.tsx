@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { PanelLeft, PanelRight, PanelBottom } from 'lucide-react'
 import { TitleBar } from '../../components/TitleBar'
 import { ActivityBar } from '../../components/ActivityBar'
 import { Sidebar } from '../../components/Sidebar'
@@ -16,6 +17,7 @@ import { useNativeMenu } from '../../hooks/useNativeMenu'
 import { useAutoSave } from '../../hooks/useAutoSave'
 import { getSavedLastProject } from '../../utils/storage'
 import { THEMES } from '../../utils/themes'
+import { TOOLS } from '../../components/ToolRegistry'
 
 export const CodeWorkspace: React.FC = () => {
   const {
@@ -28,9 +30,12 @@ export const CodeWorkspace: React.FC = () => {
     zoomLevel,
     setCurrentDir,
     zenMode,
+    isDraggingFile,
+    dragPayload,
   } = useIDEStore()
 
   const [isMobile, setIsMobile] = useState(false)
+  const [dragCursorCoords, setDragCursorCoords] = useState<{ x: number; y: number } | null>(null)
 
   // Register all global keybindings
   useKeyboardShortcuts()
@@ -78,6 +83,9 @@ export const CodeWorkspace: React.FC = () => {
           state.setIsDraggingFile(true)
         }
       }
+      if (state.isDraggingFile) {
+        setDragCursorCoords({ x: e.clientX, y: e.clientY })
+      }
     }
 
     const handlePointerUp = (e: PointerEvent) => {
@@ -106,12 +114,21 @@ export const CodeWorkspace: React.FC = () => {
               state.movePathItem(state.dragPayload.file.path, targetNode)
             }
           }
-        } else if (dropZone === 'left-tools' || dropZone === 'bottom-tools') {
+        } else if (dropZone === 'left-tools' || dropZone === 'dock-left') {
           if (state.dragPayload.type === 'tool' && state.dragPayload.toolId) {
-            const position = dropZone === 'left-tools' ? 'left' : 'bottom'
-            state.setToolLayout(state.dragPayload.toolId, position)
+            state.setToolLayout(state.dragPayload.toolId, 'left')
           }
-        } else if (dropZone) {
+        } else if (dropZone === 'bottom-tools' || dropZone === 'dock-bottom') {
+          if (state.dragPayload.type === 'tool' && state.dragPayload.toolId) {
+            state.setPanelPosition('bottom')
+            state.setToolLayout(state.dragPayload.toolId, 'bottom')
+          }
+        } else if (dropZone === 'right-tools' || dropZone === 'dock-right') {
+          if (state.dragPayload.type === 'tool' && state.dragPayload.toolId) {
+            state.setPanelPosition('right')
+            state.setToolLayout(state.dragPayload.toolId, 'bottom')
+          }
+        } else if (dropZone && (state.dragPayload.type === 'file' || state.dragPayload.type === 'tab')) {
           const paneId = dropZoneEl?.getAttribute('data-pane-id')
           if (paneId) {
             window.dispatchEvent(new CustomEvent('cekcok-drop', { 
@@ -126,6 +143,7 @@ export const CodeWorkspace: React.FC = () => {
       state.setPendingDragPayload(null)
       state.setDragStartCoords(null)
       state.setIsDraggingFile(false)
+      setDragCursorCoords(null)
     }
 
     window.addEventListener('dragend', handleWindowDragEnd)
@@ -224,7 +242,10 @@ export const CodeWorkspace: React.FC = () => {
         >
           <EditorPane />
           {terminalOpen && !zenMode && (
-            <ResizeHandle direction={isPanelRight ? 'vertical' : 'horizontal'} />
+            <ResizeHandle
+              direction={isPanelRight ? 'vertical' : 'horizontal'}
+              target={isPanelRight ? 'terminal' : 'sidebar'}
+            />
           )}
           {!zenMode && <BottomPanel />}
         </div>
@@ -232,12 +253,81 @@ export const CodeWorkspace: React.FC = () => {
         {/* Right-Aligned Sidebar & Activity Bar (Desktop) */}
         {isSidebarRight && !isMobile && (
           <>
-            {sidebarOpen && !zenMode && <ResizeHandle direction="vertical" />}
+            {sidebarOpen && !zenMode && <ResizeHandle direction="vertical" target="sidebar" />}
             {!zenMode && <Sidebar />}
             {!zenMode && <ActivityBar />}
           </>
         )}
       </div>
+
+      {/* Visual Docking Drop Zones when Dragging a Tool */}
+      {isDraggingFile && dragPayload?.type === 'tool' && (
+        <div className="fixed inset-0 pointer-events-none z-40 flex">
+          {/* Left Docking Area */}
+          <div
+            data-drop-zone="dock-left"
+            className="w-24 h-full pointer-events-auto bg-ide-accent/10 border-r-2 border-dashed border-ide-accent/60 flex flex-col items-center justify-center gap-2 text-white/80 hover:bg-ide-accent/25 hover:border-ide-accent hover:text-white transition-all backdrop-blur-[2px]"
+          >
+            <PanelLeft size={24} className="text-ide-accent" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-center px-1">
+              Dock Left
+            </span>
+          </div>
+
+          {/* Center Area (with Bottom Dock) */}
+          <div className="flex-1 h-full flex flex-col justify-end pointer-events-none">
+            <div
+              data-drop-zone="dock-bottom"
+              className="h-28 w-full pointer-events-auto bg-ide-accent/10 border-t-2 border-dashed border-ide-accent/60 flex flex-col items-center justify-center gap-1.5 text-white/80 hover:bg-ide-accent/25 hover:border-ide-accent hover:text-white transition-all backdrop-blur-[2px]"
+            >
+              <PanelBottom size={24} className="text-ide-accent" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">
+                Dock Bottom Panel
+              </span>
+            </div>
+          </div>
+
+          {/* Right Docking Area */}
+          <div
+            data-drop-zone="dock-right"
+            className="w-28 h-full pointer-events-auto bg-ide-accent/10 border-l-2 border-dashed border-ide-accent/60 flex flex-col items-center justify-center gap-2 text-white/80 hover:bg-ide-accent/25 hover:border-ide-accent hover:text-white transition-all backdrop-blur-[2px]"
+          >
+            <PanelRight size={24} className="text-ide-accent" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-center px-1">
+              Dock Right Panel
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Tool Drag Preview */}
+      {isDraggingFile && dragPayload?.type === 'tool' && dragPayload.toolId && dragCursorCoords && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${dragCursorCoords.x + 12}px`,
+            top: `${dragCursorCoords.y + 12}px`,
+            pointerEvents: 'none',
+            zIndex: 9999,
+          }}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-ide-accent text-white shadow-2xl text-xs font-semibold select-none border border-white/20 animate-in fade-in zoom-in-95 duration-100"
+        >
+          {(() => {
+            const tool = TOOLS[dragPayload.toolId]
+            if (!tool) return null
+            const ToolIcon = tool.icon
+            return (
+              <>
+                <ToolIcon size={14} />
+                <span>{tool.label}</span>
+                <span className="text-[10px] opacity-80 font-normal bg-black/20 px-1.5 py-0.5 rounded">
+                  Drop on Sidebar or Panel
+                </span>
+              </>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Bottom Status Bar */}
       {!zenMode && <StatusBar />}

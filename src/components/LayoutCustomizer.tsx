@@ -7,10 +7,11 @@ import {
   Columns2,
   Rows2,
   Check,
+  RotateCcw,
 } from 'lucide-react'
-import { useIDEStore, SidebarPosition, PanelPosition, SplitDirection } from '../store/useIDEStore'
-
+import { useIDEStore, SidebarPosition, PanelPosition, SplitDirection, ToolId } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
+import { TOOLS } from './ToolRegistry'
 
 export const LayoutCustomizer: React.FC = () => {
   const {
@@ -22,6 +23,9 @@ export const LayoutCustomizer: React.FC = () => {
     toggleTerminal,
     toggleSplitEditor,
     splitEditorOpen,
+    toolLayout,
+    setToolLayout,
+    resetToolLayout,
   } = useIDEStore()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -39,6 +43,8 @@ export const LayoutCustomizer: React.FC = () => {
     return () => window.removeEventListener('mousedown', handleOutside)
   }, [isOpen])
 
+  const configurableTools: ToolId[] = ['terminal', 'explorer', 'git', 'search', 'problems', 'output', 'node', 'ports', 'debug']
+
   return (
     <div className="relative inline-block" ref={menuRef}>
       <button
@@ -51,11 +57,21 @@ export const LayoutCustomizer: React.FC = () => {
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-1.5 w-64 bg-[#252526] border border-ide-border rounded-lg shadow-2xl p-2.5 z-50 text-xs text-[#cccccc] space-y-3 select-none"
+          className="absolute right-0 top-full mt-1.5 w-72 bg-[#252526] border border-ide-border rounded-lg shadow-2xl p-2.5 z-50 text-xs text-[#cccccc] space-y-3 select-none max-h-[85vh] overflow-y-auto no-scrollbar"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-[11px] font-bold uppercase tracking-wider text-ide-muted">
-            Customize Layout
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ide-muted">
+              Customize Layout
+            </span>
+            <button
+              onClick={() => resetToolLayout()}
+              className="text-[10px] text-ide-accent hover:underline flex items-center gap-1 cursor-pointer"
+              title="Reset tool placements"
+            >
+              <RotateCcw size={10} />
+              <span>Reset</span>
+            </button>
           </div>
 
           {/* Primary Sidebar Position */}
@@ -146,6 +162,56 @@ export const LayoutCustomizer: React.FC = () => {
                 <Rows2 size={13} />
                 <span>Rows</span>
               </button>
+            </div>
+          </div>
+
+          <div className="h-[1px] bg-ide-border my-1" />
+
+          {/* Tool Placement (Dock to Sidebar or Panel) */}
+          <div className="space-y-1.5">
+            <span className="text-white/80 font-medium text-[11px]">Tool Placement</span>
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+              {configurableTools.map((toolId) => {
+                const tool = TOOLS[toolId]
+                if (!tool) return null
+                const Icon = tool.icon
+                const currentPos = toolLayout[toolId] || 'bottom'
+
+                return (
+                  <div
+                    key={toolId}
+                    className="flex items-center justify-between p-1.5 rounded bg-[#1e1e1e] border border-ide-border/50 text-[11px]"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Icon size={13} className="text-ide-accent shrink-0" />
+                      <span className="truncate">{tool.label}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setToolLayout(toolId, 'left')}
+                        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors text-[10px] ${
+                          currentPos === 'left'
+                            ? 'bg-ide-accent text-white font-semibold'
+                            : 'bg-white/5 hover:bg-white/10 text-[#888]'
+                        }`}
+                      >
+                        Sidebar
+                      </button>
+                      <button
+                        onClick={() => setToolLayout(toolId, 'bottom')}
+                        className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors text-[10px] ${
+                          currentPos === 'bottom'
+                            ? 'bg-ide-accent text-white font-semibold'
+                            : 'bg-white/5 hover:bg-white/10 text-[#888]'
+                        }`}
+                      >
+                        Panel
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 

@@ -66,6 +66,20 @@ export const useKeyboardShortcuts = () => {
         e.preventDefault()
         useIDEStore.getState().setCommandPaletteOpen(true)
       }
+      // Cmd+Shift+N: New Folder
+      else if (isCmdOrCtrl && e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+        e.preventDefault()
+        useIDEStore.getState().setActiveSidebarTab('explorer')
+        useIDEStore.getState().setSidebarOpen(true)
+        window.dispatchEvent(new CustomEvent('trigger-new-folder'))
+      }
+      // Cmd+N: New File
+      else if (isCmdOrCtrl && !e.shiftKey && (e.key === 'N' || e.key === 'n')) {
+        e.preventDefault()
+        useIDEStore.getState().setActiveSidebarTab('explorer')
+        useIDEStore.getState().setSidebarOpen(true)
+        window.dispatchEvent(new CustomEvent('trigger-new-file'))
+      }
       // Cmd+P: Quick Open file
       else if (isCmdOrCtrl && !e.shiftKey && (e.key === 'P' || e.key === 'p')) {
         e.preventDefault()

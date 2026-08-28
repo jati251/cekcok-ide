@@ -3,10 +3,11 @@ import { useIDEStore } from '../store/useIDEStore'
 
 interface ResizeHandleProps {
   direction: 'horizontal' | 'vertical'
+  target?: 'sidebar' | 'terminal'
 }
 
-export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction }) => {
-  const { setSidebarWidth, setTerminalHeight } = useIDEStore()
+export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction, target = 'sidebar' }) => {
+  const { setSidebarWidth, setTerminalHeight, setTerminalWidth, settings } = useIDEStore()
   const [isDragging, setIsDragging] = useState(false)
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -14,9 +15,16 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction }) => {
     setIsDragging(true)
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      if (direction === 'vertical') {
+      if (target === 'terminal' && direction === 'vertical') {
+        // Vertical resizer for right-docked terminal panel
+        const newWidth = window.innerWidth - moveEvent.clientX
+        setTerminalWidth(newWidth)
+      } else if (direction === 'vertical') {
         // Vertical resizer (resizes sidebar width)
-        const newWidth = moveEvent.clientX - 48 // 48px is ActivityBar width
+        const isSidebarRight = settings.sidebarPosition === 'right'
+        const newWidth = isSidebarRight
+          ? window.innerWidth - moveEvent.clientX - 48
+          : moveEvent.clientX - 48
         setSidebarWidth(newWidth)
       } else {
         // Horizontal resizer (resizes terminal height)
@@ -42,7 +50,7 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction }) => {
         className={`w-1 -ml-0.5 hover:w-1.5 z-30 cursor-col-resize select-none transition-colors ${
           isDragging ? 'bg-ide-accent w-1.5' : 'bg-transparent hover:bg-ide-accent/60'
         }`}
-        title="Drag to resize sidebar"
+        title={`Drag to resize ${target}`}
       />
     )
   }

@@ -1,12 +1,12 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
-import { toast } from 'react-hot-toast'
 import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
 import { EmptySpaceContextMenu } from '../EmptySpaceContextMenu'
+import { renderFileOrFolderIcon } from '../../utils/fileIcons'
 
 export const ExplorerSidebar: React.FC = () => {
   const {
@@ -14,13 +14,24 @@ export const ExplorerSidebar: React.FC = () => {
     fileTree,
     setFileTree,
     setCurrentDir,
-    openFile,
     collapseAllFolders,
     settings,
     updateSettings,
+    createFileInDir,
+    createFolderInDir,
+    refreshDirectory,
+    creatingItemState,
+    setCreatingItemState,
+    startCreateItem,
+    setSelectedNode,
   } = useIDEStore()
 
-  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [rootNodeName, setRootNodeName] = useState('')
+  const rootInputRef = useRef<HTMLInputElement>(null)
+  const isSubmittingRootRef = useRef(false)
+
+  const isCreatingAtRoot = creatingItemState?.parentPath === currentDir
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -29,19 +40,49 @@ export const ExplorerSidebar: React.FC = () => {
 
   const loadDirectory = useCallback(
     async (dirPath: string) => {
+      if (!dirPath) return
       try {
-        const files = await invoke<FileNode[]>('read_dir', { path: dirPath })
+        const { showHiddenFiles } = settings
+        const files = await invoke<FileNode[]>('read_dir', { 
+          path: dirPath,
+          show_hidden: showHiddenFiles,
+        })
         setFileTree(files)
       } catch (error) {
         console.error('Failed to read directory:', error)
       }
     },
-    [setFileTree]
+    [setFileTree, settings]
   )
 
   useEffect(() => {
     loadDirectory(currentDir)
   }, [currentDir, loadDirectory])
+
+  useEffect(() => {
+    if (isCreatingAtRoot) {
+      rootInputRef.current?.focus()
+      rootInputRef.current?.select()
+    }
+  }, [isCreatingAtRoot])
+
+  useEffect(() => {
+    const handleTriggerNewFile = () => {
+      if (!currentDir) return
+      startCreateItem(false)
+    }
+    const handleTriggerNewFolder = () => {
+      if (!currentDir) return
+      startCreateItem(true)
+    }
+
+    window.addEventListener('trigger-new-file', handleTriggerNewFile)
+    window.addEventListener('trigger-new-folder', handleTriggerNewFolder)
+    return () => {
+      window.removeEventListener('trigger-new-file', handleTriggerNewFile)
+      window.removeEventListener('trigger-new-folder', handleTriggerNewFolder)
+    }
+  }, [currentDir, startCreateItem])
 
   const handleOpenFolder = async () => {
     try {
@@ -57,25 +98,29 @@ export const ExplorerSidebar: React.FC = () => {
     }
   }
 
-  const handleCreateNode = async (isDir: boolean) => {
-    const name = prompt(`Enter ${isDir ? 'folder' : 'file'} name:`)
-    if (!name) return
+  const handleRootNodeSubmit = async () => {
+    if (isSubmittingRootRef.current) return
+    const trimmed = rootNodeName.trim()
+    if (!trimmed || !creatingItemState) {
+      setCreatingItemState(null)
+      setRootNodeName('')
+      return
+    }
 
-    const separator = currentDir.endsWith('/') || currentDir.endsWith('\\') ? '' : '/'
-    const fullPath = `${currentDir}${separator}${name}`
-
+    isSubmittingRootRef.current = true
     try {
-      if (isDir) {
-        await invoke('create_dir', { path: fullPath })
+      if (creatingItemState.isDir) {
+        await createFolderInDir(currentDir, trimmed)
       } else {
-        await invoke('create_file', { path: fullPath })
+        await createFileInDir(currentDir, trimmed)
       }
-      await loadDirectory(currentDir)
-      if (!isDir) {
-        openFile({ name, path: fullPath, is_dir: false })
-      }
-    } catch (error) {
-      toast.error(`Error creating ${isDir ? 'folder' : 'file'}: ${error}`)
+      await refreshDirectory(currentDir)
+    } catch (err) {
+      console.error('Failed to create item at root:', err)
+    } finally {
+      setCreatingItemState(null)
+      setRootNodeName('')
+      isSubmittingRootRef.current = false
     }
   }
 
@@ -108,7 +153,10 @@ export const ExplorerSidebar: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div
+      className="flex flex-col h-full"
+      onClick={() => setSelectedNode(null)}
+    >
       <div
         style={{
           backgroundColor: 'var(--color-ide-sidebar)',
@@ -124,18 +172,18 @@ export const ExplorerSidebar: React.FC = () => {
         >
           {rootFolderName}
         </span>
-        <div className="flex gap-1 items-center">
+        <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={() => handleCreateNode(false)}
+            onClick={() => startCreateItem(false)}
             className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="New File"
+            title="New File (in selected folder or root)"
           >
             <FilePlus size={14} />
           </button>
           <button
-            onClick={() => handleCreateNode(true)}
+            onClick={() => startCreateItem(true)}
             className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="New Folder"
+            title="New Folder (in selected folder or root)"
           >
             <FolderPlus size={14} />
           </button>
@@ -190,7 +238,37 @@ export const ExplorerSidebar: React.FC = () => {
         className="flex-1 overflow-y-auto p-1.5 space-y-0.5"
         onContextMenu={handleContextMenu}
       >
-        {fileTree.length === 0 ? (
+        {/* Inline Root Creation Input (when creating item at root directory) */}
+        {isCreatingAtRoot && (
+          <div className="flex items-center gap-1.5 py-1 px-2 mb-1 bg-white/5 rounded border border-ide-accent/40">
+            <span className="w-4 shrink-0 flex items-center justify-center">
+              {renderFileOrFolderIcon(
+                rootNodeName || (creatingItemState?.isDir ? 'folder' : 'file'),
+                !!creatingItemState?.isDir,
+                false
+              )}
+            </span>
+            <input
+              ref={rootInputRef}
+              type="text"
+              placeholder={creatingItemState?.isDir ? 'Folder name...' : 'File name (e.g. index.ts)...'}
+              value={rootNodeName}
+              onChange={(e) => setRootNodeName(e.target.value)}
+              onBlur={handleRootNodeSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRootNodeSubmit()
+                if (e.key === 'Escape') {
+                  setCreatingItemState(null)
+                  setRootNodeName('')
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#3c3c3c] text-white text-xs px-1.5 py-0.5 rounded border border-ide-accent outline-none w-full shadow-inner"
+            />
+          </div>
+        )}
+
+        {fileTree.length === 0 && !isCreatingAtRoot ? (
           <div className="p-4 text-center text-xs text-[#888] italic pointer-events-none">No files in directory</div>
         ) : (
           <motion.div
@@ -221,8 +299,8 @@ export const ExplorerSidebar: React.FC = () => {
           x={contextMenu.x}
           y={contextMenu.y}
           onClose={() => setContextMenu(null)}
-          onNewFile={() => handleCreateNode(false)}
-          onNewFolder={() => handleCreateNode(true)}
+          onNewFile={() => startCreateItem(false, currentDir)}
+          onNewFolder={() => startCreateItem(true, currentDir)}
         />
       )}
     </div>
