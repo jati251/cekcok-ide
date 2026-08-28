@@ -52,18 +52,23 @@ export async function checkForAppUpdates(silent = false): Promise<UpdateInfo | n
       if (silent) {
         // Show non-intrusive notification toast
         toast((t) => (
-          `<div class="flex items-center gap-3 py-1">
+          <div className="flex items-center gap-3 py-1">
             <div>
-              <p class="font-semibold text-xs text-white">Update Available: v${update.version}</p>
-              <p class="text-[11px] text-gray-400">Click to install new version</p>
+              <p className="font-semibold text-xs text-white">Update Available: v{update.version}</p>
+              <p className="text-[11px] text-gray-400">Click to install new version</p>
             </div>
             <button
-              id="toast-update-btn-${t.id}"
-              class="px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs rounded-md shadow-xs transition-colors"
+              onClick={() => {
+                toast.dismiss(t.id)
+                updaterEventEmitter.dispatchEvent(
+                  new CustomEvent('update-status', { detail: { stage: 'available', info: cachedUpdateInfo } })
+                )
+              }}
+              className="px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs rounded-md shadow-xs transition-colors cursor-pointer"
             >
               Update
             </button>
-          </div>`
+          </div>
         ), {
           id: 'app-update-available-toast',
           duration: 10000,
