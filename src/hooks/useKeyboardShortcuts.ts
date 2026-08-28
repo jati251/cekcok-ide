@@ -151,11 +151,17 @@ export const useKeyboardShortcuts = () => {
         useIDEStore.getState().setActiveSidebarTab('search')
         useIDEStore.getState().setSidebarOpen(true)
       }
-      // Cmd+Shift+E: Focus Explorer
+      // Shift+Alt+F or Alt+Shift+F: Format Document
+      else if (e.shiftKey && e.altKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('editor-format-document'))
+      }
+      // Cmd+Shift+E: Focus Explorer & Reveal Active File
       else if (isCmdOrCtrl && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
         e.preventDefault()
         useIDEStore.getState().setActiveSidebarTab('explorer')
         useIDEStore.getState().setSidebarOpen(true)
+        useIDEStore.getState().revealActiveFileInExplorer()
       }
       // Cmd+Shift+G: Focus Git
       else if (isCmdOrCtrl && e.shiftKey && (e.key === 'G' || e.key === 'g')) {

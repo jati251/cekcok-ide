@@ -14,8 +14,9 @@ import {
 } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { THEMES } from '../utils/themes'
-import { checkForAppUpdates, updaterEventEmitter, UpdateInfo } from '../utils/updater'
+import { checkForAppUpdates, useAppUpdateInfo } from '../utils/updater'
 import { APP_VERSION } from '../constants/app'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 const FONT_FAMILIES = [
   { label: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
@@ -29,7 +30,8 @@ export const GlobalSettingsModal: React.FC = () => {
   const { settingsModalOpen, setSettingsModalOpen, settings, updateSettings } = useIDEStore()
   const [activeTab, setActiveTab] = useState<'theme' | 'typography' | 'editor' | 'updates'>('theme')
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
-  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
+  const availableUpdate = useAppUpdateInfo()
+  const modalRef = useClickOutside<HTMLDivElement>(() => setSettingsModalOpen(false), settingsModalOpen)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -44,24 +46,10 @@ export const GlobalSettingsModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [settingsModalOpen, setSettingsModalOpen])
 
-  useEffect(() => {
-    const handleStatus = (e: Event) => {
-      const custom = e as CustomEvent
-      if (custom.detail?.stage === 'available' && custom.detail?.info) {
-        setAvailableUpdate(custom.detail.info)
-      } else if (custom.detail?.stage === 'idle') {
-        setAvailableUpdate(null)
-      }
-    }
-    updaterEventEmitter.addEventListener('update-status', handleStatus)
-    return () => updaterEventEmitter.removeEventListener('update-status', handleStatus)
-  }, [])
-
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true)
     try {
-      const info = await checkForAppUpdates(false)
-      setAvailableUpdate(info)
+      await checkForAppUpdates(false)
     } finally {
       setIsCheckingUpdate(false)
     }
@@ -83,6 +71,7 @@ export const GlobalSettingsModal: React.FC = () => {
 
         {/* Modal Window */}
         <motion.div
+          ref={modalRef}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -439,6 +428,30 @@ export const GlobalSettingsModal: React.FC = () => {
                     className="px-3 py-1 rounded-lg text-xs font-semibold border cursor-pointer"
                   >
                     {settings.minimapEnabled ? 'Visible' : 'Hidden'}
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--color-ide-bg)',
+                    borderColor: 'var(--color-ide-border)',
+                  }}
+                  className="flex items-center justify-between p-3 border rounded-xl"
+                >
+                  <div>
+                    <div className="font-semibold text-xs">Format On Save</div>
+                    <div className="text-[10px] opacity-60">Automatically format document on save</div>
+                  </div>
+                  <button
+                    onClick={() => updateSettings({ formatOnSave: !settings.formatOnSave })}
+                    style={{
+                      backgroundColor: settings.formatOnSave ? 'var(--color-ide-accent)' : 'var(--color-ide-sidebar)',
+                      borderColor: 'var(--color-ide-border)',
+                      color: settings.formatOnSave ? '#ffffff' : 'var(--color-ide-text)',
+                    }}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold border cursor-pointer"
+                  >
+                    {settings.formatOnSave ? 'Enabled' : 'Disabled'}
                   </button>
                 </div>
               </div>

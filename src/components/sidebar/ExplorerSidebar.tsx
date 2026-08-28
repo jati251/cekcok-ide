@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff } from 'lucide-react'
+import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff, LocateFixed } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
 import { EmptySpaceContextMenu } from '../EmptySpaceContextMenu'
@@ -15,6 +15,7 @@ export const ExplorerSidebar: React.FC = () => {
     setFileTree,
     setCurrentDir,
     collapseAllFolders,
+    revealActiveFileInExplorer,
     settings,
     updateSettings,
     createFileInDir,
@@ -209,6 +210,13 @@ export const ExplorerSidebar: React.FC = () => {
             title={settings.showIgnoredFiles ? 'Hide Ignored Files (.gitignore)' : 'Show Ignored Files (.gitignore)'}
           >
             <EyeOff size={13} />
+          </button>
+          <button
+            onClick={() => revealActiveFileInExplorer()}
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
+            title="Reveal Active File in Explorer"
+          >
+            <LocateFixed size={13} />
           </button>
           <button
             onClick={collapseAllFolders}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Code2,
   FileText,
@@ -14,7 +14,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { useIDEStore } from '../../store/useIDEStore'
-import { checkForAppUpdates, updaterEventEmitter, UpdateInfo } from '../../utils/updater'
+import { checkForAppUpdates, useAppUpdateInfo } from '../../utils/updater'
 import {
   getRecentItems,
   removeRecentItem,
@@ -30,31 +30,15 @@ export const SuperHome: React.FC = () => {
   const { setActiveApp, setCurrentDir, setSettingsModalOpen } = useIDEStore()
   const { handleWindowDrag } = useWindowDrag()
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
-  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
+  const availableUpdate = useAppUpdateInfo()
   const [recentList, setRecentList] = useState<RecentItem[]>(() => getRecentItems())
   const [recentFilter, setRecentFilter] = useState<'all' | AppType>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    const handleStatus = (e: Event) => {
-      const custom = e as CustomEvent
-      if (custom.detail?.stage === 'available' && custom.detail?.info) {
-        setAvailableUpdate(custom.detail.info)
-      } else if (custom.detail?.stage === 'idle') {
-        setAvailableUpdate(null)
-      }
-    }
-    updaterEventEmitter.addEventListener('update-status', handleStatus)
-    return () => {
-      updaterEventEmitter.removeEventListener('update-status', handleStatus)
-    }
-  }, [])
-
   const handleCheckUpdate = async () => {
     setIsCheckingUpdate(true)
     try {
-      const info = await checkForAppUpdates(false)
-      setAvailableUpdate(info)
+      await checkForAppUpdates(false)
     } finally {
       setIsCheckingUpdate(false)
     }

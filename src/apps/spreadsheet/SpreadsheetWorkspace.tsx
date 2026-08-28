@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Workbook } from '@fortune-sheet/react'
 import '@fortune-sheet/react/dist/index.css'
 import './spreadsheet.css'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
+import { UploadCloud } from 'lucide-react'
 import { addRecentItem } from '../../utils/recentItems'
 import {
   FortuneSheetData,
@@ -11,7 +12,9 @@ import {
   downloadWorkbookAsXLSX,
   downloadActiveSheetAsCSV,
   xlsxToFortune,
+  validateSpreadsheetExtension,
 } from '../../utils/spreadsheetHelper'
+import { isTauri, safeInvoke } from '../../utils/tauriBridge'
 import { getSpreadsheetTemplate } from './templates'
 import { SpreadsheetHeader } from './components/SpreadsheetHeader'
 import { SpreadsheetFormulaModal } from './components/SpreadsheetFormulaModal'
@@ -40,21 +43,22 @@ export const SpreadsheetWorkspace: React.FC = () => {
   const [isSaved, setIsSaved] = useState<boolean>(true)
   const [showFormulaHelper, setShowFormulaHelper] = useState<boolean>(false)
   const [showTemplates, setShowTemplates] = useState<boolean>(false)
+  const [workbookKey, setWorkbookKey] = useState<number>(() => Date.now())
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Save to local storage whenever data changes
+  // Debounced auto-persist to storage to prevent main-thread lag during heavy edits
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      localStorage.setItem(TITLE_STORAGE_KEY, docTitle)
-      addRecentItem({
-        title: docTitle,
-        app: 'spreadsheet',
-        description: 'Excel Spreadsheet Workbook',
-      })
-    } catch (e) {
-      console.warn('Local storage quota warning for spreadsheet:', e)
-    }
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+        localStorage.setItem(TITLE_STORAGE_KEY, docTitle)
+      } catch (e) {
+        console.warn('Local storage quota warning for spreadsheet:', e)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
   }, [data, docTitle])
 
   const handleDataChange = (newData: FortuneSheetData[]) => {
@@ -112,6 +116,7 @@ export const SpreadsheetWorkspace: React.FC = () => {
       const fresh = createDefaultSpreadsheetData()
       setData(fresh)
       setDocTitle('New Spreadsheet.xlsx')
+      setWorkbookKey(Date.now())
       setIsSaved(true)
       toast.success('Created new spreadsheet')
     }
@@ -121,31 +126,128 @@ export const SpreadsheetWorkspace: React.FC = () => {
     const template = getSpreadsheetTemplate(type)
     setData(template.data)
     setDocTitle(template.name)
+    setWorkbookKey(Date.now())
     setShowTemplates(false)
     setIsSaved(false)
     toast.success(`Loaded "${template.name}"`)
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processSpreadsheetBuffer = async (
+    bufferOrString: ArrayBuffer | Uint8Array | string,
+    fileName: string
+  ) => {
+    const validation = validateSpreadsheetExtension(fileName)
+    if (!validation.valid) {
+      toast.error(validation.error || 'Format file tidak didukung.')
+      return
+    }
+
+    try {
+      const sheets = xlsxToFortune(bufferOrString)
+      if (sheets && sheets.length > 0) {
+        setData(sheets)
+        setDocTitle(fileName)
+        setWorkbookKey(Date.now())
+        setIsSaved(true)
+        toast.success(`Berhasil mengimpor "${fileName}"`)
+      } else {
+        toast.error('Tidak ada data sheet yang ditemukan.')
+      }
+    } catch (err) {
+      console.error('File parsing error:', err)
+      toast.error(`Gagal membaca file: ${(err as Error).message || err}`)
+    }
+  }
+
+  const handleImportFile = async () => {
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog')
+        const selected = await open({
+          multiple: false,
+          filters: [
+            {
+              name: 'Spreadsheets (Excel, CSV, TSV)',
+              extensions: ['xlsx', 'xls', 'csv', 'tsv'],
+            },
+          ],
+          title: 'Import Spreadsheet File',
+        })
+
+        if (!selected || typeof selected !== 'string') return
+
+        const fileName = selected.split(/[/\\]/).pop() || selected
+        const bytes = await safeInvoke<number[]>('read_file_bytes', { path: selected })
+        if (bytes && bytes.length > 0) {
+          const uint8 = new Uint8Array(bytes)
+          await processSpreadsheetBuffer(uint8, fileName)
+        } else {
+          toast.error('File kosong atau tidak dapat diakses.')
+        }
+        return
+      } catch (err) {
+        console.warn('Native open dialog failed, falling back to HTML file input:', err)
+      }
+    }
+
+    // Web fallback
+    fileInputRef.current?.click()
+  }
+
+  const handleHTMLFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    const validation = validateSpreadsheetExtension(file.name)
+    if (!validation.valid) {
+      toast.error(validation.error || 'Format file tidak didukung.')
+      e.target.value = ''
+      return
+    }
+
     try {
       const buffer = await file.arrayBuffer()
-      const sheets = await xlsxToFortune(buffer)
-      if (sheets && sheets.length > 0) {
-        setData(sheets)
-        setDocTitle(file.name)
-        setIsSaved(true)
-        toast.success(`Imported "${file.name}"`)
-      } else {
-        toast.error('No sheets found in file.')
-      }
+      await processSpreadsheetBuffer(buffer, file.name)
     } catch (err) {
-      console.error('File import error:', err)
-      toast.error('Failed to import Excel/CSV file.')
+      console.error('HTML File input error:', err)
+      toast.error('Gagal membaca file.')
     } finally {
       e.target.value = ''
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDraggingOver) setIsDraggingOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    const validation = validateSpreadsheetExtension(file.name)
+    if (!validation.valid) {
+      toast.error(validation.error || 'Format file tidak didukung.')
+      return
+    }
+
+    try {
+      const buffer = await file.arrayBuffer()
+      await processSpreadsheetBuffer(buffer, file.name)
+    } catch (err) {
+      console.error('Drop error:', err)
+      toast.error('Gagal memproses file yang di-drop.')
     }
   }
 
@@ -153,13 +255,16 @@ export const SpreadsheetWorkspace: React.FC = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full h-full flex flex-col bg-[#1e1e1e] text-white select-none overflow-hidden"
+      className="w-full h-full flex flex-col bg-[#1e1e1e] text-white select-none overflow-hidden relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <input
         type="file"
         ref={fileInputRef}
-        onChange={handleFileUpload}
-        accept=".xlsx,.xls,.csv"
+        onChange={handleHTMLFileInputChange}
+        accept=".xlsx,.xls,.csv,.tsv"
         className="hidden"
       />
 
@@ -173,7 +278,7 @@ export const SpreadsheetWorkspace: React.FC = () => {
         onToggleFormulaHelper={() => setShowFormulaHelper(!showFormulaHelper)}
         onExportXLSX={handleExportXLSX}
         onExportCSV={handleExportCSV}
-        onUploadClick={() => fileInputRef.current?.click()}
+        onUploadClick={handleImportFile}
       />
 
       <SpreadsheetFormulaModal
@@ -187,9 +292,28 @@ export const SpreadsheetWorkspace: React.FC = () => {
         onSelectTemplate={handleSelectTemplate}
       />
 
+      {/* Drag & Drop Visual Overlay */}
+      <AnimatePresence>
+        {isDraggingOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-emerald-950/80 backdrop-blur-xs border-2 border-dashed border-emerald-400 flex flex-col items-center justify-center gap-3 pointer-events-none"
+          >
+            <div className="p-4 rounded-full bg-emerald-500/20 text-emerald-400">
+              <UploadCloud size={48} className="animate-bounce" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Drop Excel or CSV File Here</h3>
+            <p className="text-xs text-emerald-200 font-medium">Supports .xlsx, .xls, .csv, .tsv</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main FortuneSheet Workbook Container */}
-      <main className="flex-1 w-full h-full overflow-hidden bg-white text-gray-900 fortune-container">
+      <main className="flex-1 min-h-0 w-full overflow-hidden bg-white text-gray-900 fortune-wrapper relative">
         <Workbook
+          key={workbookKey}
           data={data}
           onChange={handleDataChange}
           showToolbar={true}

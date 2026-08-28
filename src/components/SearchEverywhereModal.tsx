@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import React, { useState, useEffect } from 'react'
 import { Search as SearchIcon, File, X } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
+import { safeInvoke } from '../utils/tauriBridge'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 export const SearchEverywhereModal: React.FC = () => {
   const { 
@@ -15,32 +16,22 @@ export const SearchEverywhereModal: React.FC = () => {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<{name: string, path: string}[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useClickOutside<HTMLDivElement>(() => setSearchEverywhereOpen(false), searchEverywhereOpen)
 
   useEffect(() => {
-    if (searchEverywhereOpen) {
-      setTimeout(() => {
-        setQuery('')
-        setResults([])
-        setSelectedIndex(0)
-        inputRef.current?.focus()
-      }, 50)
+    let isMounted = true
+    if (!query.trim() || !currentDir) {
+      setResults([])
+      return
     }
-  }, [searchEverywhereOpen])
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      if (!query.trim() || !currentDir) {
-        setResults([])
-        return
-      }
-      try {
-        const res = await invoke<{file_name: string, file_path: string, line_number: number, line_text: string}[]>('search_files', {
-          cwd: currentDir,
-          query: query,
-          caseSensitive: false
-        })
-        
+    const timer = setTimeout(() => {
+      safeInvoke<{file_name: string, file_path: string, line_number: number, line_text: string}[]>('search_files', {
+        cwd: currentDir,
+        query: query,
+        caseSensitive: false
+      }).then(res => {
+        if (!isMounted || !res) return
         const uniqueFiles = new Map()
         res.forEach(r => {
           if (!uniqueFiles.has(r.file_path)) {
@@ -48,13 +39,15 @@ export const SearchEverywhereModal: React.FC = () => {
           }
         })
         setResults(Array.from(uniqueFiles.values()).slice(0, 10))
-      } catch (e) {
-        console.error(e)
-      }
-    }
+      }).catch(err => {
+        console.error(err)
+      })
+    }, 250)
     
-    const debounce = setTimeout(fetchResults, 300)
-    return () => clearTimeout(debounce)
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
+    }
   }, [query, currentDir])
 
   const handleSelect = (file: {name: string, path: string}) => {
@@ -84,6 +77,7 @@ export const SearchEverywhereModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-8 sm:pt-[15vh] px-2 bg-black/40 backdrop-blur-sm" onClick={() => setSearchEverywhereOpen(false)}>
       <div 
+        ref={modalRef}
         className="bg-[#252526] border border-ide-border shadow-2xl rounded-lg w-full max-w-[95vw] sm:w-[600px] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -113,7 +107,7 @@ export const SearchEverywhereModal: React.FC = () => {
         <div className="flex items-center p-3 border-b border-ide-border bg-[#2d2d2d]">
           <SearchIcon size={16} className="text-ide-accent mr-3" />
           <input
-            ref={inputRef}
+            autoFocus
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

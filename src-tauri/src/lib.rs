@@ -7,9 +7,9 @@ use fs_commands::{
     copy_path, duplicate_path, reveal_in_file_manager, write_file, write_file_bytes, spawn_shell, kill_shell, TerminalState,
 };
 use git_commands::{
-    git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage, git_log, git_checkout_branch, git_list_branches
+    git_commit, git_discard, git_get_status, git_pull, git_push, git_stage, git_unstage, git_log, git_checkout_branch, git_list_branches, git_get_file_diff
 };
-use search_commands::search_files;
+use search_commands::{search_files, find_workspace_files};
 
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
@@ -53,7 +53,9 @@ pub fn run() {
             git_log,
             git_checkout_branch,
             git_list_branches,
+            git_get_file_diff,
             search_files,
+            find_workspace_files,
             restart_app
         ])
         .setup(|app| {

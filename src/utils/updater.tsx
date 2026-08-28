@@ -18,11 +18,37 @@ export interface UpdateProgressState {
   error?: string
 }
 
+import { useSyncExternalStore } from 'react'
+
 let activeUpdate: Update | null = null
 let cachedUpdateInfo: UpdateInfo | null = null
+const updaterListeners = new Set<() => void>()
 
 // Simple event target for updater events across components
 export const updaterEventEmitter = new EventTarget()
+
+updaterEventEmitter.addEventListener('update-status', (e: Event) => {
+  const custom = e as CustomEvent
+  if (custom.detail?.stage === 'available' && custom.detail?.info) {
+    cachedUpdateInfo = custom.detail.info
+  } else if (custom.detail?.stage === 'idle') {
+    cachedUpdateInfo = null
+  }
+  updaterListeners.forEach((listener) => listener())
+})
+
+export function useAppUpdateInfo(): UpdateInfo | null {
+  return useSyncExternalStore(
+    (callback) => {
+      updaterListeners.add(callback)
+      return () => {
+        updaterListeners.delete(callback)
+      }
+    },
+    () => cachedUpdateInfo,
+    () => null
+  )
+}
 
 export function getCachedUpdate(): UpdateInfo | null {
   return cachedUpdateInfo

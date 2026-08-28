@@ -8,8 +8,8 @@ export const STORAGE_KEYS = {
 
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'vs-dark',
-  fontSize: 14,
-  fontFamily: "'Consolas', 'Menlo', 'Courier New', monospace",
+  fontSize: 12,
+  fontFamily: "'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace",
   ideFontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
   tabSize: 2,
   wordWrap: 'on',
@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoSave: 'afterDelay',
   lineNumbers: 'on',
   startupBehavior: 'restoreLastProject',
+  formatOnSave: true,
   showHiddenFiles: false,
   showIgnoredFiles: true,
   sidebarPosition: 'left',

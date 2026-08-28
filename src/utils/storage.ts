@@ -5,7 +5,11 @@ export const getSavedSettings = (): UserSettings => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS)
     if (raw) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+      const parsed = JSON.parse(raw)
+      if (parsed.fontSize === 14 || parsed.fontSize === 13) {
+        parsed.fontSize = 12
+      }
+      return { ...DEFAULT_SETTINGS, ...parsed }
     }
   } catch {
     // fallback

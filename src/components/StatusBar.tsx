@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw, Sparkles } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
 import { LayoutCustomizer } from './LayoutCustomizer'
 import { formatShortcut } from '../utils/platform'
-import { updaterEventEmitter, UpdateInfo } from '../utils/updater'
+import { useAppUpdateInfo } from '../utils/updater'
 
 export const StatusBar: React.FC = () => {
   const {
@@ -25,22 +25,7 @@ export const StatusBar: React.FC = () => {
     setBranchSwitcherOpen,
   } = useIDEStore()
 
-  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null)
-
-  useEffect(() => {
-    const handleStatus = (e: Event) => {
-      const custom = e as CustomEvent
-      if (custom.detail?.stage === 'available' && custom.detail?.info) {
-        setAvailableUpdate(custom.detail.info)
-      } else if (custom.detail?.stage === 'idle') {
-        setAvailableUpdate(null)
-      }
-    }
-    updaterEventEmitter.addEventListener('update-status', handleStatus)
-    return () => {
-      updaterEventEmitter.removeEventListener('update-status', handleStatus)
-    }
-  }, [])
+  const availableUpdate = useAppUpdateInfo()
 
   return (
     <footer className="h-[26px] bg-ide-accent text-white flex items-center justify-between px-2 sm:px-3 text-[10px] sm:text-[11px] select-none z-30 font-sans shrink-0 overflow-x-auto no-scrollbar">

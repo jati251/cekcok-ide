@@ -60,21 +60,134 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Custom scrollbar for webkit */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
- 
 ::-webkit-scrollbar-thumb {
-  background: #424242; 
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #4f4f4f; 
+  background: rgba(255, 255, 255, 0.3);
 }
+
+/* TLDraw clean styling & license toast suppression */
+.tl-watermark,
+[data-testid="tl-watermark-unlicensed"],
+[data-unlicensed="true"],
+.tl-toast__container,
+.tl-toasts__container,
+.tl-watermark__wrapper {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+/* BlockNote editor container & code block enhancements */
+.bn-editor {
+  padding: 0 !important;
+  font-family: inherit !important;
+}
+
+.bn-container[data-color-scheme="light"] .bn-block-content[data-content-type="codeBlock"] {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+}
+
+.bn-container[data-color-scheme="dark"] .bn-block-content[data-content-type="codeBlock"] {
+  background-color: #18181b !important;
+  border: 1px solid #27272a !important;
+  color: #f4f4f5 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+}
+
+/* BlockNote image, signature, and visual media responsive scaling */
+.bn-block-content[data-content-type="image"] {
+  max-width: 100% !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+  margin: 8px 0 !important;
+}
+
+.bn-block-content[data-content-type="image"] .bn-visual-media,
+.bn-block-content[data-content-type="image"] .bn-visual-media-wrapper {
+  max-width: 100% !important;
+  width: auto !important;
+  overflow: hidden !important;
+}
+
+.bn-block-content[data-content-type="image"] img,
+.bn-visual-media img,
+.bn-editor img {
+  max-width: 100% !important;
+  max-height: 260px !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  border-radius: 6px !important;
+  display: block !important;
+}
+
+/* Document table styling */
+.bn-block-content[data-content-type="table"] {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin: 12px 0 !important;
+}
+
+.bn-table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.bn-table-cell {
+  border: 1px solid var(--color-ide-border, #e2e8f0) !important;
+  padding: 8px 12px !important;
+}
+
+/* Monaco Editor Git & Change Gutter Indicators */
+.git-gutter-added {
+  border-left: 3.5px solid #22c55e !important;
+  margin-left: 2px !important;
+  box-sizing: border-box !important;
+}
+
+.git-gutter-modified {
+  border-left: 3.5px solid #3b82f6 !important;
+  margin-left: 2px !important;
+  box-sizing: border-box !important;
+}
+
+.git-gutter-deleted {
+  position: relative !important;
+  border-left: 3.5px solid transparent !important;
+}
+
+.git-gutter-deleted::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 1px !important;
+  bottom: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 6px solid #ef4444 !important;
+  border-top: 4px solid transparent !important;
+  border-bottom: 4px solid transparent !important;
+  z-index: 10 !important;
+}
+
+

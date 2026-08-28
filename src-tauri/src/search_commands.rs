@@ -109,3 +109,65 @@ pub fn search_files(
     let final_results = results.into_inner().unwrap_or_default();
     Ok(final_results)
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceFileEntry {
+    pub name: String,
+    pub path: String,
+    pub relative_path: String,
+}
+
+#[tauri::command]
+pub fn find_workspace_files(
+    cwd: &str,
+    query: Option<&str>,
+    limit: Option<usize>,
+) -> Result<Vec<WorkspaceFileEntry>, String> {
+    let root = Path::new(cwd);
+    if !root.exists() || !root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let max_results = limit.unwrap_or(300);
+    let filter_query = query.unwrap_or("").trim().to_lowercase();
+
+    let mut walker = WalkBuilder::new(root);
+    walker
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .parents(true);
+
+    let mut results = Vec::new();
+    for entry in walker.build().filter_map(|res| res.ok()) {
+        if entry.file_type().is_some_and(|ft| ft.is_file()) {
+            let path = entry.into_path();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let full_path = path.to_string_lossy().into_owned();
+            let rel_path = path
+                .strip_prefix(root)
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|_| name.clone());
+
+            if filter_query.is_empty()
+                || name.to_lowercase().contains(&filter_query)
+                || rel_path.to_lowercase().contains(&filter_query)
+            {
+                results.push(WorkspaceFileEntry {
+                    name,
+                    path: full_path,
+                    relative_path: rel_path,
+                });
+                if results.len() >= max_results {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(results)
+}

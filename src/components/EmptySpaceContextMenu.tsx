@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { FilePlus, FolderPlus, ClipboardPaste } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 interface EmptySpaceContextMenuProps {
   x: number
@@ -18,25 +19,7 @@ export const EmptySpaceContextMenu: React.FC<EmptySpaceContextMenuProps> = ({
   onNewFolder,
 }) => {
   const { fileClipboard, pasteFileToDir, currentDir } = useIDEStore()
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('mousedown', handleOutsideClick)
-    window.addEventListener('keydown', handleEscape)
-    return () => {
-      window.removeEventListener('mousedown', handleOutsideClick)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [onClose])
+  const menuRef = useClickOutside<HTMLDivElement>(onClose, true)
 
   return (
     <div

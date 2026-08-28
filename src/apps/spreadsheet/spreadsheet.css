@@ -1,7 +1,6 @@
-/* FortuneSheet CSS Fixes & Isolation for Tailwind v4 */
+/* FortuneSheet CSS Fixes & Clean Isolation */
 .fortune-wrapper {
-  position: absolute;
-  inset: 0;
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -11,62 +10,23 @@
 }
 
 .fortune-wrapper .fortune-container {
-  box-sizing: content-box;
   width: 100% !important;
   height: 100% !important;
   position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-}
-
-.fortune-wrapper .fortune-container * {
-  box-sizing: content-box;
-}
-
-.fortune-wrapper .fortune-toolbar {
-  box-sizing: border-box !important;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-  min-height: 40px;
-}
-
-.fortune-wrapper .fortune-toolbar-button {
-  box-sizing: border-box !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fortune-wrapper .fortune-formula-bar {
-  box-sizing: border-box !important;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-  min-height: 32px;
-}
-
-.fortune-wrapper .fortune-formula-bar input,
-.fortune-wrapper .fortune-formula-bar div {
-  box-sizing: border-box !important;
-}
-
-.fortune-wrapper .fortune-sheet-area {
   flex: 1;
-  position: relative;
-  width: 100%;
-  height: 100%;
 }
 
-.fortune-wrapper .fortune-sheet-canvas {
-  position: absolute;
-  left: 0;
-  top: 0;
+/* Ensure SVG icons inside FortuneSheet toolbar render properly */
+.fortune-container svg {
+  display: inline-block;
+  vertical-align: middle;
 }
 
-.fortune-wrapper .fortune-sheet-tab-container {
-  box-sizing: border-box !important;
-  background: #f1f5f9;
-  border-top: 1px solid #cbd5e1;
+/* Ensure tooltip and modals appear above IDE elements */
+.fortune-tooltip {
+  z-index: 99999 !important;
 }
 
-.fortune-wrapper .fortune-sheet-tab-container * {
-  box-sizing: border-box !important;
+.fortune-modal-container {
+  z-index: 99999 !important;
 }

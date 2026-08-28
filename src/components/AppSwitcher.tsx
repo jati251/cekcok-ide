@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Code2,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { AppType } from '../types/ide'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 interface AppSwitcherProps {
   className?: string
@@ -20,7 +21,6 @@ interface AppSwitcherProps {
 export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
   const { activeApp, setActiveApp, setSettingsModalOpen } = useIDEStore()
   const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const apps = [
     {
@@ -66,20 +66,7 @@ export const AppSwitcher: React.FC<AppSwitcherProps> = ({ className = '' }) => {
   ]
 
   const currentApp = apps.find((a) => a.id === activeApp) || apps[0]
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
+  const dropdownRef = useClickOutside<HTMLDivElement>(() => setIsOpen(false), isOpen)
 
   return (
     <div ref={dropdownRef} data-no-drag className={`relative inline-block ${className}`}>

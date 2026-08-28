@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import React from 'react'
 import { X, Columns2, MoreHorizontal, Copy, FolderSearch, RotateCcw, CheckCheck, Save } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
 import { safeInvoke } from '../utils/tauriBridge'
 import { toast } from 'react-hot-toast'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 interface TabContextMenuProps {
   x: number
@@ -20,7 +21,6 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = ({
   pane,
   onClose
 }) => {
-  const menuRef = useRef<HTMLDivElement>(null)
   const {
     requestCloseFile,
     closeOtherTabsInPane,
@@ -33,23 +33,7 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = ({
     saveFile,
   } = useIDEStore()
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
+  const menuRef = useClickOutside<HTMLDivElement>(onClose, true)
 
   const handleAction = (action: () => void) => {
     action()

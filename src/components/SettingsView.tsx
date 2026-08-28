@@ -276,6 +276,21 @@ export const SettingsView: React.FC = () => {
                 </div>
               )}
 
+              {matchesSearch('Format on Save') && (
+                <div className="flex items-center justify-between pb-4 border-b border-ide-border/40">
+                  <div>
+                    <h4 className="text-xs font-semibold text-white">Editor: Format On Save</h4>
+                    <p className="text-[11px] text-ide-muted">Automatically formats the document on every save ({formatShortcut('Cmd+S')}).</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.formatOnSave}
+                    onChange={(e) => updateSettings({ formatOnSave: e.target.checked })}
+                    className="w-4 h-4 accent-ide-accent cursor-pointer"
+                  />
+                </div>
+              )}
+
               {matchesSearch('Auto Save') && (
                 <div className="space-y-1.5 pb-4 border-b border-ide-border/40">
                   <div>

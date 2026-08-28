@@ -266,3 +266,66 @@ pub fn git_list_branches(cwd: &str) -> Result<Vec<String>, String> {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GitDiffData {
+    pub file_path: String,
+    pub relative_path: String,
+    pub original_content: String,
+    pub modified_content: String,
+    pub staged: bool,
+}
+
+#[tauri::command]
+pub fn git_get_file_diff(cwd: &str, file: &str, staged: bool) -> Result<GitDiffData, String> {
+    let root = std::path::Path::new(cwd);
+    let target_path = std::path::Path::new(file);
+
+    let rel_path_buf = if target_path.is_absolute() {
+        target_path.strip_prefix(root).unwrap_or(target_path).to_path_buf()
+    } else {
+        target_path.to_path_buf()
+    };
+    let rel_git_path = rel_path_buf.to_string_lossy().replace('\\', "/");
+    let full_path = if target_path.is_absolute() {
+        target_path.to_path_buf()
+    } else {
+        root.join(target_path)
+    };
+
+    // 1. Get original content from git HEAD
+    let head_arg = format!("HEAD:{}", rel_git_path);
+    let head_output = Command::new("git")
+        .current_dir(cwd)
+        .args(["show", &head_arg])
+        .output();
+
+    let original_content = match head_output {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).into_owned(),
+        _ => String::new(),
+    };
+
+    // 2. Get modified content (from index if staged, or working disk)
+    let modified_content = if staged {
+        let index_arg = format!(":{}", rel_git_path);
+        let index_output = Command::new("git")
+            .current_dir(cwd)
+            .args(["show", &index_arg])
+            .output();
+
+        match index_output {
+            Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).into_owned(),
+            _ => std::fs::read_to_string(&full_path).unwrap_or_default(),
+        }
+    } else {
+        std::fs::read_to_string(&full_path).unwrap_or_default()
+    };
+
+    Ok(GitDiffData {
+        file_path: full_path.to_string_lossy().into_owned(),
+        relative_path: rel_git_path,
+        original_content,
+        modified_content,
+        staged,
+    })
+}

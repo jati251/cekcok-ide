@@ -142,7 +142,7 @@ export const DocumentHeader: React.FC<DocumentHeaderProps> = ({
 
         <button
           onClick={onUploadClick}
-          title="Import Markdown / Plain Text"
+          title="Import Document (.docx, .md, .txt, .html, .json)"
           className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors flex items-center gap-1 opacity-80 hover:opacity-100 cursor-pointer"
         >
           <Upload className="w-3.5 h-3.5 text-blue-500" />

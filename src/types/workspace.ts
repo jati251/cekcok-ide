@@ -8,6 +8,9 @@ export interface FileNode {
   is_ignored?: boolean
   isDirty?: boolean
   content?: string
+  isDiff?: boolean
+  originalContent?: string
+  diffStaged?: boolean
 }
 
 export interface SearchResultItem {

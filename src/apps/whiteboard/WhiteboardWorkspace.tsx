@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Tldraw, Editor, exportAs } from 'tldraw'
+import { Tldraw, Editor, exportAs, TLComponents } from 'tldraw'
 import 'tldraw/tldraw.css'
 import {
   ArrowLeft,
@@ -13,18 +13,51 @@ import {
   Trash2,
   Image as ImageIcon,
   CheckCircle2,
+  UploadCloud,
 } from 'lucide-react'
 import { useIDEStore } from '../../store/useIDEStore'
 import { AppSwitcher } from '../../components/AppSwitcher'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-hot-toast'
 import { useWindowDrag } from '../../hooks/useWindowDrag'
 import { addRecentItem } from '../../utils/recentItems'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
+import { isTauri, safeInvoke } from '../../utils/tauriBridge'
 
 const WB_TITLE_KEY = 'cekcok_whiteboard_title_v1'
-const WB_THEME_KEY = 'cekcok_whiteboard_theme_v1'
 const WB_STORE_KEY = 'cekcok_whiteboard_store_v1'
+const SUPPORTED_TLDR_EXTENSIONS = ['.tldr', '.json'] as const
+
+const whiteboardComponents: TLComponents = {
+  HelpMenu: null,
+  DebugMenu: null,
+  Toasts: null,
+  SharePanel: null,
+}
+
+function validateSketchExtension(filename: string): { valid: boolean; ext: string; error?: string } {
+  if (!filename) {
+    return { valid: false, ext: '', error: 'Nama file tidak boleh kosong.' }
+  }
+  const dotIdx = filename.lastIndexOf('.')
+  if (dotIdx === -1) {
+    return {
+      valid: false,
+      ext: '',
+      error: 'File tidak memiliki ekstensi. Format yang didukung: .tldr dan .json.',
+    }
+  }
+  const ext = filename.substring(dotIdx).toLowerCase()
+  const isSupported = (SUPPORTED_TLDR_EXTENSIONS as readonly string[]).includes(ext)
+  if (!isSupported) {
+    return {
+      valid: false,
+      ext,
+      error: `Format file "${ext}" tidak didukung. Hanya mendukung file diagram .tldr atau .json.`,
+    }
+  }
+  return { valid: true, ext }
+}
 
 export const WhiteboardWorkspace: React.FC = () => {
   const { setActiveApp, settings } = useIDEStore()
@@ -35,27 +68,17 @@ export const WhiteboardWorkspace: React.FC = () => {
   const isDarkMode = settings.theme !== 'vs-light'
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isSaved, setIsSaved] = useState<boolean>(true)
+  const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false)
+  const [canvasKey, setCanvasKey] = useState<number>(() => Date.now())
+  const editorRef = useRef<Editor | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const unlistenRef = useRef<(() => void) | null>(null)
 
-  useEffect(() => {
-    if (editor) {
-      try {
-        editor.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' })
-      } catch (err) {
-        console.warn('Failed to sync global theme to whiteboard:', err)
-      }
-    }
-  }, [isDarkMode, editor])
-
-  useEffect(() => {
-    localStorage.setItem(WB_TITLE_KEY, docTitle)
-    addRecentItem({
-      title: docTitle,
-      app: 'whiteboard',
-      description: 'Vector Whiteboard Diagram',
-    })
-  }, [docTitle])
+  const handleDocTitleChange = (newTitle: string) => {
+    setDocTitle(newTitle)
+    setIsSaved(false)
+    localStorage.setItem(WB_TITLE_KEY, newTitle)
+  }
 
   // Cleanup store listener on unmount
   useEffect(() => {
@@ -72,13 +95,10 @@ export const WhiteboardWorkspace: React.FC = () => {
     useIDEStore.getState().updateSettings({ theme: nextTheme })
   }
 
+  // Stable mount handler to prevent re-mount loops in production React 19 builds
   const handleMount = useCallback((ed: Editor) => {
+    editorRef.current = ed
     setEditor(ed)
-    try {
-      ed.user.updateUserPreferences({ colorScheme: isDarkMode ? 'dark' : 'light' })
-    } catch (err) {
-      console.warn('Failed to apply initial theme preference:', err)
-    }
 
     // Clean up previous listener if any
     if (unlistenRef.current) {
@@ -87,17 +107,15 @@ export const WhiteboardWorkspace: React.FC = () => {
     }
 
     // Only mark modified if the change source is from the user
-    // This avoids high-frequency re-renders and re-render loops on pointer move / camera updates
     const unlisten = ed.store.listen((entry) => {
       if (entry.source === 'user') {
         setIsSaved(false)
       }
     })
     unlistenRef.current = unlisten
-  }, [isDarkMode])
+  }, [])
 
   const handleManualSave = useCallback(() => {
-    if (!editor) return
     try {
       addRecentItem({
         title: docTitle,
@@ -110,7 +128,7 @@ export const WhiteboardWorkspace: React.FC = () => {
       console.error(e)
       toast.error('Failed to save sketch.')
     }
-  }, [editor, docTitle])
+  }, [docTitle])
 
   useEffect(() => {
     const handleSaveEvent = () => {
@@ -121,37 +139,41 @@ export const WhiteboardWorkspace: React.FC = () => {
   }, [handleManualSave])
 
   const handleExportJSON = async () => {
-    if (!editor) return
+    const ed = editorRef.current || editor
+    if (!ed) return
     try {
-      const snapshot = editor.getSnapshot()
+      const snapshot = ed.getSnapshot()
       const json = JSON.stringify(snapshot, null, 2)
       const defaultName = docTitle.replace(/\.(tldr|json|png|svg)$/i, '') + '.tldr'
 
-      try {
-        const { save } = await import('@tauri-apps/plugin-dialog')
-        const filePath = await save({
-          defaultPath: defaultName,
-          filters: [{ name: 'TLDraw Diagram', extensions: ['tldr', 'json'] }],
-          title: 'Save Whiteboard Drawing As',
-        })
+      if (isTauri()) {
+        try {
+          const { save } = await import('@tauri-apps/plugin-dialog')
+          const filePath = await save({
+            defaultPath: defaultName,
+            filters: [{ name: 'TLDraw Diagram', extensions: ['tldr', 'json'] }],
+            title: 'Save Whiteboard Drawing As',
+          })
 
-        if (filePath && typeof filePath === 'string') {
-          const { safeInvoke } = await import('../../utils/tauriBridge')
-          await safeInvoke('write_file', { path: filePath, content: json })
-          toast.success(`Saved drawing to ${filePath.split(/[/\\]/).pop()}`)
-          return
+          if (filePath && typeof filePath === 'string') {
+            await safeInvoke('write_file', { path: filePath, content: json })
+            toast.success(`Saved drawing to ${filePath.split(/[/\\]/).pop()}`)
+            return
+          }
+        } catch (err) {
+          console.warn('Native drawing save failed or cancelled:', err)
         }
-      } catch (err) {
-        console.warn('Native drawing save failed or cancelled, falling back to download:', err)
-        const blob = new Blob([json], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = defaultName
-        a.click()
-        URL.revokeObjectURL(url)
-        toast.success(`Exported ${defaultName}`)
       }
+
+      // Web download fallback
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = defaultName
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`Exported ${defaultName}`)
     } catch (e) {
       console.error(e)
       toast.error('Failed to export drawing file.')
@@ -159,15 +181,16 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleExportPNG = async () => {
-    if (!editor) return
+    const ed = editorRef.current || editor
+    if (!ed) return
     try {
-      const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
       if (shapeIds.length === 0) {
         toast.error('Canvas is empty. Draw something first!')
         return
       }
 
-      await exportAs(editor, shapeIds, {
+      await exportAs(ed, shapeIds, {
         format: 'png',
         name: docTitle.replace(/\.(tldr|json|png|svg)$/i, ''),
       })
@@ -179,15 +202,16 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleExportSVG = async () => {
-    if (!editor) return
+    const ed = editorRef.current || editor
+    if (!ed) return
     try {
-      const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
       if (shapeIds.length === 0) {
         toast.error('Canvas is empty.')
         return
       }
 
-      await exportAs(editor, shapeIds, {
+      await exportAs(ed, shapeIds, {
         format: 'svg',
         name: docTitle.replace(/\.(tldr|json|png|svg)$/i, ''),
       })
@@ -199,12 +223,13 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleClearCanvas = () => {
-    if (!editor) return
+    const ed = editorRef.current || editor
+    if (!ed) return
     if (confirm('Clear all drawings and shapes on the canvas?')) {
       try {
-        const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+        const shapeIds = Array.from(ed.getCurrentPageShapeIds())
         if (shapeIds.length > 0) {
-          editor.deleteShapes(shapeIds)
+          ed.deleteShapes(shapeIds)
           setIsSaved(true)
           toast.success('Canvas cleared')
         }
@@ -216,55 +241,136 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleZoomFit = () => {
-    if (!editor) return
+    const ed = editorRef.current || editor
+    if (!ed) return
     try {
-      const shapeIds = Array.from(editor.getCurrentPageShapeIds())
+      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
       if (shapeIds.length > 0) {
-        editor.zoomToFit()
+        ed.zoomToFit()
       } else {
-        editor.resetZoom()
+        ed.resetZoom()
       }
     } catch (err) {
       console.warn('Zoom to fit error:', err)
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processSketchJson = (jsonString: string, fileName: string) => {
+    const ed = editorRef.current || editor
+    if (!ed) return
+    try {
+      const snapshot = JSON.parse(jsonString)
+      ed.loadSnapshot(snapshot)
+      setDocTitle(fileName)
+      setIsSaved(true)
+      toast.success(`Imported "${fileName}"`)
+    } catch (err) {
+      console.error('Import error:', err)
+      toast.error('Format file .tldr / .json tidak valid.')
+    }
+  }
+
+  const handleImportFile = async () => {
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog')
+        const selected = await open({
+          multiple: false,
+          filters: [{ name: 'TLDraw Sketch (.tldr, .json)', extensions: ['tldr', 'json'] }],
+          title: 'Import Whiteboard Sketch',
+        })
+
+        if (!selected || typeof selected !== 'string') return
+
+        const fileName = selected.split(/[/\\]/).pop() || selected
+        const validation = validateSketchExtension(fileName)
+        if (!validation.valid) {
+          toast.error(validation.error || 'Format file tidak didukung.')
+          return
+        }
+
+        const content = await safeInvoke<string>('read_file', { path: selected })
+        if (content) {
+          processSketchJson(content, fileName)
+        } else {
+          toast.error('File kosong atau tidak dapat diakses.')
+        }
+        return
+      } catch (err) {
+        console.warn('Native open dialog failed, falling back to HTML input:', err)
+      }
+    }
+
+    fileInputRef.current?.click()
+  }
+
+  const handleHTMLFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !editor) return
+    if (!file) return
+
+    const validation = validateSketchExtension(file.name)
+    if (!validation.valid) {
+      toast.error(validation.error || 'Format file tidak didukung.')
+      e.target.value = ''
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = (event) => {
-      try {
-        const json = event.target?.result as string
-        if (json) {
-          const snapshot = JSON.parse(json)
-          editor.loadSnapshot(snapshot)
-          setDocTitle(file.name)
-          setIsSaved(true)
-          toast.success(`Imported "${file.name}"`)
-        }
-      } catch (err) {
-        console.error('Import error:', err)
-        toast.error('Failed to parse .tldr file.')
+      const json = event.target?.result as string
+      if (json) {
+        processSketchJson(json, file.name)
       }
     }
     reader.readAsText(file)
     e.target.value = ''
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDraggingOver) setIsDraggingOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    const validation = validateSketchExtension(file.name)
+    if (!validation.valid) {
+      toast.error(validation.error || 'Format file tidak didukung.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const json = event.target?.result as string
+      if (json) {
+        processSketchJson(json, file.name)
+      }
+    }
+    reader.readAsText(file)
+  }
+
   const handleResetStorage = () => {
     try {
       indexedDB.deleteDatabase(WB_STORE_KEY)
       localStorage.removeItem(WB_TITLE_KEY)
-      localStorage.removeItem(WB_THEME_KEY)
-      toast.success('Whiteboard storage reset. Reloading...')
-      setTimeout(() => {
-        window.location.reload()
-      }, 500)
+      setCanvasKey(Date.now())
+      toast.success('Whiteboard storage reset.')
     } catch (e) {
       console.error(e)
-      window.location.reload()
+      setCanvasKey(Date.now())
     }
   }
 
@@ -274,12 +380,15 @@ export const WhiteboardWorkspace: React.FC = () => {
       animate={{ opacity: 1 }}
       style={{ backgroundColor: 'var(--color-ide-bg)', color: 'var(--color-ide-text)' }}
       className="w-full h-full flex flex-col select-none relative overflow-hidden"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
-        onChange={handleFileUpload}
+        onChange={handleHTMLFileInputChange}
         accept=".tldr,.json"
         className="hidden"
       />
@@ -315,10 +424,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             <input
               type="text"
               value={docTitle}
-              onChange={(e) => {
-                setDocTitle(e.target.value)
-                setIsSaved(false)
-              }}
+              onChange={(e) => handleDocTitleChange(e.target.value)}
               style={{
                 color: 'var(--color-ide-text)',
               }}
@@ -336,9 +442,9 @@ export const WhiteboardWorkspace: React.FC = () => {
           {/* Quick Actions */}
           <div data-no-drag className="hidden md:flex items-center gap-0.5 text-[11px]">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleImportFile}
               className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
-              title="Open .tldr JSON file"
+              title="Import .tldr or .json sketch file"
             >
               <Upload size={12} />
               <span>Open</span>
@@ -427,15 +533,36 @@ export const WhiteboardWorkspace: React.FC = () => {
         </div>
       </header>
 
+      {/* Drag & Drop Visual Overlay */}
+      <AnimatePresence>
+        {isDraggingOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-amber-950/80 backdrop-blur-xs border-2 border-dashed border-amber-400 flex flex-col items-center justify-center gap-3 pointer-events-none"
+          >
+            <div className="p-4 rounded-full bg-amber-500/20 text-amber-400">
+              <UploadCloud size={48} className="animate-bounce" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Drop Sketch File Here</h3>
+            <p className="text-xs text-amber-200 font-medium">Supports .tldr, .json</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Full absolute viewport for Tldraw with ErrorBoundary */}
-      <div className="absolute inset-0 top-[38px] w-full h-[calc(100%-38px)]">
+      <div className="flex-1 w-full h-[calc(100%-38px)] relative">
         <ErrorBoundary
           fallbackTitle="Whiteboard Error"
-          fallbackMessage="Unable to initialize canvas. You can try reloading or resetting the whiteboard cache."
+          fallbackMessage="Unable to initialize canvas. You can try resetting the whiteboard cache."
           onReset={handleResetStorage}
         >
           <Tldraw
+            key={canvasKey}
             persistenceKey={WB_STORE_KEY}
+            colorScheme={isDarkMode ? 'dark' : 'light'}
+            components={whiteboardComponents}
             onMount={handleMount}
           />
         </ErrorBoundary>

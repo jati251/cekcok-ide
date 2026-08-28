@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { renderFileOrFolderIcon } from '../utils/fileIcons'
@@ -25,6 +25,8 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
     creatingItemState,
     setCreatingItemState,
     startCreateItem,
+    currentDir,
+    gitStatus,
   } = useIDEStore()
 
   const isExpanded = !!expandedFolders[node.path]
@@ -33,27 +35,25 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   const isSelected = selectedNode?.path === node.path
   const isCreatingInsideThisFolder = node.is_dir && creatingItemState?.parentPath === node.path
 
+  // Determine Git status for this file
+  const relativeNodePath = node.path
+    .replace(currentDir, '')
+    .replace(/^[/\\]/, '')
+    .replace(/\\/g, '/')
+
+  const gitChange = !node.is_dir
+    ? gitStatus.unstaged.find((f) => f.path === relativeNodePath) ||
+      gitStatus.staged.find((f) => f.path === relativeNodePath)
+    : null
+
+  const gitStatusCode = gitChange?.status
+
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(node.name)
   const [newChildName, setNewChildName] = useState('')
 
-  const renameInputRef = useRef<HTMLInputElement>(null)
-  const newChildInputRef = useRef<HTMLInputElement>(null)
   const isSubmittingChildRef = useRef(false)
-
-  useEffect(() => {
-    if (isRenaming) {
-      renameInputRef.current?.focus()
-      renameInputRef.current?.select()
-    }
-  }, [isRenaming])
-
-  useEffect(() => {
-    if (isCreatingInsideThisFolder) {
-      newChildInputRef.current?.focus()
-    }
-  }, [isCreatingInsideThisFolder])
 
   // Filter hidden and ignored items based on settings
   if (node.is_hidden && !settings.showHiddenFiles) {
@@ -195,9 +195,21 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
             ? 'bg-white/10 text-white font-normal'
             : node.is_ignored
             ? 'hover:bg-white/5 text-[#777777] opacity-60'
+            : gitStatusCode === 'M'
+            ? 'text-amber-300 hover:bg-white/5'
+            : gitStatusCode === 'U' || gitStatusCode === 'A'
+            ? 'text-green-300 hover:bg-white/5'
+            : gitStatusCode === 'D'
+            ? 'text-red-300 hover:bg-white/5'
             : 'hover:bg-white/5 text-[#cccccc]'
         }`}
-        title={node.is_ignored ? `${node.path} [Git Ignored]` : node.path}
+        title={
+          node.is_ignored
+            ? `${node.path} [Git Ignored]`
+            : gitStatusCode
+            ? `${node.path} [Git: ${gitStatusCode}]`
+            : node.path
+        }
       >
         {/* Indent Guide Marker */}
         {depth > 0 && (
@@ -227,7 +239,8 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         {/* Label or Inline Rename Input */}
         {isRenaming ? (
           <input
-            ref={renameInputRef}
+            autoFocus
+            onFocus={(e) => e.target.select()}
             type="text"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
@@ -241,6 +254,23 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           />
         ) : (
           <span className="truncate text-xs">{node.name}</span>
+        )}
+
+        {/* Git Status Badge */}
+        {gitStatusCode && !isRenaming && (
+          <span
+            className={`text-[10px] font-bold font-mono px-1 ml-auto shrink-0 ${
+              gitStatusCode === 'M'
+                ? 'text-amber-400'
+                : gitStatusCode === 'U' || gitStatusCode === 'A'
+                ? 'text-green-400'
+                : gitStatusCode === 'D'
+                ? 'text-red-400'
+                : 'text-ide-accent'
+            }`}
+          >
+            {gitStatusCode}
+          </span>
         )}
       </div>
 
@@ -261,7 +291,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
                 )}
               </span>
               <input
-                ref={newChildInputRef}
+                autoFocus
                 type="text"
                 placeholder={creatingItemState?.isDir ? 'Folder name...' : 'File name (e.g. index.ts)...'}
                 value={newChildName}

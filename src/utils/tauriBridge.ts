@@ -156,6 +156,35 @@ export const safeInvoke = async <T = unknown>(cmd: string, args: Record<string, 
       return results as unknown as T
     }
 
+    case 'find_workspace_files': {
+      const query = ((args.query as string) || '').toLowerCase()
+      const results: Array<{ name: string; path: string; relative_path: string }> = []
+      Object.keys(MOCK_WEB_FILES).forEach((filePath) => {
+        if (filePath.startsWith('welcome://')) return
+        const name = filePath.split('/').pop() || ''
+        if (!query || name.toLowerCase().includes(query) || filePath.toLowerCase().includes(query)) {
+          results.push({
+            name,
+            path: filePath,
+            relative_path: filePath.replace('/demo-project/', ''),
+          })
+        }
+      })
+      return results as unknown as T
+    }
+
+    case 'git_get_file_diff': {
+      const filePath = (args.file as string) || ''
+      const modified = MOCK_WEB_FILES[filePath] || ''
+      return {
+        file_path: filePath,
+        relative_path: filePath.split('/').pop() || filePath,
+        original_content: modified ? `// Original (HEAD)\n${modified.replace(/count \+ 1/g, 'count')}` : '',
+        modified_content: modified,
+        staged: Boolean(args.staged),
+      } as unknown as T
+    }
+
     case 'spawn_shell':
     case 'execute_shell': {
       return 'Web shell active. (Tauri native process required for local OS commands)' as unknown as T

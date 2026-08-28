@@ -61,6 +61,28 @@ export function createDefaultSpreadsheetData(): FortuneSheetData[] {
 }
 
 /**
+ * Converts a SheetJS color representation to standard Hex CSS color.
+ */
+function parseXlsxColor(colorObj: any): string | undefined {
+  if (!colorObj) return undefined
+  if (typeof colorObj === 'string') {
+    if (colorObj.startsWith('#')) return colorObj
+    return `#${colorObj}`
+  }
+  if (colorObj.rgb) {
+    const rawRgb = String(colorObj.rgb).trim()
+    if (rawRgb.length === 8) {
+      // Strips alpha prefix e.g. "FFFF0000" -> "#FF0000"
+      return `#${rawRgb.substring(2)}`
+    }
+    if (rawRgb.length === 6) {
+      return `#${rawRgb}`
+    }
+  }
+  return undefined
+}
+
+/**
  * Converts FortuneSheet workbook data into an XLSX Workbook object
  */
 export function fortuneToXLSX(sheets: FortuneSheetData[]): XLSX.WorkBook {
@@ -79,7 +101,7 @@ export function fortuneToXLSX(sheets: FortuneSheetData[]): XLSX.WorkBook {
         if (c > maxC) maxC = c
 
         const cellRef = XLSX.utils.encode_cell({ r, c })
-        const rawVal = v?.v !== undefined ? v.v : (typeof v === 'string' || typeof v === 'number' ? v : '')
+        const rawVal = v?.v !== undefined ? v.v : typeof v === 'string' || typeof v === 'number' ? v : ''
         const formula = v?.f ? String(v.f).replace(/^=/, '') : undefined
 
         const cellObj: XLSX.CellObject = {
@@ -89,6 +111,33 @@ export function fortuneToXLSX(sheets: FortuneSheetData[]): XLSX.WorkBook {
 
         if (formula) {
           cellObj.f = formula
+        }
+
+        // Preserve formatting & styles back to SheetJS
+        const style: any = {}
+        if (v?.bl || v?.it || v?.fc || v?.fs || v?.ff) {
+          style.font = {
+            name: v.ff || undefined,
+            sz: v.fs || undefined,
+            bold: !!v.bl,
+            italic: !!v.it,
+            color: v.fc ? { rgb: v.fc.replace(/^#/, '') } : undefined,
+          }
+        }
+        if (v?.bg) {
+          style.fill = {
+            fgColor: { rgb: v.bg.replace(/^#/, '') },
+          }
+        }
+        if (v?.ht !== undefined || v?.vt !== undefined || v?.tb) {
+          style.alignment = {
+            horizontal: v.ht === 0 ? 'center' : v.ht === 2 ? 'right' : 'left',
+            vertical: v.vt === 1 ? 'top' : v.vt === 2 ? 'bottom' : 'center',
+            wrapText: v.tb === 2,
+          }
+        }
+        if (Object.keys(style).length > 0) {
+          cellObj.s = style
         }
 
         ws[cellRef] = cellObj
@@ -120,55 +169,267 @@ export function fortuneToXLSX(sheets: FortuneSheetData[]): XLSX.WorkBook {
       e: { r: Math.max(maxR, 10), c: Math.max(maxC, 10) },
     })
 
+    // Convert FortuneSheet merge back to SheetJS !merges
+    if (sheet.config?.merge) {
+      const merges: XLSX.Range[] = []
+      Object.values(sheet.config.merge).forEach((m: any) => {
+        if (m && typeof m.r === 'number' && typeof m.c === 'number') {
+          merges.push({
+            s: { r: m.r, c: m.c },
+            e: { r: m.r + (m.rs || 1) - 1, c: m.c + (m.cs || 1) - 1 },
+          })
+        }
+      })
+      if (merges.length > 0) {
+        ws['!merges'] = merges
+      }
+    }
+
+    // Convert FortuneSheet columnlen back to !cols
+    if (sheet.config?.columnlen) {
+      const cols: any[] = []
+      Object.entries(sheet.config.columnlen).forEach(([cStr, px]) => {
+        const c = parseInt(cStr, 10)
+        cols[c] = { wpx: Number(px) }
+      })
+      if (cols.length > 0) {
+        ws['!cols'] = cols
+      }
+    }
+
+    // Convert FortuneSheet rowlen back to !rows
+    if (sheet.config?.rowlen) {
+      const rows: any[] = []
+      Object.entries(sheet.config.rowlen).forEach(([rStr, px]) => {
+        const r = parseInt(rStr, 10)
+        rows[r] = { hpx: Number(px) }
+      })
+      if (rows.length > 0) {
+        ws['!rows'] = rows
+      }
+    }
+
     XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31))
   })
 
   return wb
 }
 
+export const SUPPORTED_SPREADSHEET_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.tsv'] as const
+
 /**
- * Parses an ArrayBuffer or binary string into FortuneSheet data structure
+ * Validates if a given filename or path has a supported spreadsheet format.
  */
-export function xlsxToFortune(buffer: ArrayBuffer | Uint8Array): FortuneSheetData[] {
-  const wb = XLSX.read(buffer, { type: 'array', cellFormula: true, cellStyles: true })
-  const result: FortuneSheetData[] = []
+export function validateSpreadsheetExtension(filename: string): { valid: boolean; ext: string; error?: string } {
+  if (!filename) {
+    return { valid: false, ext: '', error: 'Nama file tidak boleh kosong.' }
+  }
 
-  wb.SheetNames.forEach((name, idx) => {
-    const ws = wb.Sheets[name]
-    const celldata: FortuneCell[] = []
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:Z60')
+  const dotIdx = filename.lastIndexOf('.')
+  if (dotIdx === -1) {
+    return {
+      valid: false,
+      ext: '',
+      error: 'File tidak memiliki ekstensi. Hanya mendukung format Excel (.xlsx, .xls) dan CSV/TSV.',
+    }
+  }
 
-    for (let r = range.s.r; r <= range.e.r; r++) {
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c })
-        const cell = ws[cellRef]
-        if (cell && cell.v !== undefined) {
-          celldata.push({
-            r,
-            c,
-            v: {
-              v: cell.v,
-              m: String(cell.w || cell.v),
-              f: cell.f ? `=${cell.f}` : undefined,
-              ct: { fa: 'General', t: cell.t === 'n' ? 'n' : 'g' },
-            },
-          })
-        }
-      }
+  const ext = filename.substring(dotIdx).toLowerCase()
+  const isSupported = (SUPPORTED_SPREADSHEET_EXTENSIONS as readonly string[]).includes(ext)
+
+  if (!isSupported) {
+    return {
+      valid: false,
+      ext,
+      error: `Format file "${ext}" tidak didukung. Cekcok Spreadsheet hanya mendukung file Excel (.xlsx, .xls) dan CSV/TSV.`,
+    }
+  }
+
+  return { valid: true, ext }
+}
+
+/**
+ * Parses an ArrayBuffer, Uint8Array, or string into FortuneSheet data structure with full styling, merged cells, and auto-sized column widths.
+ */
+export function xlsxToFortune(bufferOrData: ArrayBuffer | Uint8Array | string): FortuneSheetData[] {
+  try {
+    const isString = typeof bufferOrData === 'string'
+    const wb = isString
+      ? XLSX.read(bufferOrData, { type: 'string', raw: false, cellFormula: true, cellStyles: true, cellNF: true, cellDates: true })
+      : XLSX.read(bufferOrData, { type: 'array', cellFormula: true, cellStyles: true, cellNF: true, cellDates: true })
+
+    if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+      throw new Error('Workbook tidak memiliki sheet.')
     }
 
-    result.push({
-      name,
-      id: `sheet_${idx + 1}`,
-      order: idx,
-      status: idx === 0 ? 1 : 0,
-      row: Math.max(60, range.e.r + 15),
-      column: Math.max(26, range.e.c + 5),
-      celldata,
-    })
-  })
+    const result: FortuneSheetData[] = []
 
-  return result.length > 0 ? result : createDefaultSpreadsheetData()
+    wb.SheetNames.forEach((name, idx) => {
+      const ws = wb.Sheets[name]
+      if (!ws) return
+
+      const celldata: FortuneCell[] = []
+      const ref = ws['!ref'] || 'A1:Z60'
+      let range = { s: { r: 0, c: 0 }, e: { r: 59, c: 25 } }
+
+      try {
+        range = XLSX.utils.decode_range(ref)
+      } catch (e) {
+        console.warn(`Could not decode range "${ref}" for sheet ${name}:`, e)
+      }
+
+      // 1. Process Merged Cells
+      const mergeConfig: Record<string, { r: number; c: number; rs: number; cs: number }> = {}
+      if (Array.isArray(ws['!merges'])) {
+        ws['!merges'].forEach((m: XLSX.Range) => {
+          const key = `${m.s.r}_${m.s.c}`
+          mergeConfig[key] = {
+            r: m.s.r,
+            c: m.s.c,
+            rs: m.e.r - m.s.r + 1,
+            cs: m.e.c - m.s.c + 1,
+          }
+        })
+      }
+
+      // 2. Process Column Widths & Content-based Sizing
+      const columnlen: Record<string, number> = {}
+      if (Array.isArray(ws['!cols'])) {
+        ws['!cols'].forEach((col: any, cIdx: number) => {
+          if (col) {
+            if (col.wpx) {
+              columnlen[String(cIdx)] = Math.max(50, Math.round(col.wpx))
+            } else if (col.wch) {
+              columnlen[String(cIdx)] = Math.max(50, Math.round(col.wch * 8.5 + 16))
+            } else if (col.width) {
+              columnlen[String(cIdx)] = Math.max(50, Math.round(col.width * 8.5 + 16))
+            }
+          }
+        })
+      }
+
+      // Track max content length per column for intelligent auto-fit
+      const colMaxLengths: Record<number, number> = {}
+
+      // 3. Process Row Heights
+      const rowlen: Record<string, number> = {}
+      if (Array.isArray(ws['!rows'])) {
+        ws['!rows'].forEach((row: any, rIdx: number) => {
+          if (row) {
+            if (row.hpx) {
+              rowlen[String(rIdx)] = Math.max(22, Math.round(row.hpx))
+            } else if (row.hpt) {
+              rowlen[String(rIdx)] = Math.max(22, Math.round(row.hpt * 1.33))
+            }
+          }
+        })
+      }
+
+      // 4. Iterate and construct cells with complete styling
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c })
+          const cell = ws[cellRef]
+          if (cell && cell.v !== undefined && cell.v !== null) {
+            const rawVal = cell.v
+            const formattedVal = cell.w !== undefined ? String(cell.w) : String(rawVal)
+            const formula = cell.f ? (String(cell.f).startsWith('=') ? String(cell.f) : `=${cell.f}`) : undefined
+
+            // Estimate column length if not in a multi-col merge
+            const isMergedChild = Array.isArray(ws['!merges']) && ws['!merges'].some((m: XLSX.Range) =>
+              r >= m.s.r && r <= m.e.r && c >= m.s.c && c <= m.e.c && (m.s.c !== m.e.c)
+            )
+            if (!isMergedChild && formattedVal.length > 0) {
+              colMaxLengths[c] = Math.max(colMaxLengths[c] || 0, formattedVal.length)
+            }
+
+            // Extract Cell Styles
+            const style = cell.s || {}
+            const font = style.font || {}
+            const fill = style.fill || {}
+            const alignment = style.alignment || {}
+
+            const isBold = font.bold ? 1 : 0
+            const isItalic = font.italic ? 1 : 0
+            const fontSize = font.sz ? Math.round(font.sz) : undefined
+            const fontFamily = font.name || undefined
+            const fontColor = parseXlsxColor(font.color)
+            const bgColor = parseXlsxColor(fill.fgColor || fill.bgColor)
+
+            // Horizontal alignment: 0=center, 1=left, 2=right
+            let ht: number | undefined = undefined
+            if (alignment.horizontal === 'center') ht = 0
+            else if (alignment.horizontal === 'right') ht = 2
+            else if (alignment.horizontal === 'left') ht = 1
+            else if (typeof rawVal === 'number') ht = 2
+
+            // Vertical alignment: 0=middle, 1=top, 2=bottom
+            let vt: number | undefined = undefined
+            if (alignment.vertical === 'top') vt = 1
+            else if (alignment.vertical === 'bottom') vt = 2
+            else if (alignment.vertical === 'center') vt = 0
+
+            // Text wrap
+            const tb = alignment.wrapText ? 2 : 1
+
+            // Merge metadata for the top-left cell
+            const mergeKey = `${r}_${c}`
+            const mergeInfo = mergeConfig[mergeKey]
+
+            celldata.push({
+              r,
+              c,
+              v: {
+                v: rawVal,
+                m: formattedVal,
+                f: formula,
+                bl: isBold,
+                it: isItalic,
+                fs: fontSize,
+                ff: fontFamily,
+                fc: fontColor,
+                bg: bgColor,
+                ht,
+                vt,
+                tb,
+                mc: mergeInfo ? { r, c, rs: mergeInfo.rs, cs: mergeInfo.cs } : undefined,
+                ct: { fa: cell.z || 'General', t: cell.t === 'n' ? 'n' : cell.t === 'b' ? 'b' : 'g' },
+              },
+            })
+          }
+        }
+      }
+
+      // 5. Ensure column widths fit cell contents so text is not cut off
+      Object.entries(colMaxLengths).forEach(([cStr, maxLen]) => {
+        const c = parseInt(cStr, 10)
+        const autoPx = Math.min(400, Math.max(75, Math.round(maxLen * 8.8 + 24)))
+        if (!columnlen[String(c)] || columnlen[String(c)] < autoPx * 0.85) {
+          columnlen[String(c)] = autoPx
+        }
+      })
+
+      result.push({
+        name: name.substring(0, 31),
+        id: `sheet_${Date.now()}_${idx + 1}`,
+        order: idx,
+        status: idx === 0 ? 1 : 0,
+        row: Math.max(60, range.e.r + 20),
+        column: Math.max(26, range.e.c + 10),
+        config: {
+          merge: mergeConfig,
+          columnlen,
+          rowlen,
+        },
+        celldata,
+      })
+    })
+
+    return result.length > 0 ? result : createDefaultSpreadsheetData()
+  } catch (error) {
+    console.error('Error parsing spreadsheet data:', error)
+    throw error
+  }
 }
 
 /**

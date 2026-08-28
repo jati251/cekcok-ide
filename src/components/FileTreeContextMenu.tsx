@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import React from 'react'
 import { ask } from '@tauri-apps/plugin-dialog'
 import { toast } from 'react-hot-toast'
 import { 
@@ -16,6 +15,8 @@ import {
   CopyPlus
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
+import { safeInvoke } from '../utils/tauriBridge'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 interface FileTreeContextMenuProps {
   x: number
@@ -37,48 +38,32 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
   onRename,
 }) => {
   const { currentDir, deletePathItem, setFileClipboard, pasteFileToDir, fileClipboard, duplicateFile } = useIDEStore()
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('mousedown', handleOutsideClick)
-    window.addEventListener('keydown', handleEscape)
-    return () => {
-      window.removeEventListener('mousedown', handleOutsideClick)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [onClose])
+  const menuRef = useClickOutside<HTMLDivElement>(onClose, true)
 
   const handleCopyPath = async () => {
     try {
       await navigator.clipboard.writeText(node.path)
+      toast.success('Path copied to clipboard')
     } catch {
-      // ignore
+      toast.error('Failed to copy path')
     }
     onClose()
   }
 
   const handleCopyRelativePath = async () => {
     try {
-      const rel = node.path.replace(currentDir, '').replace(/^[/\\]/, '')
+      const rel = currentDir ? node.path.replace(currentDir, '').replace(/^[/\\]/, '') : node.name
       await navigator.clipboard.writeText(rel)
+      toast.success('Relative path copied')
     } catch {
-      // ignore
+      toast.error('Failed to copy relative path')
     }
     onClose()
   }
 
   const handleReveal = async () => {
     try {
-      await invoke('reveal_in_file_manager', { path: node.path })
+      await safeInvoke('reveal_in_file_manager', { path: node.path })
     } catch (err) {
       console.error('Failed to reveal file:', err)
     }

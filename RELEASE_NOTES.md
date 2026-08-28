@@ -1,3 +1,27 @@
+# 🐯 Cekcok Super App v0.2.5 Release Notes
+
+### 🚀 Highlights & Improvements in v0.2.5
+
+- **🟢 🔵 🔴 Real-Time Git Change Gutter & Scrollbar Overview Ruler**:
+  - **Live Overview Ruler & Minimap Indicators**:
+    - 🟩 **Green (`#22c55e`)**: Real-time indicator for newly added lines.
+    - 🟦 **Blue (`#3b82f6`)**: Real-time indicator for modified/edited lines.
+    - 🟥 **Red (`#ef4444`)**: Real-time indicator for deleted lines.
+  - **VS Code Style Gutter Indicators**:
+    - Vertical colored bars for added/modified lines and precise red arrow carets for deletions beside line numbers.
+  - **Smart Similarity Diff Alignment**: Distinguishes adjacent additions and modifications accurately without misclassifying new lines.
+
+- **📄 Native Microsoft Word (`.docx`) Import & Rich Document Parsing**:
+  - **Full `.docx` Document Support**: Import `.docx` files via OS file picker and drag-and-drop with complete extraction of headings, bold, italics, underlines, strikethrough, lists, blockquotes, and tables.
+  - **Responsive Image & Signature Scaling**: Embedded signatures and high-res document images auto-scale responsively within document paper boundaries with zero horizontal overflow.
+  - **Structured JSON Document Presentation**: JSON data files and workflows convert gracefully into structured document sections, headings, bold keys, and bullet lists instead of raw unstyled code blocks.
+
+- **⚠️ Real-Time Language Diagnostics & Problems Integration**:
+  - Full synchronization between Monaco Editor syntax markers, the Bottom Panel **Problems** tab, and the Status Bar counter badge.
+  - Interactive red squiggly underlines and hover error tooltips across TypeScript, JavaScript, CSS, JSON, and HTML.
+
+---
+
 # 🐯 Cekcok Super App v0.2.4 Release Notes
 
 ### 🚀 Highlights & Improvements in v0.2.4
@@ -17,3 +41,10 @@
   - **Conflict-Free Drag Drops**: Strictly separated editor split drop zones from tool docking zones.
   - **Right Panel Compact Header**: When panel is docked to the right, tabs collapse to clean icon-only buttons with tooltips, and terminal renders a space-saving top session bar for 100% terminal width.
   - **Context Menu & Layout Customizer**: Right-click tabs or use the TitleBar Layout menu to dock tools between Sidebar and Panel with 1 click.
+
+- **⚡ Core IDE Mandatory Suite (VS Code Parity)**:
+  - **Fast Workspace Quick Open (`⌘P` / `Ctrl+P`)**: Sub-millisecond workspace-wide file indexing using Rust's Ripgrep `ignore::WalkBuilder` with real file icons and relative path matching.
+  - **Monaco Visual Git Diff Editor**: Clicking any changed file in Git Sidebar opens Monaco's side-by-side Diff Editor showing exact modifications against `HEAD`.
+  - **Git Status Badges in Explorer**: File tree items display colored text and git status badges (`M` amber, `U`/`A` green, `D` red).
+  - **Format on Save & Shortcut Formatting (`Shift+Alt+F`)**: Auto-format documents on save (`Cmd+S`) or on demand with user preference toggle.
+  - **Explorer Navigation Polish**: One-click **Reveal Active File (`Cmd+Shift+E`)** and **Collapse All Folders** buttons.

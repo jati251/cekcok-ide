@@ -19,6 +19,7 @@ export interface UserSettings {
   autoSave: 'off' | 'afterDelay' | 'onFocusChange'
   lineNumbers: 'on' | 'off' | 'relative'
   startupBehavior: 'restoreLastProject' | 'welcomePage' | 'empty'
+  formatOnSave: boolean
   showHiddenFiles: boolean
   showIgnoredFiles: boolean
   sidebarPosition: SidebarPosition

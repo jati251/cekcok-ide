@@ -18,6 +18,7 @@ export interface WorkspaceSlice {
   startCreateItem: (isDir: boolean, targetPath?: string) => Promise<void>
   toggleFolder: (path: string) => Promise<void>
   collapseAllFolders: () => void
+  revealActiveFileInExplorer: (filePath?: string) => Promise<void>
   refreshDirectory: (path?: string) => Promise<void>
 
   createFileInDir: (dirPath: string, name: string) => Promise<void>
@@ -109,6 +110,34 @@ export const createWorkspaceSlice: StateCreator<FullIDEStore, [], [], WorkspaceS
 
   collapseAllFolders: () => {
     set({ expandedFolders: {} })
+  },
+
+  revealActiveFileInExplorer: async (filePath?: string) => {
+    const target = filePath || get().activeFile?.path
+    if (!target || target.startsWith('settings://') || target.startsWith('welcome://') || target.startsWith('diff://')) {
+      return
+    }
+
+    const { currentDir } = get()
+    if (!currentDir || !target.startsWith(currentDir)) return
+
+    const rel = target.slice(currentDir.length).replace(/^[/\\]/, '')
+    const parts = rel.split(/[/\\]/)
+    
+    let running = currentDir
+    for (let i = 0; i < parts.length - 1; i++) {
+      running = `${running}/${parts[i]}`
+      if (!get().expandedFolders[running]) {
+        await get().toggleFolder(running)
+      }
+    }
+
+    const node: FileNode = {
+      name: parts[parts.length - 1] || target,
+      path: target,
+      is_dir: false,
+    }
+    set({ selectedNode: node })
   },
 
   refreshDirectory: async (path) => {

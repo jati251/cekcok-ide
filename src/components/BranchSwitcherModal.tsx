@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GitBranch, Plus, Check, X } from 'lucide-react'
 import { useIDEStore } from '../store/useIDEStore'
 import { safeInvoke } from '../utils/tauriBridge'
 import { toast } from 'react-hot-toast'
+import { useClickOutside } from '../hooks/useClickOutside'
 
 interface BranchSwitcherModalProps {
   isOpen: boolean
@@ -15,12 +16,13 @@ export const BranchSwitcherModal: React.FC<BranchSwitcherModalProps> = ({ isOpen
   const [branches, setBranches] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useClickOutside<HTMLDivElement>(onClose, isOpen)
 
   useEffect(() => {
     if (!isOpen || !currentDir) return
 
     let isMounted = true
+    setIsLoading(true)
     safeInvoke<string[]>('git_list_branches', { cwd: currentDir })
       .then((list) => {
         if (isMounted && Array.isArray(list)) {
@@ -33,7 +35,6 @@ export const BranchSwitcherModal: React.FC<BranchSwitcherModalProps> = ({ isOpen
       .finally(() => {
         if (isMounted) {
           setIsLoading(false)
-          setTimeout(() => inputRef.current?.focus(), 50)
         }
       })
 
@@ -85,6 +86,7 @@ export const BranchSwitcherModal: React.FC<BranchSwitcherModalProps> = ({ isOpen
 
         {/* Modal Dialog */}
         <motion.div
+          ref={modalRef}
           initial={{ opacity: 0, scale: 0.95, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -103,7 +105,7 @@ export const BranchSwitcherModal: React.FC<BranchSwitcherModalProps> = ({ isOpen
           >
             <GitBranch size={15} className="text-ide-accent shrink-0" />
             <input
-              ref={inputRef}
+              autoFocus
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

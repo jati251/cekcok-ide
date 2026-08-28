@@ -42,6 +42,7 @@ export interface EditorSlice {
   
   openSettingsTab: () => void
   openWelcomeTab: () => void
+  openDiffTab: (path: string, staged?: boolean) => Promise<void>
   
   closedTabsHistory: Array<{ pane: 1 | 2, file: FileNode }>
   reopenLastClosedTab: () => void
@@ -371,6 +372,37 @@ export const createEditorSlice: StateCreator<FullIDEStore, [], [], EditorSlice> 
       is_dir: false,
     }
     get().openFile(welcomeFile)
+  },
+
+  openDiffTab: async (filePath: string, staged = false) => {
+    try {
+      const fileName = filePath.split(/[/\\]/).pop() || filePath
+      const diffData = await safeInvoke<{
+        original_content: string
+        modified_content: string
+        relative_path: string
+        file_path: string
+      }>('git_get_file_diff', {
+        cwd: get().currentDir,
+        file: filePath,
+        staged,
+      })
+
+      const diffNode: FileNode = {
+        name: `${fileName} (${staged ? 'Index' : 'Working Tree'} Diff)`,
+        path: `diff://${staged ? 'staged:' : 'working:'}${filePath}`,
+        is_dir: false,
+        isDiff: true,
+        diffStaged: staged,
+        originalContent: diffData?.original_content ?? '',
+        content: diffData?.modified_content ?? '',
+      }
+
+      get().openFile(diffNode)
+    } catch (err) {
+      console.error('Failed to open diff view:', err)
+      import('react-hot-toast').then(({ toast }) => toast.error(`Diff error: ${err}`))
+    }
   },
 
   reopenLastClosedTab: () => {

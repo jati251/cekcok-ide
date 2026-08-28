@@ -21,7 +21,7 @@ export const GitSidebar: React.FC = () => {
     isGitLoading,
     refreshGitStatus,
     runTerminalCommand,
-    openFile,
+    openDiffTab,
     setBranchSwitcherOpen,
   } = useIDEStore()
 
@@ -268,13 +268,7 @@ export const GitSidebar: React.FC = () => {
                 <div
                   key={`staged-${f.path}`}
                   className="flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded text-xs group cursor-pointer"
-                  onClick={() =>
-                    openFile({
-                      name: f.path.split(/[/\\]/).pop() || f.path,
-                      path: f.path,
-                      is_dir: false,
-                    })
-                  }
+                  onClick={() => openDiffTab(f.path, true)}
                 >
                   <span className="truncate text-white/90">{f.path}</span>
                   <div className="flex items-center gap-1.5">
@@ -325,13 +319,7 @@ export const GitSidebar: React.FC = () => {
                 <div
                   key={`unstaged-${f.path}`}
                   className="flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded text-xs group cursor-pointer"
-                  onClick={() =>
-                    openFile({
-                      name: f.path.split(/[/\\]/).pop() || f.path,
-                      path: f.path,
-                      is_dir: false,
-                    })
-                  }
+                  onClick={() => openDiffTab(f.path, false)}
                 >
                   <span className="truncate text-white/90">{f.path}</span>
                   <div className="flex items-center gap-1.5">

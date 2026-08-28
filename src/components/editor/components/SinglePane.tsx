@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor, { DiffEditor } from '@monaco-editor/react'
 import { useIDEStore, FileNode } from '@/store/useIDEStore'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { getLanguageFromFilename } from '@/utils/languages'
@@ -10,6 +10,7 @@ import { WelcomeView } from '@/components/WelcomeView'
 import { SinglePaneProps, TabContextMenuState } from '../types'
 import { useMonacoSetup } from '../hooks/useMonacoSetup'
 import { useMonacoViewState } from '../hooks/useMonacoViewState'
+import { useChangeDecorations } from '../hooks/useChangeDecorations'
 import { usePaneDragDrop } from '../hooks/usePaneDragDrop'
 import { DropZoneOverlay } from './DropZoneOverlay'
 import { EmptyEditorWatermark } from './EmptyEditorWatermark'
@@ -45,6 +46,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
   // Custom Hooks for separation of concerns
   const { handleEditorMount } = useMonacoSetup(activeFile, editorInstanceRef)
   useMonacoViewState(activeFile, editorInstanceRef)
+  useChangeDecorations(editorInstanceRef, activeFile, currentDir)
   const {
     isDraggingFile,
   } = usePaneDragDrop(paneId)
@@ -97,6 +99,28 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
       editorInstanceRef.current.getAction('editor.action.formatDocument')?.run()
     }
   }
+
+  useEffect(() => {
+    if (!isActivePane) return
+
+    const handleFormatEvent = () => {
+      handleFormat()
+    }
+
+    const handleSaveEvent = () => {
+      if (settings.formatOnSave) {
+        handleFormat()
+      }
+    }
+
+    window.addEventListener('editor-format-document', handleFormatEvent)
+    window.addEventListener('workspace-save', handleSaveEvent)
+
+    return () => {
+      window.removeEventListener('editor-format-document', handleFormatEvent)
+      window.removeEventListener('workspace-save', handleSaveEvent)
+    }
+  }, [isActivePane, settings.formatOnSave])
 
   const editorValue = activeFile?.content ?? ''
 
@@ -164,6 +188,52 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
             <SettingsView />
           ) : activeFile.path === 'welcome://get-started' ? (
             <WelcomeView />
+          ) : activeFile.isDiff ? (
+            <div className={`absolute inset-0 w-full h-full overflow-hidden flex flex-col bg-[#1e1e1e] ${isDraggingFile ? 'pointer-events-none' : ''}`}>
+              {/* Diff View Visual Header */}
+              <div className="flex items-center justify-between px-3 py-1.5 bg-[#252526] border-b border-ide-border text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white truncate max-w-[300px]">{activeFile.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-ide-accent/20 text-ide-accent font-mono">
+                    {activeFile.diffStaged ? 'Staged' : 'Working Tree'} ↔ HEAD
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-[#888888] shrink-0">
+                  <span className="text-red-300 font-mono">Original (HEAD)</span>
+                  <span>↔</span>
+                  <span className="text-green-300 font-mono">Working Copy</span>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 relative">
+                <DiffEditor
+                  height="100%"
+                  width="100%"
+                  theme={settings.theme}
+                  original={activeFile.originalContent ?? ''}
+                  modified={activeFile.content ?? ''}
+                  language={getLanguageFromFilename(activeFile.name.replace(/ \(.*\)$/, ''))}
+                  options={{
+                    automaticLayout: true,
+                    readOnly: true,
+                    renderSideBySide: true,
+                    fontSize: settings.fontSize || 12,
+                    lineHeight: Math.round((settings.fontSize || 12) * 1.55),
+                    letterSpacing: 0.2,
+                    fontFamily: settings.fontFamily,
+                    scrollBeyondLastLine: false,
+                    minimap: { enabled: false },
+                    stickyScroll: { enabled: true },
+                    scrollbar: {
+                      vertical: 'visible',
+                      horizontal: 'visible',
+                      verticalScrollbarSize: 10,
+                      horizontalScrollbarSize: 10,
+                      useShadows: false,
+                    },
+                  }}
+                />
+              </div>
+            </div>
           ) : isImageRaster || (isSvgFile && currentSvgView === 'preview') ? (
             <MediaPreview
               key={activeFile.path}
@@ -193,7 +263,9 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
                   automaticLayout: true,
                   scrollBeyondLastLine: false,
                   minimap: { enabled: settings.minimapEnabled, scale: 0.75 },
-                  fontSize: settings.fontSize,
+                  fontSize: settings.fontSize || 12,
+                  lineHeight: Math.round((settings.fontSize || 12) * 1.55),
+                  letterSpacing: 0.2,
                   tabSize: settings.tabSize,
                   wordWrap: settings.wordWrap,
                   lineNumbers: settings.lineNumbers,
