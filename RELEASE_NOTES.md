@@ -1,3 +1,27 @@
+# 🐯 Cekcok Super App v0.2.6 Release Notes
+
+### 🚀 Highlights & Improvements in v0.2.6
+
+- **☕ First-Class Java & Spring Boot Native Ecosystem**:
+  - **Spring Initializr Project Generator**: Wizard to bootstrap Spring Boot projects with Maven or Gradle, Java 17/21 LTS/23, and interactive dependency selector (Web, Data JPA, Security, Lombok, MySQL, Postgres, Redis, Kafka, RabbitMQ, Actuator).
+  - **Spring Boot Build & Run Suite**: 1-click tasks for Spring Boot Run, Remote JDWP Socket Debug (port 5005), Executable JAR Packaging, Test Suite, Docker Image creation, and Dependency Trees.
+  - **Spring REST Endpoints & Beans Explorer**: Automatic workspace scanning for `@RestController`, `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, and Spring Beans (`@Service`, `@Repository`, `@Component`, `@Entity`, `@Configuration`) with click-to-jump to source line in Monaco Editor.
+  - **Monaco Java & Properties Intelligence**: Autocompletion and snippets for Spring annotations, Java snippets (`psvm`, `sout`, `log`, etc.), and 100+ `application.properties` / `.yml` keys.
+  - **Java Scaffolding**: Context menu action to scaffold Controllers, Services, Repositories, Entities, Records, and DTOs with auto-calculated package declarations.
+
+- **⚡ First-Class Node.js & TypeScript Fullstack Suite**:
+  - **Multi Package Manager Support (`npm`, `pnpm`, `yarn`, `bun`)**: Automatic lockfile detection and dynamic script execution with status bar badge.
+  - **Node.js & Fullstack Project Generator**: Scaffold Vite + React 19 + TypeScript, Next.js 15 App Router, Express REST API, NestJS, and Hono with 1 click.
+  - **Interactive Dependencies Inspector & Package Installer**: Searchable dependencies inspector with 1-click **"+ Install Package"** modal and uninstall actions.
+  - **Node REST API & Route Scanner**: Live workspace route detector for Express, NestJS, Next.js App Router (`route.ts`), and Hono with click-to-jump to code line.
+  - **TypeScript & React File Scaffolder**: Context menu generator for React components (`.tsx`), custom hooks, Express routes, NestJS services, and Vitest test files.
+
+- **🎨 Whiteboard / Sketch 0ms Instant Offline Bundling**:
+  - Bundled `@tldraw/assets` directly into local Vite chunks to eliminate all remote `unpkg.com` CDN network calls.
+  - Whiteboard canvas now mounts instantly in 0ms without blank screen delays in production and offline mode.
+
+---
+
 # 🐯 Cekcok Super App v0.2.5 Release Notes
 
 ### 🚀 Highlights & Improvements in v0.2.5

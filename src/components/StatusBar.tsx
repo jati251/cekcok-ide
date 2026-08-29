@@ -1,5 +1,5 @@
 import React from 'react'
-import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw, Sparkles } from 'lucide-react'
+import { GitBranch, PanelLeft, Terminal, Command, PackageCheck, RefreshCw, Sparkles, Coffee } from 'lucide-react'
 import { useIDEStore, SidebarTab } from '../store/useIDEStore'
 import { getLanguageLabel } from '../utils/languages'
 import { LayoutCustomizer } from './LayoutCustomizer'
@@ -14,6 +14,8 @@ export const StatusBar: React.FC = () => {
     gitStatus,
     setActiveSidebarTab,
     packageJson,
+    packageManager,
+    javaDetails,
     setCommandPaletteOpen,
     refreshGitStatus,
     isGitLoading,
@@ -79,11 +81,27 @@ export const StatusBar: React.FC = () => {
         {packageJson && (
           <div
             onClick={() => setActiveSidebarTab('node' as SidebarTab)}
-            className="hidden sm:flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-            title={`Node.js: ${packageJson.name || 'Project'} (v${packageJson.version || '1.0.0'})`}
+            className="hidden sm:flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium"
+            title={`Node.js: ${packageJson.name || 'Project'} (v${packageJson.version || '1.0.0'}, PM: ${packageManager.toUpperCase()})`}
           >
             <PackageCheck size={12} />
-            <span className="truncate max-w-[100px]">{packageJson.name || 'node-app'}</span>
+            <span className="truncate max-w-[130px]">
+              {packageManager}: {packageJson.name || 'node-app'}
+            </span>
+          </div>
+        )}
+
+        {/* Java / Spring Boot Project Indicator */}
+        {javaDetails && (
+          <div
+            onClick={() => setActiveSidebarTab('node' as SidebarTab)}
+            className="hidden sm:flex items-center gap-1 hover:bg-white/20 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-medium"
+            title={`Java Project: ${javaDetails.name || 'Spring App'} (Java ${javaDetails.javaVersion || '17'}${javaDetails.springBootVersion ? `, Spring Boot ${javaDetails.springBootVersion}` : ''})`}
+          >
+            <Coffee size={12} className="text-amber-200" />
+            <span className="truncate max-w-[130px]">
+              {javaDetails.isSpringBoot ? `Spring Boot ${javaDetails.springBootVersion || ''}` : `Java (${javaDetails.buildTool})`}
+            </span>
           </div>
         )}
 

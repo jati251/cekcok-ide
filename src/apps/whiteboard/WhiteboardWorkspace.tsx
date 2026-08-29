@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Tldraw, Editor, exportAs, TLComponents } from 'tldraw'
+import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite'
 import 'tldraw/tldraw.css'
 import {
   ArrowLeft,
@@ -27,6 +28,9 @@ import { isTauri, safeInvoke } from '../../utils/tauriBridge'
 const WB_TITLE_KEY = 'cekcok_whiteboard_title_v1'
 const WB_STORE_KEY = 'cekcok_whiteboard_store_v1'
 const SUPPORTED_TLDR_EXTENSIONS = ['.tldr', '.json'] as const
+
+// Local Vite bundled assets to prevent unpkg CDN network requests & blank delay
+const localAssetUrls = getAssetUrlsByImport()
 
 const whiteboardComponents: TLComponents = {
   HelpMenu: null,
@@ -561,6 +565,7 @@ export const WhiteboardWorkspace: React.FC = () => {
           <Tldraw
             key={canvasKey}
             persistenceKey={WB_STORE_KEY}
+            assetUrls={localAssetUrls}
             colorScheme={isDarkMode ? 'dark' : 'light'}
             components={whiteboardComponents}
             onMount={handleMount}

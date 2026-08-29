@@ -1,4 +1,4 @@
-import { FolderOpen, FilePlus, GitBranch, Settings, Command, Search, Columns2, Terminal, ZoomIn } from 'lucide-react'
+import { FolderOpen, FilePlus, GitBranch, Settings, Command, Search, Columns2, Terminal, ZoomIn, Coffee, Layers } from 'lucide-react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { useIDEStore } from '../store/useIDEStore'
 import { formatShortcut } from '../utils/platform'
@@ -92,6 +92,52 @@ export const WelcomeView = () => {
                 <div>
                   <div className="text-xs font-semibold">Open Folder...</div>
                   <div className="text-[11px] opacity-60">Open an existing workspace on your computer</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('trigger-node-initializr'))}
+                style={{
+                  backgroundColor: 'var(--color-ide-sidebar)',
+                  borderColor: 'var(--color-ide-border)',
+                  color: 'var(--color-ide-text)',
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border hover:border-emerald-500/50 transition-all text-left cursor-pointer group"
+              >
+                <div className="p-2 rounded bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <Layers size={18} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <span>New Node / React / Next.js Project</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                      FULLSTACK
+                    </span>
+                  </div>
+                  <div className="text-[11px] opacity-60">Scaffold Vite React, Next.js, Express, NestJS, or Hono</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('trigger-spring-initializr'))}
+                style={{
+                  backgroundColor: 'var(--color-ide-sidebar)',
+                  borderColor: 'var(--color-ide-border)',
+                  color: 'var(--color-ide-text)',
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border hover:border-emerald-500/50 transition-all text-left cursor-pointer group"
+              >
+                <div className="p-2 rounded bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <Coffee size={18} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <span>New Spring Boot Project</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                      JAVA
+                    </span>
+                  </div>
+                  <div className="text-[11px] opacity-60">Generate Spring Boot app with Maven/Gradle &amp; dependencies</div>
                 </div>
               </button>
 

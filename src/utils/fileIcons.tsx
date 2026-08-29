@@ -39,8 +39,25 @@ export const renderFileOrFolderIcon = (filename: string, isDir: boolean, isOpen:
   if (lowerName === 'go.mod' || lowerName === 'go.sum') {
     return <FileCode2 size={15} className="text-[#00add8] shrink-0" />
   }
-  if (lowerName === 'pom.xml' || lowerName === 'build.gradle' || lowerName === 'build.gradle.kts') {
+  if (
+    lowerName === 'pom.xml' ||
+    lowerName === 'build.gradle' ||
+    lowerName === 'build.gradle.kts' ||
+    lowerName === 'settings.gradle' ||
+    lowerName === 'settings.gradle.kts'
+  ) {
     return <Coffee size={15} className="text-[#e76f51] shrink-0" />
+  }
+  if (
+    lowerName.startsWith('application.') ||
+    lowerName.startsWith('application-') ||
+    lowerName.startsWith('bootstrap.') ||
+    lowerName.startsWith('bootstrap-')
+  ) {
+    return <Settings size={15} className="text-[#6db33f] shrink-0" />
+  }
+  if (lowerName === 'mvnw' || lowerName === 'mvnw.cmd' || lowerName === 'gradlew' || lowerName === 'gradlew.bat') {
+    return <Terminal size={15} className="text-[#e76f51] shrink-0" />
   }
 
   switch (ext) {

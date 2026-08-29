@@ -12,7 +12,9 @@ import {
   Scissors,
   ClipboardCopy,
   ClipboardPaste,
-  CopyPlus
+  CopyPlus,
+  Coffee,
+  FileCode
 } from 'lucide-react'
 import { useIDEStore, FileNode } from '../store/useIDEStore'
 import { safeInvoke } from '../utils/tauriBridge'
@@ -122,6 +124,30 @@ export const FileTreeContextMenu: React.FC<FileTreeContextMenuProps> = ({
       >
         <FolderPlus size={14} className="text-yellow-400" />
         <span className="flex-1">New Folder...</span>
+      </button>
+
+      <button
+        onClick={() => {
+          const targetDir = node.is_dir ? node.path : (currentDir || '')
+          window.dispatchEvent(new CustomEvent('trigger-new-node-file', { detail: { targetDir } }))
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-cyan-600 hover:text-white cursor-pointer transition-colors text-left text-cyan-400"
+      >
+        <FileCode size={14} className="text-cyan-400" />
+        <span className="flex-1">New TypeScript / React File...</span>
+      </button>
+
+      <button
+        onClick={() => {
+          const targetDir = node.is_dir ? node.path : (currentDir || '')
+          window.dispatchEvent(new CustomEvent('trigger-new-java-file', { detail: { targetDir } }))
+          onClose()
+        }}
+        className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-emerald-600 hover:text-white cursor-pointer transition-colors text-left text-emerald-400"
+      >
+        <Coffee size={14} className="text-emerald-400" />
+        <span className="flex-1">New Java / Spring File...</span>
       </button>
 
       <div className="h-[1px] bg-ide-border my-1" />

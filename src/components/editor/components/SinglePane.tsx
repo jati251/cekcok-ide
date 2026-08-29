@@ -116,9 +116,22 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
     window.addEventListener('editor-format-document', handleFormatEvent)
     window.addEventListener('workspace-save', handleSaveEvent)
 
+    const handleRevealLine = (e: Event) => {
+      const customEvent = e as CustomEvent<{ line: number; path?: string }>
+      if (customEvent.detail?.line && editorInstanceRef.current) {
+        const line = customEvent.detail.line
+        editorInstanceRef.current.revealLineInCenter(line)
+        editorInstanceRef.current.setPosition({ lineNumber: line, column: 1 })
+        editorInstanceRef.current.focus()
+      }
+    }
+
+    window.addEventListener('editor-reveal-line', handleRevealLine)
+
     return () => {
       window.removeEventListener('editor-format-document', handleFormatEvent)
       window.removeEventListener('workspace-save', handleSaveEvent)
+      window.removeEventListener('editor-reveal-line', handleRevealLine)
     }
   }, [isActivePane, settings.formatOnSave])
 

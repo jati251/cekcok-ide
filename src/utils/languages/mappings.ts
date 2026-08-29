@@ -17,6 +17,16 @@ export const FILENAME_TO_LANGUAGE: Record<string, string> = {
   '.prettierrc': 'json',
   '.gitignore': 'plaintext',
   '.env': 'ini',
+  'pom.xml': 'xml',
+  'build.gradle': 'groovy',
+  'build.gradle.kts': 'kotlin',
+  'settings.gradle': 'groovy',
+  'settings.gradle.kts': 'kotlin',
+  'application.properties': 'ini',
+  'application.yml': 'yaml',
+  'application.yaml': 'yaml',
+  mvnw: 'shell',
+  gradlew: 'shell',
 }
 
 /**
@@ -106,6 +116,9 @@ export const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   svg: 'xml',
   ini: 'ini',
   conf: 'ini',
+  properties: 'ini',
+  groovy: 'groovy',
+  gradle: 'groovy',
   csv: 'plaintext',
   txt: 'plaintext',
   log: 'plaintext',

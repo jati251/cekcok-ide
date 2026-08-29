@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { registerMonacoThemes } from '@/utils/themes'
+import { registerMonacoJavaProviders } from '@/utils/monacoJava'
 import { useIDEStore, FileNode } from '@/store/useIDEStore'
 import { DiagnosticItem } from '@/types/panel'
 
@@ -14,6 +15,7 @@ export const useMonacoSetup = (
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorInstanceRef.current = editor
     registerMonacoThemes(monaco)
+    registerMonacoJavaProviders(monaco)
 
     // Configure TypeScript to support React/JSX and suppress false-positive missing module errors
     if (monaco.languages.typescript && monaco.languages.typescript.typescriptDefaults) {

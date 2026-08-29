@@ -11,6 +11,13 @@ export const FILENAME_TO_LABEL: Record<string, string> = {
   'tsconfig.json': 'TypeScript Config',
   '.gitignore': 'Git Ignore',
   '.env': 'Environment Variables',
+  'pom.xml': 'Maven POM (Java)',
+  'build.gradle': 'Gradle Build (Java)',
+  'build.gradle.kts': 'Gradle Kotlin Build',
+  'settings.gradle': 'Gradle Settings',
+  'application.properties': 'Spring Boot Properties',
+  'application.yml': 'Spring Boot YAML',
+  'application.yaml': 'Spring Boot YAML',
 }
 
 export const EXTENSION_TO_LABEL: Record<string, string> = {

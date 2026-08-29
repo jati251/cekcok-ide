@@ -7,7 +7,7 @@
 **Cekcok IDE** is a lightweight, cross-platform desktop code editor built with **Tauri v2** (Rust backend) and **React 19** (TypeScript frontend). It targets developers who want a fast, native IDE experience without Electron overhead.
 
 - **App ID**: `com.cekcok.ide`
-- **Version**: `0.2.5`
+- **Version**: `0.2.6`
 - **License**: MIT
 
 ---

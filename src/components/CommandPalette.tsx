@@ -173,6 +173,67 @@ export const CommandPalette = () => {
       run: () => runTerminalCommand('git push'),
     },
     {
+      id: 'spring-initializr',
+      title: 'Spring Boot: Create New Project (Spring Initializr)',
+      category: 'Spring Boot',
+      icon: Play,
+      run: () => window.dispatchEvent(new CustomEvent('trigger-spring-initializr')),
+    },
+    {
+      id: 'spring-endpoints',
+      title: 'Spring Boot: Scan & View REST Endpoints',
+      category: 'Spring Boot',
+      icon: Play,
+      run: () => {
+        setActiveSidebarTab('node' as SidebarTab)
+        useIDEStore.getState().setSidebarOpen(true)
+        useIDEStore.getState().refreshSpringEndpoints()
+      },
+    },
+    {
+      id: 'java-new-file',
+      title: 'Java: New Java Class / Spring Component...',
+      category: 'Java',
+      icon: FilePlus,
+      run: () => {
+        window.dispatchEvent(new CustomEvent('trigger-new-java-file', { detail: { targetDir: currentDir } }))
+      },
+    },
+    {
+      id: 'node-initializr',
+      title: 'Node.js: Create New Project (Vite / Next.js / Express / NestJS)',
+      category: 'Node.js',
+      icon: Play,
+      run: () => window.dispatchEvent(new CustomEvent('trigger-node-initializr')),
+    },
+    {
+      id: 'node-install-pkg',
+      title: 'Node.js: Install New Package (Add Dependency)...',
+      category: 'Node.js',
+      icon: Play,
+      run: () => window.dispatchEvent(new CustomEvent('trigger-install-package')),
+    },
+    {
+      id: 'node-endpoints',
+      title: 'Node.js: Scan & View REST API Routes',
+      category: 'Node.js',
+      icon: Play,
+      run: () => {
+        setActiveSidebarTab('node' as SidebarTab)
+        useIDEStore.getState().setSidebarOpen(true)
+        useIDEStore.getState().refreshNodeEndpoints()
+      },
+    },
+    {
+      id: 'node-new-file',
+      title: 'Node.js: New TypeScript / React Component...',
+      category: 'Node.js',
+      icon: FilePlus,
+      run: () => {
+        window.dispatchEvent(new CustomEvent('trigger-new-node-file', { detail: { targetDir: currentDir } }))
+      },
+    },
+    {
       id: 'npm-install',
       title: 'NPM: Install Dependencies',
       category: 'Node.js',
