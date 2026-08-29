@@ -1,3 +1,14 @@
+# 🐯 Cekcok Super App v0.2.7 Release Notes
+
+### 🚀 Highlights & Improvements in v0.2.7
+
+- **🎨 Migration to Excalidraw Canvas Engine (100% Free & Open-Source MIT)**:
+  - **Zero Commercial License Watermarks / Blank Screen Fix**: Replaced proprietary `tldraw` SDK with industry-standard `@excalidraw/excalidraw` (MIT License), eliminating all production license checks, timeout crashes, and blank screen delays.
+  - **Instant 0ms Startup**: All sketch tools, shapes, fonts, and hand-drawn styling load instantly in offline desktop mode.
+  - **Native `.excalidraw` & `.json` File Support**: Save and load diagrams locally, export high-res PNG and SVG vector graphics, with dark and light canvas themes.
+
+---
+
 # 🐯 Cekcok Super App v0.2.6 Release Notes
 
 ### 🚀 Highlights & Improvements in v0.2.6

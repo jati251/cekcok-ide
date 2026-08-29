@@ -11,6 +11,7 @@ export default defineConfig(async () => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_NAME__: JSON.stringify(pkg.name),
+    "process.env.IS_PREACT": JSON.stringify("false"),
   },
   resolve: {
     alias: {
@@ -42,7 +43,7 @@ export default defineConfig(async () => ({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'zustand', 'react-hot-toast', 'framer-motion', 'lucide-react'],
           'vendor-sheet': ['@fortune-sheet/react', 'xlsx'],
-          'vendor-tldraw': ['tldraw'],
+          'vendor-excalidraw': ['@excalidraw/excalidraw'],
           'vendor-blocknote': ['@blocknote/core', '@blocknote/react', '@blocknote/mantine'],
           'vendor-monaco': ['@monaco-editor/react'],
           'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit'],

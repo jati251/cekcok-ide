@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Tldraw, Editor, exportAs, TLComponents } from 'tldraw'
-import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite'
-import 'tldraw/tldraw.css'
+import {
+  Excalidraw,
+  exportToBlob,
+  exportToSvg,
+  serializeAsJSON,
+  restoreElements,
+} from '@excalidraw/excalidraw'
+import '@excalidraw/excalidraw/index.css'
 import {
   ArrowLeft,
   Save,
   PenTool,
   Download,
   Upload,
-  RotateCcw,
   Sun,
   Moon,
   Trash2,
@@ -25,19 +29,9 @@ import { addRecentItem } from '../../utils/recentItems'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 import { isTauri, safeInvoke } from '../../utils/tauriBridge'
 
-const WB_TITLE_KEY = 'cekcok_whiteboard_title_v1'
-const WB_STORE_KEY = 'cekcok_whiteboard_store_v1'
-const SUPPORTED_TLDR_EXTENSIONS = ['.tldr', '.json'] as const
-
-// Local Vite bundled assets to prevent unpkg CDN network requests & blank delay
-const localAssetUrls = getAssetUrlsByImport()
-
-const whiteboardComponents: TLComponents = {
-  HelpMenu: null,
-  DebugMenu: null,
-  Toasts: null,
-  SharePanel: null,
-}
+const WB_TITLE_KEY = 'cekcok_whiteboard_title_v2'
+const WB_STORE_KEY = 'cekcok_whiteboard_store_v2'
+const SUPPORTED_EXTENSIONS = ['.excalidraw', '.json', '.tldr'] as const
 
 function validateSketchExtension(filename: string): { valid: boolean; ext: string; error?: string } {
   if (!filename) {
@@ -48,16 +42,16 @@ function validateSketchExtension(filename: string): { valid: boolean; ext: strin
     return {
       valid: false,
       ext: '',
-      error: 'File tidak memiliki ekstensi. Format yang didukung: .tldr dan .json.',
+      error: 'File tidak memiliki ekstensi. Format yang didukung: .excalidraw dan .json.',
     }
   }
   const ext = filename.substring(dotIdx).toLowerCase()
-  const isSupported = (SUPPORTED_TLDR_EXTENSIONS as readonly string[]).includes(ext)
+  const isSupported = (SUPPORTED_EXTENSIONS as readonly string[]).includes(ext)
   if (!isSupported) {
     return {
       valid: false,
       ext,
-      error: `Format file "${ext}" tidak didukung. Hanya mendukung file diagram .tldr atau .json.`,
+      error: `Format file "${ext}" tidak didukung. Hanya mendukung file diagram .excalidraw atau .json.`,
     }
   }
   return { valid: true, ext }
@@ -66,17 +60,28 @@ function validateSketchExtension(filename: string): { valid: boolean; ext: strin
 export const WhiteboardWorkspace: React.FC = () => {
   const { setActiveApp, settings } = useIDEStore()
   const { handleWindowDrag } = useWindowDrag()
+
   const [docTitle, setDocTitle] = useState<string>(() => {
-    return localStorage.getItem(WB_TITLE_KEY) || 'System Architecture Diagram.tldr'
+    return localStorage.getItem(WB_TITLE_KEY) || 'System Architecture Diagram.excalidraw'
   })
+
   const isDarkMode = settings.theme !== 'vs-light'
-  const [editor, setEditor] = useState<Editor | null>(null)
+  const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null)
   const [isSaved, setIsSaved] = useState<boolean>(true)
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false)
-  const [canvasKey, setCanvasKey] = useState<number>(() => Date.now())
-  const editorRef = useRef<Editor | null>(null)
+  const [initialData] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem(WB_STORE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // ignore
+    }
+    return null
+  })
+
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const unlistenRef = useRef<(() => void) | null>(null)
 
   const handleDocTitleChange = (newTitle: string) => {
     setDocTitle(newTitle)
@@ -84,47 +89,25 @@ export const WhiteboardWorkspace: React.FC = () => {
     localStorage.setItem(WB_TITLE_KEY, newTitle)
   }
 
-  // Cleanup store listener on unmount
-  useEffect(() => {
-    return () => {
-      if (unlistenRef.current) {
-        unlistenRef.current()
-        unlistenRef.current = null
-      }
-    }
-  }, [])
-
   const toggleTheme = () => {
     const nextTheme = isDarkMode ? 'vs-light' : 'vs-dark'
     useIDEStore.getState().updateSettings({ theme: nextTheme })
   }
 
-  // Stable mount handler to prevent re-mount loops in production React 19 builds
-  const handleMount = useCallback((ed: Editor) => {
-    editorRef.current = ed
-    setEditor(ed)
-
-    // Clean up previous listener if any
-    if (unlistenRef.current) {
-      unlistenRef.current()
-      unlistenRef.current = null
-    }
-
-    // Only mark modified if the change source is from the user
-    const unlisten = ed.store.listen((entry) => {
-      if (entry.source === 'user') {
-        setIsSaved(false)
-      }
-    })
-    unlistenRef.current = unlisten
-  }, [])
-
   const handleManualSave = useCallback(() => {
+    if (!excalidrawAPI) return
     try {
+      const elements = excalidrawAPI.getSceneElements()
+      const appState = excalidrawAPI.getAppState()
+      const files = excalidrawAPI.getFiles()
+
+      const json = serializeAsJSON(elements, appState, files, 'local')
+      localStorage.setItem(WB_STORE_KEY, json)
+
       addRecentItem({
         title: docTitle,
         app: 'whiteboard',
-        description: 'Vector Whiteboard Diagram',
+        description: 'Excalidraw Diagram',
       })
       setIsSaved(true)
       toast.success('Sketch saved!')
@@ -132,8 +115,9 @@ export const WhiteboardWorkspace: React.FC = () => {
       console.error(e)
       toast.error('Failed to save sketch.')
     }
-  }, [docTitle])
+  }, [excalidrawAPI, docTitle])
 
+  // Workspace-save global shortcut
   useEffect(() => {
     const handleSaveEvent = () => {
       handleManualSave()
@@ -143,19 +127,21 @@ export const WhiteboardWorkspace: React.FC = () => {
   }, [handleManualSave])
 
   const handleExportJSON = async () => {
-    const ed = editorRef.current || editor
-    if (!ed) return
+    if (!excalidrawAPI) return
     try {
-      const snapshot = ed.getSnapshot()
-      const json = JSON.stringify(snapshot, null, 2)
-      const defaultName = docTitle.replace(/\.(tldr|json|png|svg)$/i, '') + '.tldr'
+      const elements = excalidrawAPI.getSceneElements()
+      const appState = excalidrawAPI.getAppState()
+      const files = excalidrawAPI.getFiles()
+
+      const json = serializeAsJSON(elements, appState, files, 'local')
+      const defaultName = docTitle.replace(/\.(excalidraw|json|png|svg|tldr)$/i, '') + '.excalidraw'
 
       if (isTauri()) {
         try {
           const { save } = await import('@tauri-apps/plugin-dialog')
           const filePath = await save({
             defaultPath: defaultName,
-            filters: [{ name: 'TLDraw Diagram', extensions: ['tldr', 'json'] }],
+            filters: [{ name: 'Excalidraw Diagram', extensions: ['excalidraw', 'json'] }],
             title: 'Save Whiteboard Drawing As',
           })
 
@@ -185,19 +171,32 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleExportPNG = async () => {
-    const ed = editorRef.current || editor
-    if (!ed) return
+    if (!excalidrawAPI) return
     try {
-      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
-      if (shapeIds.length === 0) {
+      const elements = excalidrawAPI.getSceneElements()
+      if (!elements || elements.length === 0) {
         toast.error('Canvas is empty. Draw something first!')
         return
       }
 
-      await exportAs(ed, shapeIds, {
-        format: 'png',
-        name: docTitle.replace(/\.(tldr|json|png|svg)$/i, ''),
+      const blob = await exportToBlob({
+        elements,
+        appState: {
+          ...excalidrawAPI.getAppState(),
+          exportWithDarkMode: isDarkMode,
+          exportBackground: true,
+        },
+        files: excalidrawAPI.getFiles(),
+        mimeType: 'image/png',
       })
+
+      const fileName = docTitle.replace(/\.(excalidraw|json|png|svg|tldr)$/i, '') + '.png'
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
       toast.success('Exported PNG image')
     } catch (e) {
       console.error('PNG Export error:', e)
@@ -206,71 +205,67 @@ export const WhiteboardWorkspace: React.FC = () => {
   }
 
   const handleExportSVG = async () => {
-    const ed = editorRef.current || editor
-    if (!ed) return
+    if (!excalidrawAPI) return
     try {
-      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
-      if (shapeIds.length === 0) {
+      const elements = excalidrawAPI.getSceneElements()
+      if (!elements || elements.length === 0) {
         toast.error('Canvas is empty.')
         return
       }
 
-      await exportAs(ed, shapeIds, {
-        format: 'svg',
-        name: docTitle.replace(/\.(tldr|json|png|svg)$/i, ''),
+      const svg = await exportToSvg({
+        elements,
+        appState: {
+          ...excalidrawAPI.getAppState(),
+          exportWithDarkMode: isDarkMode,
+          exportBackground: true,
+        },
+        files: excalidrawAPI.getFiles(),
       })
+
+      const svgString = new XMLSerializer().serializeToString(svg)
+      const blob = new Blob([svgString], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = docTitle.replace(/\.(excalidraw|json|png|svg|tldr)$/i, '') + '.svg'
+      a.click()
+      URL.revokeObjectURL(url)
       toast.success('Exported SVG')
     } catch (e) {
-      console.error(e)
+      console.error('SVG Export error:', e)
       toast.error('Failed to export SVG.')
     }
   }
 
   const handleClearCanvas = () => {
-    const ed = editorRef.current || editor
-    if (!ed) return
+    if (!excalidrawAPI) return
     if (confirm('Clear all drawings and shapes on the canvas?')) {
-      try {
-        const shapeIds = Array.from(ed.getCurrentPageShapeIds())
-        if (shapeIds.length > 0) {
-          ed.deleteShapes(shapeIds)
-          setIsSaved(true)
-          toast.success('Canvas cleared')
-        }
-      } catch (err) {
-        console.error('Clear canvas error:', err)
-        toast.error('Failed to clear canvas.')
-      }
-    }
-  }
-
-  const handleZoomFit = () => {
-    const ed = editorRef.current || editor
-    if (!ed) return
-    try {
-      const shapeIds = Array.from(ed.getCurrentPageShapeIds())
-      if (shapeIds.length > 0) {
-        ed.zoomToFit()
-      } else {
-        ed.resetZoom()
-      }
-    } catch (err) {
-      console.warn('Zoom to fit error:', err)
+      excalidrawAPI.resetScene()
+      localStorage.removeItem(WB_STORE_KEY)
+      setIsSaved(true)
+      toast.success('Canvas cleared')
     }
   }
 
   const processSketchJson = (jsonString: string, fileName: string) => {
-    const ed = editorRef.current || editor
-    if (!ed) return
+    if (!excalidrawAPI) return
     try {
-      const snapshot = JSON.parse(jsonString)
-      ed.loadSnapshot(snapshot)
-      setDocTitle(fileName)
-      setIsSaved(true)
-      toast.success(`Imported "${fileName}"`)
+      const parsed = JSON.parse(jsonString)
+      if (parsed.elements) {
+        excalidrawAPI.updateScene({
+          elements: restoreElements(parsed.elements, null),
+          appState: parsed.appState || {},
+        })
+        setDocTitle(fileName)
+        setIsSaved(true)
+        toast.success(`Imported "${fileName}"`)
+      } else {
+        toast.error('Format file diagram tidak sesuai.')
+      }
     } catch (err) {
       console.error('Import error:', err)
-      toast.error('Format file .tldr / .json tidak valid.')
+      toast.error('Format file .excalidraw / .json tidak valid.')
     }
   }
 
@@ -280,8 +275,8 @@ export const WhiteboardWorkspace: React.FC = () => {
         const { open } = await import('@tauri-apps/plugin-dialog')
         const selected = await open({
           multiple: false,
-          filters: [{ name: 'TLDraw Sketch (.tldr, .json)', extensions: ['tldr', 'json'] }],
-          title: 'Import Whiteboard Sketch',
+          filters: [{ name: 'Excalidraw Diagram (.excalidraw, .json)', extensions: ['excalidraw', 'json'] }],
+          title: 'Import Excalidraw Sketch',
         })
 
         if (!selected || typeof selected !== 'string') return
@@ -366,18 +361,6 @@ export const WhiteboardWorkspace: React.FC = () => {
     reader.readAsText(file)
   }
 
-  const handleResetStorage = () => {
-    try {
-      indexedDB.deleteDatabase(WB_STORE_KEY)
-      localStorage.removeItem(WB_TITLE_KEY)
-      setCanvasKey(Date.now())
-      toast.success('Whiteboard storage reset.')
-    } catch (e) {
-      console.error(e)
-      setCanvasKey(Date.now())
-    }
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -393,7 +376,7 @@ export const WhiteboardWorkspace: React.FC = () => {
         type="file"
         ref={fileInputRef}
         onChange={handleHTMLFileInputChange}
-        accept=".tldr,.json"
+        accept=".excalidraw,.json"
         className="hidden"
       />
 
@@ -448,7 +431,7 @@ export const WhiteboardWorkspace: React.FC = () => {
             <button
               onClick={handleImportFile}
               className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
-              title="Import .tldr or .json sketch file"
+              title="Import .excalidraw or .json sketch file"
             >
               <Upload size={12} />
               <span>Open</span>
@@ -472,10 +455,10 @@ export const WhiteboardWorkspace: React.FC = () => {
             <button
               onClick={handleExportJSON}
               className="flex items-center gap-1 px-2 py-1 opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
-              title="Export as .tldr project file"
+              title="Export as .excalidraw project file"
             >
               <Download size={12} />
-              <span>.tldr</span>
+              <span>.excalidraw</span>
             </button>
             <button
               onClick={handleClearCanvas}
@@ -498,19 +481,6 @@ export const WhiteboardWorkspace: React.FC = () => {
           >
             {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
           </button>
-
-          {/* Zoom to fit */}
-          {editor && (
-            <button
-              data-no-drag
-              onClick={handleZoomFit}
-              className="p-1 hover:bg-black/5 dark:hover:bg-white/10 opacity-80 hover:opacity-100 rounded-md transition-colors cursor-pointer hidden xs:flex items-center gap-1 text-[11px]"
-              title="Zoom to fit all drawings"
-            >
-              <RotateCcw size={12} />
-              <span>Fit</span>
-            </button>
-          )}
 
           <div data-tauri-drag-region className="flex items-center gap-1 text-[10px] opacity-70 mr-1 hidden xs:flex">
             <CheckCircle2 size={11} className={isSaved ? 'text-green-500' : 'text-amber-500'} />
@@ -550,25 +520,31 @@ export const WhiteboardWorkspace: React.FC = () => {
               <UploadCloud size={48} className="animate-bounce" />
             </div>
             <h3 className="text-lg font-bold text-white">Drop Sketch File Here</h3>
-            <p className="text-xs text-amber-200 font-medium">Supports .tldr, .json</p>
+            <p className="text-xs text-amber-200 font-medium">Supports .excalidraw, .json</p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Full absolute viewport for Tldraw with ErrorBoundary */}
+      {/* Full absolute viewport for Excalidraw with ErrorBoundary */}
       <div className="flex-1 w-full h-[calc(100%-38px)] relative">
         <ErrorBoundary
           fallbackTitle="Whiteboard Error"
-          fallbackMessage="Unable to initialize canvas. You can try resetting the whiteboard cache."
-          onReset={handleResetStorage}
+          fallbackMessage="Unable to initialize canvas."
         >
-          <Tldraw
-            key={canvasKey}
-            persistenceKey={WB_STORE_KEY}
-            assetUrls={localAssetUrls}
-            colorScheme={isDarkMode ? 'dark' : 'light'}
-            components={whiteboardComponents}
-            onMount={handleMount}
+          <Excalidraw
+            excalidrawAPI={(api) => setExcalidrawAPI(api)}
+            theme={isDarkMode ? 'dark' : 'light'}
+            initialData={initialData}
+            onChange={() => {
+              setIsSaved(false)
+            }}
+            UIOptions={{
+              canvasActions: {
+                loadScene: false,
+                saveToActiveFile: false,
+                export: false,
+              },
+            }}
           />
         </ErrorBoundary>
       </div>
