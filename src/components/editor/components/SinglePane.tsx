@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import Editor, { DiffEditor } from '@monaco-editor/react'
 import { useIDEStore, FileNode } from '@/store/useIDEStore'
 import { useAutoSave } from '@/hooks/useAutoSave'
@@ -42,6 +42,27 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
 
   const [contextMenu, setContextMenu] = useState<TabContextMenuState | null>(null)
   const [svgMode, setSvgMode] = useState<Record<string, 'preview' | 'code'>>({})
+
+  const pendingContentRef = useRef<{ path: string; content: string } | null>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushPendingContent = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    if (pendingContentRef.current) {
+      setFileContent(pendingContentRef.current.path, pendingContentRef.current.content)
+      pendingContentRef.current = null
+    }
+  }, [setFileContent])
+
+  // Flush pending edits when switching files or unmounting
+  useEffect(() => {
+    return () => {
+      flushPendingContent()
+    }
+  }, [activeFile?.path, flushPendingContent])
 
   // Custom Hooks for separation of concerns
   const { handleEditorMount } = useMonacoSetup(activeFile, editorInstanceRef)
@@ -108,6 +129,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
     }
 
     const handleSaveEvent = () => {
+      flushPendingContent()
       if (settings.formatOnSave) {
         handleFormat()
       }
@@ -133,7 +155,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
       window.removeEventListener('workspace-save', handleSaveEvent)
       window.removeEventListener('editor-reveal-line', handleRevealLine)
     }
-  }, [isActivePane, settings.formatOnSave])
+  }, [isActivePane, settings.formatOnSave, flushPendingContent])
 
   const editorValue = activeFile?.content ?? ''
 
@@ -164,13 +186,19 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
             />
           </div>
           {isSvgFile && (
-            <div className="flex items-center bg-[#2d2d2d] p-0.5 rounded border border-ide-border text-[11px] shrink-0 my-1">
+            <div
+              style={{
+                backgroundColor: 'var(--color-ide-sidebar)',
+                borderColor: 'var(--color-ide-border)',
+              }}
+              className="flex items-center p-0.5 rounded border text-[11px] shrink-0 my-1"
+            >
               <button
                 onClick={() => setSvgMode((prev) => ({ ...prev, [activeFile.path]: 'preview' }))}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded transition-colors cursor-pointer ${
                   currentSvgView === 'preview'
                     ? 'bg-ide-accent text-white font-medium shadow-xs'
-                    : 'text-[#888888] hover:text-white'
+                    : 'opacity-70 hover:opacity-100'
                 }`}
                 title="Preview Vector Graphic"
               >
@@ -182,7 +210,7 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
                 className={`flex items-center gap-1 px-2 py-0.5 rounded transition-colors cursor-pointer ${
                   currentSvgView === 'code'
                     ? 'bg-ide-accent text-white font-medium shadow-xs'
-                    : 'text-[#888888] hover:text-white'
+                    : 'opacity-70 hover:opacity-100'
                 }`}
                 title="Edit SVG Source Code"
               >
@@ -202,19 +230,30 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
           ) : activeFile.path === 'welcome://get-started' ? (
             <WelcomeView />
           ) : activeFile.isDiff ? (
-            <div className={`absolute inset-0 w-full h-full overflow-hidden flex flex-col bg-[#1e1e1e] ${isDraggingFile ? 'pointer-events-none' : ''}`}>
+            <div
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+              }}
+              className={`absolute inset-0 w-full h-full overflow-hidden flex flex-col ${isDraggingFile ? 'pointer-events-none' : ''}`}
+            >
               {/* Diff View Visual Header */}
-              <div className="flex items-center justify-between px-3 py-1.5 bg-[#252526] border-b border-ide-border text-xs">
+              <div
+                style={{
+                  backgroundColor: 'var(--color-ide-sidebar)',
+                  borderColor: 'var(--color-ide-border)',
+                }}
+                className="flex items-center justify-between px-3 py-1.5 border-b text-xs"
+              >
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-white truncate max-w-[300px]">{activeFile.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-ide-accent/20 text-ide-accent font-mono">
+                  <span className="font-semibold truncate max-w-[300px]">{activeFile.name}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-ide-accent/20 text-ide-accent font-mono font-medium">
                     {activeFile.diffStaged ? 'Staged' : 'Working Tree'} ↔ HEAD
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-[#888888] shrink-0">
-                  <span className="text-red-300 font-mono">Original (HEAD)</span>
+                <div className="flex items-center gap-2 text-[11px] opacity-70 shrink-0">
+                  <span className="text-red-400 font-mono">Original (HEAD)</span>
                   <span>↔</span>
-                  <span className="text-green-300 font-mono">Working Copy</span>
+                  <span className="text-emerald-400 font-mono">Working Copy</span>
                 </div>
               </div>
               <div className="flex-1 min-h-0 relative">
@@ -265,10 +304,16 @@ export const SinglePane: React.FC<SinglePaneProps> = ({
                 value={editorValue}
                 onChange={(val) => {
                   const newContent = val || ''
-                  setFileContent(activeFile.path, newContent)
+                  pendingContentRef.current = { path: activeFile.path, content: newContent }
                   if (!activeFile.isDirty) {
                     setFileDirty(activeFile.path, true)
                   }
+                  if (debounceTimerRef.current) {
+                    clearTimeout(debounceTimerRef.current)
+                  }
+                  debounceTimerRef.current = setTimeout(() => {
+                    flushPendingContent()
+                  }, 300)
                   triggerAutoSave(activeFile.path)
                 }}
                 onMount={handleEditorMount}

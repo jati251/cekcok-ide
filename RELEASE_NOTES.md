@@ -1,3 +1,24 @@
+# 🐯 Cekcok Super App v0.2.8 Release Notes
+
+### 🚀 Highlights & Improvements in v0.2.8
+
+- **⚡ Editor Performance & Keystroke Latency Optimization**:
+  - **Decoupled Monaco Model from State Cascades**: Debounced (300ms) content updates to the global store with instant `isDirty` flag, completely eliminating full-app re-render cascades on rapid typing.
+  - **Debounced Change Decorations**: `computeLineDiff` computation is now debounced (350ms), preventing synchronous main-thread blocking and UI freezes while typing.
+  - **Granular Zustand Subscriptions**: Replaced heavy whole-store destructuring with fine-grained selectors across `App`, `ActivityBar`, `StatusBar`, `FileTreeItem`, `EditorTabBar`, `ExplorerSidebar`, `CommandPalette`, and `SearchEverywhereModal`.
+  - **File Tree Framer Motion Stutter Fix**: Removed expensive Framer Motion layout animation staggers from the file tree, resulting in instant directory expansion and scrolling.
+  - **Splitter Drag Optimization**: Added early exit guard in window pointermove listeners to avoid continuous hit-testing when no pane resizing is active.
+
+- **🎨 Comprehensive UI/UX Polish & Dynamic Theming**:
+  - **Dynamic StatusBar**: Replaced static blue header with theme variables (`--color-ide-status-bar`, `--color-ide-status-bar-text`), live cursor indicator (`Ln X, Col Y`, `(N sel)`), colored diagnostic problem pills, and Git branch info.
+  - **Elevated TitleBar**: Resolved `z-index` conflict (`z-30` instead of `z-[9999]`), redesigned central search bar with rounded pill border, hover glow, and `⌘P` keyboard shortcut badge.
+  - **Modern ActivityBar**: Added sleek rounded vertical glowing indicator bars, selective reactive badge counts for Git and Diagnostics, and theme-styled context menus.
+  - **Polished Editor Tabs & Breadcrumbs**: Added top accent indicator lines on active tabs, smooth dirty-dot close button morphing, rounded corners, and removed hardcoded `#1a1a1a` backgrounds in favor of CSS variables.
+  - **Redesigned Command Palette & Search Everywhere**: Unified with theme tokens, glassmorphic backdrop blur, file type icons, and keyboard navigation hints.
+  - **Modern Package Management**: Standardized build workflow with `pnpm` v11 and GitHub Actions caching.
+
+---
+
 # 🐯 Cekcok Super App v0.2.7 Release Notes
 
 ### 🚀 Highlights & Improvements in v0.2.7

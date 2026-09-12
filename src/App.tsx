@@ -23,7 +23,12 @@ const DocumentWorkspace = React.lazy(() => import('./apps/document/DocumentWorks
 const WhiteboardWorkspace = React.lazy(() => import('./apps/whiteboard/WhiteboardWorkspace').then(m => ({ default: m.WhiteboardWorkspace })))
 
 export const App: React.FC = () => {
-  const { activeApp, settings, branchSwitcherOpen, setBranchSwitcherOpen, zoomLevel } = useIDEStore()
+  const activeApp = useIDEStore((s) => s.activeApp)
+  const theme = useIDEStore((s) => s.settings.theme)
+  const ideFontFamily = useIDEStore((s) => s.settings.ideFontFamily)
+  const branchSwitcherOpen = useIDEStore((s) => s.branchSwitcherOpen)
+  const setBranchSwitcherOpen = useIDEStore((s) => s.setBranchSwitcherOpen)
+  const zoomLevel = useIDEStore((s) => s.zoomLevel)
 
   const [springInitializrOpen, setSpringInitializrOpen] = useState(false)
   const [newJavaModalState, setNewJavaModalState] = useState<{ isOpen: boolean; targetDir: string }>({
@@ -76,8 +81,8 @@ export const App: React.FC = () => {
 
   // Apply theme variables globally to root document
   useEffect(() => {
-    applyGlobalTheme(settings.theme)
-  }, [settings.theme])
+    applyGlobalTheme(theme)
+  }, [theme])
 
   // Prevent default drag and drop behavior globally & setup Tauri drop listener
   useEffect(() => {
@@ -124,7 +129,7 @@ export const App: React.FC = () => {
   return (
     <div
       style={{
-        fontFamily: settings.ideFontFamily,
+        fontFamily: ideFontFamily,
         backgroundColor: 'var(--color-ide-bg)',
         color: 'var(--color-ide-text)',
         zoom: zoomLevel,
@@ -208,13 +213,13 @@ export const App: React.FC = () => {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: '#252526',
-            color: '#fff',
-            border: '1px solid #3c3c3c',
+            background: 'var(--color-ide-sidebar, #252526)',
+            color: 'var(--color-ide-text, #ffffff)',
+            border: '1px solid var(--color-ide-border, #3c3c3c)',
             fontSize: '13px',
           },
-          success: { iconTheme: { primary: '#4fc1ff', secondary: '#252526' } },
-          error: { iconTheme: { primary: '#f48771', secondary: '#252526' } },
+          success: { iconTheme: { primary: 'var(--color-ide-accent, #4fc1ff)', secondary: 'var(--color-ide-sidebar, #252526)' } },
+          error: { iconTheme: { primary: '#f48771', secondary: 'var(--color-ide-sidebar, #252526)' } },
         }}
       />
     </div>

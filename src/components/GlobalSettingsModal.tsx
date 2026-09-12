@@ -27,7 +27,10 @@ const FONT_FAMILIES = [
 ]
 
 export const GlobalSettingsModal: React.FC = () => {
-  const { settingsModalOpen, setSettingsModalOpen, settings, updateSettings } = useIDEStore()
+  const settingsModalOpen = useIDEStore((s) => s.settingsModalOpen)
+  const setSettingsModalOpen = useIDEStore((s) => s.setSettingsModalOpen)
+  const settings = useIDEStore((s) => s.settings)
+  const updateSettings = useIDEStore((s) => s.updateSettings)
   const [activeTab, setActiveTab] = useState<'theme' | 'typography' | 'editor' | 'updates'>('theme')
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const availableUpdate = useAppUpdateInfo()

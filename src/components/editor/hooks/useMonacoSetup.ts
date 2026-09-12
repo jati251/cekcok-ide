@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { registerMonacoThemes } from '@/utils/themes'
 import { registerMonacoJavaProviders } from '@/utils/monacoJava'
 import { useIDEStore, FileNode } from '@/store/useIDEStore'
@@ -10,12 +10,44 @@ export const useMonacoSetup = (
   editorInstanceRef: React.MutableRefObject<any>
 ) => {
   const { saveFile, setDiagnostics } = useIDEStore()
+  const activeFileRef = useRef(activeFile)
+
+  useEffect(() => {
+    activeFileRef.current = activeFile
+  }, [activeFile])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorInstanceRef.current = editor
     registerMonacoThemes(monaco)
     registerMonacoJavaProviders(monaco)
+
+    // Sync cursor position & text selection with StatusBar in real-time
+    const broadcastCursor = () => {
+      const position = editor.getPosition()
+      const selection = editor.getSelection()
+      let selectedCount = 0
+      if (selection && !selection.isEmpty()) {
+        const model = editor.getModel()
+        if (model) {
+          selectedCount = model.getValueInRange(selection).length
+        }
+      }
+      window.dispatchEvent(
+        new CustomEvent('editor-cursor-change', {
+          detail: {
+            line: position?.lineNumber || 1,
+            col: position?.column || 1,
+            selectedCount,
+          },
+        })
+      )
+    }
+
+    editor.onDidChangeCursorPosition(broadcastCursor)
+    editor.onDidChangeCursorSelection(broadcastCursor)
+    // Initial broadcast
+    broadcastCursor()
 
     // Configure TypeScript to support React/JSX and suppress false-positive missing module errors
     if (monaco.languages.typescript && monaco.languages.typescript.typescriptDefaults) {
@@ -42,6 +74,7 @@ export const useMonacoSetup = (
     if (monaco.editor?.onDidChangeMarkers) {
       monaco.editor.onDidChangeMarkers(() => {
         const allMarkers = monaco.editor.getModelMarkers({})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const items: DiagnosticItem[] = allMarkers.map((m: any) => ({
           id: `${m.resource.toString()}-${m.startLineNumber}-${m.startColumn}-${m.message}`,
           file: m.resource.path || m.resource.fsPath || m.resource.toString(),
@@ -56,11 +89,11 @@ export const useMonacoSetup = (
     }
 
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      if (activeFile) {
-        saveFile(activeFile.path)
+      if (activeFileRef.current) {
+        saveFile(activeFileRef.current.path)
       }
     })
-  }, [activeFile, editorInstanceRef, saveFile, setDiagnostics])
+  }, [editorInstanceRef, saveFile, setDiagnostics])
 
   return { handleEditorMount }
 }

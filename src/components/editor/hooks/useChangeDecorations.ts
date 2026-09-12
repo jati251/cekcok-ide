@@ -87,73 +87,77 @@ export const useChangeDecorations = (
     const monaco = (window as any).monaco
     if (!monaco) return
 
-    const currentContent = activeFile.content ?? ''
-    const lineChanges = computeLineDiff(baseContent, currentContent)
+    // Debounce computation of diff decorations so typing does not freeze the UI thread
+    const timer = setTimeout(() => {
+      const currentContent = activeFile.content ?? ''
+      const lineChanges = computeLineDiff(baseContent, currentContent)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newDecorations: any[] = []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newDecorations: any[] = []
 
-    for (const change of lineChanges) {
-      if (change.type === 'added') {
-        newDecorations.push({
-          range: new monaco.Range(change.startLine, 1, change.endLine, 1),
-          options: {
-            isWholeLine: true,
-            linesDecorationsClassName: 'git-gutter-added',
-            overviewRuler: {
-              color: 'rgba(34, 197, 94, 0.9)', // Green #22c55e
-              position: monaco.editor.OverviewRulerLane.Right,
+      for (const change of lineChanges) {
+        if (change.type === 'added') {
+          newDecorations.push({
+            range: new monaco.Range(change.startLine, 1, change.endLine, 1),
+            options: {
+              isWholeLine: true,
+              linesDecorationsClassName: 'git-gutter-added',
+              overviewRuler: {
+                color: 'rgba(34, 197, 94, 0.9)', // Green #22c55e
+                position: monaco.editor.OverviewRulerLane.Right,
+              },
+              minimap: {
+                color: 'rgba(34, 197, 94, 0.9)',
+                position: monaco.editor.MinimapPosition.Inline,
+              },
             },
-            minimap: {
-              color: 'rgba(34, 197, 94, 0.9)',
-              position: monaco.editor.MinimapPosition.Inline,
+          })
+        } else if (change.type === 'modified') {
+          newDecorations.push({
+            range: new monaco.Range(change.startLine, 1, change.endLine, 1),
+            options: {
+              isWholeLine: true,
+              linesDecorationsClassName: 'git-gutter-modified',
+              overviewRuler: {
+                color: 'rgba(59, 130, 246, 0.9)', // Blue #3b82f6
+                position: monaco.editor.OverviewRulerLane.Right,
+              },
+              minimap: {
+                color: 'rgba(59, 130, 246, 0.9)',
+                position: monaco.editor.MinimapPosition.Inline,
+              },
             },
-          },
-        })
-      } else if (change.type === 'modified') {
-        newDecorations.push({
-          range: new monaco.Range(change.startLine, 1, change.endLine, 1),
-          options: {
-            isWholeLine: true,
-            linesDecorationsClassName: 'git-gutter-modified',
-            overviewRuler: {
-              color: 'rgba(59, 130, 246, 0.9)', // Blue #3b82f6
-              position: monaco.editor.OverviewRulerLane.Right,
+          })
+        } else if (change.type === 'deleted') {
+          const lineCount = editor.getModel()?.getLineCount() || 1
+          const targetLine = Math.max(1, Math.min(change.startLine, lineCount))
+          newDecorations.push({
+            range: new monaco.Range(targetLine, 1, targetLine, 1),
+            options: {
+              isWholeLine: true,
+              linesDecorationsClassName: 'git-gutter-deleted',
+              overviewRuler: {
+                color: 'rgba(239, 68, 68, 0.9)', // Red #ef4444
+                position: monaco.editor.OverviewRulerLane.Right,
+              },
+              minimap: {
+                color: 'rgba(239, 68, 68, 0.9)',
+                position: monaco.editor.MinimapPosition.Inline,
+              },
             },
-            minimap: {
-              color: 'rgba(59, 130, 246, 0.9)',
-              position: monaco.editor.MinimapPosition.Inline,
-            },
-          },
-        })
-      } else if (change.type === 'deleted') {
-        const lineCount = editor.getModel()?.getLineCount() || 1
-        const targetLine = Math.max(1, Math.min(change.startLine, lineCount))
-        newDecorations.push({
-          range: new monaco.Range(targetLine, 1, targetLine, 1),
-          options: {
-            isWholeLine: true,
-            linesDecorationsClassName: 'git-gutter-deleted',
-            overviewRuler: {
-              color: 'rgba(239, 68, 68, 0.9)', // Red #ef4444
-              position: monaco.editor.OverviewRulerLane.Right,
-            },
-            minimap: {
-              color: 'rgba(239, 68, 68, 0.9)',
-              position: monaco.editor.MinimapPosition.Inline,
-            },
-          },
-        })
+          })
+        }
       }
-    }
 
-    if (!decorationsCollectionRef.current) {
-      decorationsCollectionRef.current = editor.createDecorationsCollection(newDecorations)
-    } else {
-      decorationsCollectionRef.current.set(newDecorations)
-    }
+      if (!decorationsCollectionRef.current) {
+        decorationsCollectionRef.current = editor.createDecorationsCollection(newDecorations)
+      } else {
+        decorationsCollectionRef.current.set(newDecorations)
+      }
+    }, 350)
 
     return () => {
+      clearTimeout(timer)
       if (decorationsCollectionRef.current) {
         decorationsCollectionRef.current.clear()
       }

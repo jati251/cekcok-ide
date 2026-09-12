@@ -11,43 +11,31 @@ interface FileTreeItemProps {
 }
 
 export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) => {
-  const {
-    openFile,
-    activeFile,
-    expandedFolders,
-    folderChildren,
-    toggleFolder,
-    renamePathItem,
-    createFileInDir,
-    createFolderInDir,
-    settings,
-    selectedNode,
-    setSelectedNode,
-    creatingItemState,
-    setCreatingItemState,
-    startCreateItem,
-    currentDir,
-    gitStatus,
-  } = useIDEStore()
+  const currentDir = useIDEStore((s) => s.currentDir)
+  const isExpanded = useIDEStore((s) => !!s.expandedFolders[node.path])
+  const children = useIDEStore((s) => s.folderChildren[node.path]) || []
+  const isActive = useIDEStore((s) => s.activeFile?.path === node.path)
+  const isSelected = useIDEStore((s) => s.selectedNode?.path === node.path)
+  const isCreatingInsideThisFolder = useIDEStore(
+    (s) => node.is_dir && s.creatingItemState?.parentPath === node.path
+  )
+  const showHiddenFiles = useIDEStore((s) => s.settings.showHiddenFiles)
+  const showIgnoredFiles = useIDEStore((s) => s.settings.showIgnoredFiles)
 
-  const isExpanded = !!expandedFolders[node.path]
-  const children = folderChildren[node.path] || []
-  const isActive = activeFile?.path === node.path
-  const isSelected = selectedNode?.path === node.path
-  const isCreatingInsideThisFolder = node.is_dir && creatingItemState?.parentPath === node.path
-
-  // Determine Git status for this file
+  // Compute relative path once
   const relativeNodePath = node.path
     .replace(currentDir, '')
     .replace(/^[/\\]/, '')
     .replace(/\\/g, '/')
 
-  const gitChange = !node.is_dir
-    ? gitStatus.unstaged.find((f) => f.path === relativeNodePath) ||
-      gitStatus.staged.find((f) => f.path === relativeNodePath)
-    : null
-
-  const gitStatusCode = gitChange?.status
+  // Only re-render when this specific file's git status string changes
+  const gitStatusCode = useIDEStore((s) => {
+    if (node.is_dir) return null
+    const unstaged = s.gitStatus.unstaged.find((f) => f.path === relativeNodePath)
+    if (unstaged) return unstaged.status
+    const staged = s.gitStatus.staged.find((f) => f.path === relativeNodePath)
+    return staged?.status || null
+  })
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [isRenaming, setIsRenaming] = useState(false)
@@ -57,27 +45,27 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   const isSubmittingChildRef = useRef(false)
 
   // Filter hidden and ignored items based on settings
-  if (node.is_hidden && !settings.showHiddenFiles) {
+  if (node.is_hidden && !showHiddenFiles) {
     return null
   }
-  if (node.is_ignored && !settings.showIgnoredFiles) {
+  if (node.is_ignored && !showIgnoredFiles) {
     return null
   }
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setSelectedNode(node)
+    useIDEStore.getState().setSelectedNode(node)
     if (node.is_dir) {
-      toggleFolder(node.path)
+      useIDEStore.getState().toggleFolder(node.path)
     } else {
-      openFile(node)
+      useIDEStore.getState().openFile(node)
     }
   }
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setSelectedNode(node)
+    useIDEStore.getState().setSelectedNode(node)
     setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
@@ -99,7 +87,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
       const sep = node.path.includes('/') ? '/' : '\\'
       const parent = node.path.substring(0, Math.max(node.path.lastIndexOf('/'), node.path.lastIndexOf('\\')))
       const newPath = parent ? `${parent}${sep}${trimmed}` : trimmed
-      await renamePathItem(node.path, newPath)
+      await useIDEStore.getState().renamePathItem(node.path, newPath)
     }
     setIsRenaming(false)
   }
@@ -107,23 +95,24 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
   const handleNewChildSubmit = async () => {
     if (isSubmittingChildRef.current) return
     const trimmed = newChildName.trim()
-    if (!trimmed || !creatingItemState) {
-      setCreatingItemState(null)
+    const creating = useIDEStore.getState().creatingItemState
+    if (!trimmed || !creating) {
+      useIDEStore.getState().setCreatingItemState(null)
       setNewChildName('')
       return
     }
 
     isSubmittingChildRef.current = true
     try {
-      if (creatingItemState.isDir) {
-        await createFolderInDir(node.path, trimmed)
+      if (creating.isDir) {
+        await useIDEStore.getState().createFolderInDir(node.path, trimmed)
       } else {
-        await createFileInDir(node.path, trimmed)
+        await useIDEStore.getState().createFileInDir(node.path, trimmed)
       }
     } catch (err) {
       console.error(err)
     } finally {
-      setCreatingItemState(null)
+      useIDEStore.getState().setCreatingItemState(null)
       setNewChildName('')
       isSubmittingChildRef.current = false
     }
@@ -144,7 +133,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           if (!isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
             e.preventDefault()
             e.stopPropagation()
-            startCreateItem(e.shiftKey, node.path)
+            useIDEStore.getState().startCreateItem(e.shiftKey, node.path)
             return
           }
 
@@ -191,18 +180,18 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         className={`flex items-center gap-1.5 py-1 pr-2 rounded text-[13px] cursor-pointer transition-colors select-none group relative outline-none focus-visible:ring-1 focus-visible:ring-ide-accent/50 ${
           isActive
-            ? 'bg-ide-accent/25 text-white font-medium'
+            ? 'bg-ide-accent/20 text-white font-medium shadow-2xs'
             : isSelected
-            ? 'bg-white/10 text-white font-normal'
+            ? 'bg-black/10 dark:bg-white/10 text-white font-normal'
             : node.is_ignored
-            ? 'hover:bg-white/5 text-[#777777] opacity-60'
+            ? 'hover:bg-black/5 dark:hover:bg-white/5 opacity-50'
             : gitStatusCode === 'M'
-            ? 'text-amber-300 hover:bg-white/5'
+            ? 'text-amber-400 hover:bg-black/5 dark:hover:bg-white/5'
             : gitStatusCode === 'U' || gitStatusCode === 'A'
-            ? 'text-green-300 hover:bg-white/5'
+            ? 'text-emerald-400 hover:bg-black/5 dark:hover:bg-white/5'
             : gitStatusCode === 'D'
-            ? 'text-red-300 hover:bg-white/5'
-            : 'hover:bg-white/5 text-[#cccccc]'
+            ? 'text-rose-400 hover:bg-black/5 dark:hover:bg-white/5'
+            : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-90 hover:opacity-100'
         }`}
         title={
           node.is_ignored
@@ -225,8 +214,8 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           <span className="w-4 h-4 flex items-center justify-center shrink-0">
             <ChevronRight
               size={13}
-              className={`text-[#888] group-hover:text-white transition-transform duration-150 ${
-                isExpanded ? 'rotate-90 text-white' : ''
+              className={`opacity-60 group-hover:opacity-100 transition-transform duration-150 ${
+                isExpanded ? 'rotate-90 opacity-100' : ''
               }`}
             />
           </span>
@@ -251,7 +240,12 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
               if (e.key === 'Escape') setIsRenaming(false)
             }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#3c3c3c] text-white text-xs px-1 py-0.5 rounded border border-ide-accent outline-none w-full"
+            style={{
+              backgroundColor: 'var(--color-ide-bg)',
+              borderColor: 'var(--color-ide-accent)',
+              color: 'var(--color-ide-text)',
+            }}
+            className="text-xs px-1.5 py-0.5 rounded border outline-none w-full shadow-inner"
           />
         ) : (
           <span className="truncate text-xs">{node.name}</span>
@@ -260,14 +254,14 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
         {/* Git Status Badge */}
         {gitStatusCode && !isRenaming && (
           <span
-            className={`text-[10px] font-bold font-mono px-1 ml-auto shrink-0 ${
+            className={`text-[9px] font-bold font-mono px-1.5 py-0.2 rounded ml-auto shrink-0 ${
               gitStatusCode === 'M'
-                ? 'text-amber-400'
+                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                 : gitStatusCode === 'U' || gitStatusCode === 'A'
-                ? 'text-green-400'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                 : gitStatusCode === 'D'
-                ? 'text-red-400'
-                : 'text-ide-accent'
+                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                : 'bg-ide-accent/15 text-ide-accent border border-ide-accent/30'
             }`}
           >
             {gitStatusCode}
@@ -282,31 +276,36 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           {isCreatingInsideThisFolder && (
             <div
               style={{ paddingLeft: `${(depth + 1) * 14 + 8}px` }}
-              className="flex items-center gap-1.5 py-1 px-2 my-0.5 bg-white/5 rounded border border-ide-accent/40"
+              className="flex items-center gap-1.5 py-1 px-2 my-0.5 bg-ide-accent/10 rounded border border-ide-accent/40"
             >
               <span className="w-4 shrink-0 flex items-center justify-center">
                 {renderFileOrFolderIcon(
-                  newChildName || (creatingItemState?.isDir ? 'folder' : 'file'),
-                  !!creatingItemState?.isDir,
+                  newChildName || (useIDEStore.getState().creatingItemState?.isDir ? 'folder' : 'file'),
+                  !!useIDEStore.getState().creatingItemState?.isDir,
                   false
                 )}
               </span>
               <input
                 autoFocus
                 type="text"
-                placeholder={creatingItemState?.isDir ? 'Folder name...' : 'File name (e.g. index.ts)...'}
+                placeholder={useIDEStore.getState().creatingItemState?.isDir ? 'Folder name...' : 'File name (e.g. index.ts)...'}
                 value={newChildName}
                 onChange={(e) => setNewChildName(e.target.value)}
                 onBlur={handleNewChildSubmit}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleNewChildSubmit()
                   if (e.key === 'Escape') {
-                    setCreatingItemState(null)
+                    useIDEStore.getState().setCreatingItemState(null)
                     setNewChildName('')
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#3c3c3c] text-white text-xs px-1.5 py-0.5 rounded border border-ide-accent outline-none w-full shadow-inner"
+                style={{
+                  backgroundColor: 'var(--color-ide-bg)',
+                  borderColor: 'var(--color-ide-accent)',
+                  color: 'var(--color-ide-text)',
+                }}
+                className="text-xs px-1.5 py-0.5 rounded border outline-none w-full shadow-inner"
               />
             </div>
           )}
@@ -314,7 +313,7 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           {children.length === 0 && !isCreatingInsideThisFolder ? (
             <div
               style={{ paddingLeft: `${(depth + 1) * 14 + 22}px` }}
-              className="py-0.5 text-[11px] text-[#777] italic"
+              className="py-0.5 text-[11px] opacity-50 italic"
             >
               (empty)
             </div>
@@ -334,10 +333,10 @@ export const FileTreeItem = React.memo<FileTreeItemProps>(({ node, depth = 0 }) 
           node={node}
           onClose={() => setContextMenu(null)}
           onNewFile={() => {
-            startCreateItem(false, node.path)
+            useIDEStore.getState().startCreateItem(false, node.path)
           }}
           onNewFolder={() => {
-            startCreateItem(true, node.path)
+            useIDEStore.getState().startCreateItem(true, node.path)
           }}
           onRename={() => {
             setRenameValue(node.name)

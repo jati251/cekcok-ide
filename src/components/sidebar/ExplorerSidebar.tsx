@@ -1,8 +1,7 @@
 import React, { useEffect, useCallback, useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { motion } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
-import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, EyeOff, LocateFixed } from 'lucide-react'
+import { FilePlus, FolderPlus, RefreshCw, ChevronsDownUp, Eye, LocateFixed } from 'lucide-react'
 import { useIDEStore, FileNode } from '../../store/useIDEStore'
 import { FileTreeItem } from '../FileTreeItem'
 import { EmptySpaceContextMenu } from '../EmptySpaceContextMenu'
@@ -164,29 +163,50 @@ export const ExplorerSidebar: React.FC = () => {
           borderColor: 'var(--color-ide-border)',
           color: 'var(--color-ide-muted)',
         }}
-        className="flex justify-between items-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b"
+        className="flex justify-between items-center px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b"
       >
         <span
           style={{ color: 'var(--color-ide-text)' }}
-          className="truncate max-w-[120px] font-mono text-[11px] font-bold"
+          className="truncate max-w-[130px] font-mono text-[11px] font-bold"
           title={currentDir}
         >
           {rootFolderName}
         </span>
-        <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-0.5 items-center" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => startCreateItem(false)}
             className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="New File (in selected folder or root)"
+            title="New File"
           >
-            <FilePlus size={14} />
+            <FilePlus size={13} />
           </button>
           <button
             onClick={() => startCreateItem(true)}
             className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="New Folder (in selected folder or root)"
+            title="New Folder"
           >
-            <FolderPlus size={14} />
+            <FolderPlus size={13} />
+          </button>
+          <button
+            onClick={() => loadDirectory(currentDir)}
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
+            title="Refresh Explorer"
+          >
+            <RefreshCw size={12} />
+          </button>
+          <button
+            onClick={collapseAllFolders}
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
+            title="Collapse All Folders"
+          >
+            <ChevronsDownUp size={13} />
+          </button>
+          <button
+            onClick={() => revealActiveFileInExplorer()}
+            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
+            title="Reveal Active File in Explorer"
+          >
+            <LocateFixed size={12} />
           </button>
           <button
             onClick={() => {
@@ -194,50 +214,11 @@ export const ExplorerSidebar: React.FC = () => {
               setTimeout(() => loadDirectory(currentDir), 50)
             }}
             className={`transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer ${
-              settings.showHiddenFiles ? 'text-ide-accent bg-ide-accent/15' : 'opacity-70 hover:opacity-100'
+              settings.showHiddenFiles ? 'text-ide-accent bg-ide-accent/15' : 'opacity-60 hover:opacity-100'
             }`}
             title={settings.showHiddenFiles ? 'Hide Hidden Files (dotfiles)' : 'Show Hidden Files (.env, .gitignore)'}
           >
-            <Eye size={13} />
-          </button>
-          <button
-            onClick={() => {
-              updateSettings({ showIgnoredFiles: !settings.showIgnoredFiles })
-            }}
-            className={`transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer ${
-              settings.showIgnoredFiles ? 'text-ide-accent bg-ide-accent/15' : 'opacity-70 hover:opacity-100'
-            }`}
-            title={settings.showIgnoredFiles ? 'Hide Ignored Files (.gitignore)' : 'Show Ignored Files (.gitignore)'}
-          >
-            <EyeOff size={13} />
-          </button>
-          <button
-            onClick={() => revealActiveFileInExplorer()}
-            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="Reveal Active File in Explorer"
-          >
-            <LocateFixed size={13} />
-          </button>
-          <button
-            onClick={collapseAllFolders}
-            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="Collapse All Folders"
-          >
-            <ChevronsDownUp size={14} />
-          </button>
-          <button
-            onClick={() => loadDirectory(currentDir)}
-            className="opacity-70 hover:opacity-100 transition-colors p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded cursor-pointer"
-            title="Refresh Explorer"
-          >
-            <RefreshCw size={13} />
-          </button>
-          <button
-            onClick={handleOpenFolder}
-            className="text-[10px] hover:text-white text-[#bbb] bg-white/5 hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors ml-1 font-mono cursor-pointer"
-            title="Open Folder"
-          >
-            OPEN
+            <Eye size={12} />
           </button>
         </div>
       </div>
@@ -248,7 +229,13 @@ export const ExplorerSidebar: React.FC = () => {
       >
         {/* Inline Root Creation Input (when creating item at root directory) */}
         {isCreatingAtRoot && (
-          <div className="flex items-center gap-1.5 py-1 px-2 mb-1 bg-white/5 rounded border border-ide-accent/40">
+          <div
+            style={{
+              backgroundColor: 'var(--color-ide-sidebar)',
+              borderColor: 'var(--color-ide-accent)',
+            }}
+            className="flex items-center gap-1.5 py-1 px-2 mb-1 rounded border shadow-inner"
+          >
             <span className="w-4 shrink-0 flex items-center justify-center">
               {renderFileOrFolderIcon(
                 rootNodeName || (creatingItemState?.isDir ? 'folder' : 'file'),
@@ -271,34 +258,24 @@ export const ExplorerSidebar: React.FC = () => {
                 }
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#3c3c3c] text-white text-xs px-1.5 py-0.5 rounded border border-ide-accent outline-none w-full shadow-inner"
+              style={{
+                backgroundColor: 'var(--color-ide-bg)',
+                borderColor: 'var(--color-ide-accent)',
+                color: 'var(--color-ide-text)',
+              }}
+              className="text-xs px-1.5 py-0.5 rounded border outline-none w-full shadow-inner"
             />
           </div>
         )}
 
         {fileTree.length === 0 && !isCreatingAtRoot ? (
-          <div className="p-4 text-center text-xs text-[#888] italic pointer-events-none">No files in directory</div>
+          <div className="p-4 text-center text-xs opacity-50 italic pointer-events-none">No files in directory</div>
         ) : (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-            }}
-          >
+          <div className="space-y-0.5">
             {fileTree.map((file) => (
-              <motion.div
-                key={file.path}
-                variants={{
-                  hidden: { opacity: 0, x: -10 },
-                  visible: { opacity: 1, x: 0 }
-                }}
-              >
-                <FileTreeItem node={file} depth={0} />
-              </motion.div>
+              <FileTreeItem key={file.path} node={file} depth={0} />
             ))}
-          </motion.div>
+          </div>
         )}
       </div>
 

@@ -29,7 +29,7 @@ export const TitleBar: React.FC = () => {
         borderColor: 'var(--color-ide-border)',
         color: 'var(--color-ide-text)',
       }}
-      className="h-[38px] border-b text-xs font-sans shrink-0 flex items-center justify-between px-2 select-none cursor-default relative z-[9999]"
+      className="h-[38px] border-b text-xs font-sans shrink-0 flex items-center justify-between px-2 select-none cursor-default relative z-30"
     >
       {/* Left Section: OS Window Controls or Mobile Hamburger */}
       <div data-tauri-drag-region className="flex items-center gap-1.5">
@@ -48,7 +48,7 @@ export const TitleBar: React.FC = () => {
       </div>
 
       {/* Center Section: Quick Search Pill & Title */}
-      <div data-tauri-drag-region className="flex-1 flex items-center justify-center px-2 sm:px-4 max-w-[420px]">
+      <div data-tauri-drag-region className="flex-1 flex items-center justify-center px-2 sm:px-4 max-w-[440px]">
         <button
           data-no-drag
           onClick={() => setQuickOpenOpen(true)}
@@ -57,15 +57,15 @@ export const TitleBar: React.FC = () => {
             borderColor: 'var(--color-ide-border)',
             color: 'var(--color-ide-text)',
           }}
-          className="flex items-center gap-2 border hover:border-ide-accent px-2.5 sm:px-3 py-1 rounded-md text-[11px] opacity-80 hover:opacity-100 transition-all w-full justify-between cursor-pointer"
+          className="group flex items-center gap-2 border hover:border-ide-accent/60 px-3 py-1 rounded-lg text-[11px] opacity-85 hover:opacity-100 transition-all w-full justify-between cursor-pointer shadow-2xs hover:shadow-xs"
         >
-          <div className="flex items-center gap-1.5 truncate">
-            <Search size={12} className="opacity-60 shrink-0" />
-            <span className="truncate text-[10px] sm:text-[11px]">{displayTitle}</span>
+          <div className="flex items-center gap-2 truncate">
+            <Search size={12} className="opacity-50 group-hover:text-ide-accent group-hover:opacity-100 transition-colors shrink-0" />
+            <span className="truncate text-[11px] font-medium">{displayTitle}</span>
           </div>
           <kbd
             style={{ borderColor: 'var(--color-ide-border)' }}
-            className="hidden sm:inline-block font-mono text-[9px] border bg-black/5 dark:bg-white/10 px-1 py-0.2 rounded opacity-70 shrink-0"
+            className="hidden sm:inline-flex items-center font-mono text-[9px] border bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded opacity-60 group-hover:opacity-90 shrink-0 font-semibold"
           >
             {formatShortcut('Cmd+P')}
           </kbd>

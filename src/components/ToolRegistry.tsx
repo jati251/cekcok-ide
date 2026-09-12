@@ -65,14 +65,7 @@ export const TOOLS: Record<ToolId, ToolDefinition> = {
       const errors = state.diagnostics.filter((d: DiagnosticItem) => d.severity === 'error').length
       const warnings = state.diagnostics.filter((d: DiagnosticItem) => d.severity === 'warning').length
       const total = errors + warnings
-      if (total === 0) return undefined
-      return (
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-          errors > 0 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-        }`}>
-          {total}
-        </span>
-      )
+      return total > 0 ? total : undefined
     }
   },
   output: {
@@ -93,11 +86,7 @@ export const TOOLS: Record<ToolId, ToolDefinition> = {
     icon: Globe,
     component: PortsView,
     getBadge: (state) => {
-      return state.ports.length > 0 ? (
-        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-ide-accent/20 text-ide-accent">
-          {state.ports.length}
-        </span>
-      ) : undefined
+      return state.ports.length > 0 ? state.ports.length : undefined
     }
   },
   terminal: {
